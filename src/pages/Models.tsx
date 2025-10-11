@@ -4,7 +4,7 @@ import Sidebar from '@/components/Sidebar';
 import StandbeeldViewer from '@/components/StandbeeldViewer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Eye } from 'lucide-react';
+import { Eye, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Model {
@@ -48,6 +48,38 @@ const Models = () => {
       console.error(error);
     } else {
       setModels(data || []);
+    }
+  };
+
+  const handleDelete = async (modelId: string, filePath: string) => {
+    if (!confirm('Weet je zeker dat je dit model wilt verwijderen?')) return;
+
+    // Delete file from storage
+    const { error: storageError } = await supabase.storage
+      .from('models')
+      .remove([filePath]);
+
+    if (storageError) {
+      toast.error('Fout bij verwijderen bestand');
+      console.error(storageError);
+      return;
+    }
+
+    // Delete database record
+    const { error: dbError } = await supabase
+      .from('models')
+      .delete()
+      .eq('id', modelId);
+
+    if (dbError) {
+      toast.error('Fout bij verwijderen model');
+      console.error(dbError);
+    } else {
+      toast.success('Model verwijderd!');
+      fetchModels();
+      if (selectedModel?.id === modelId) {
+        setSelectedModel(null);
+      }
     }
   };
 
@@ -102,18 +134,30 @@ const Models = () => {
                       )}
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <p className="text-xs text-muted-foreground">
                           {new Date(model.created_at).toLocaleDateString('nl-NL')}
                         </p>
-                        <Button 
-                          onClick={() => setSelectedModel(model)}
-                          size="sm"
-                          className="gap-2"
-                        >
-                          <Eye className="h-4 w-4" />
-                          Bekijk
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={() => setSelectedModel(model)}
+                            size="sm"
+                            className="gap-2"
+                          >
+                            <Eye className="h-4 w-4" />
+                            Bekijk
+                          </Button>
+                          {user?.id === model.user_id && (
+                            <Button 
+                              onClick={() => handleDelete(model.id, model.file_path)}
+                              size="sm"
+                              variant="destructive"
+                              className="gap-2"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

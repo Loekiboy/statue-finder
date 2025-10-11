@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { toast } from 'sonner';
-
+import StandbeeldViewer from './StandbeeldViewer';
+import { Button } from './ui/button';
 
 // Fix for default marker icons in Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -23,8 +24,10 @@ const MapView = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [showViewer, setShowViewer] = useState(false);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
+  const customMarkersRef = useRef<L.Marker[]>([]);
 
   useEffect(() => {
     // Get user's location
@@ -124,10 +127,13 @@ const MapView = () => {
       .bindPopup('<b>Jouw Locatie</b><br>Je bent hier!')
       .openPopup();
 
-    // Add marker for standbeeld
+    // Add marker for standbeeld with click handler
     standbeeldMarkerRef.current = L.marker(STANDBEELD_LOCATION, { icon: standbeeldIcon })
       .addTo(map.current)
-      .bindPopup('<b>Weezenhof Standbeeld</b><br>3D model zichtbaar rechtsonder');
+      .bindPopup('<b>Weezenhof Standbeeld</b><br>Klik om 3D model te bekijken')
+      .on('click', () => {
+        setShowViewer(true);
+      });
 
     // Add circle to show accuracy for user location
     L.circle(userLocation, {
@@ -137,6 +143,34 @@ const MapView = () => {
       radius: 100,
     }).addTo(map.current);
 
+    // Add right-click handler for custom markers
+    map.current.on('contextmenu', (e: L.LeafletMouseEvent) => {
+      if (!map.current) return;
+      
+      const customIcon = L.divIcon({
+        className: 'custom-marker-test',
+        html: `
+          <div style="
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: hsl(0, 75%, 55%);
+            border: 3px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          "></div>
+        `,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+      });
+
+      const marker = L.marker(e.latlng, { icon: customIcon })
+        .addTo(map.current)
+        .bindPopup(`<b>Custom Marker</b><br>${e.latlng.lat.toFixed(4)}°N, ${e.latlng.lng.toFixed(4)}°E`);
+      
+      customMarkersRef.current.push(marker);
+      toast.success('Marker toegevoegd!');
+    });
+
     return () => {
       map.current?.remove();
       map.current = null;
@@ -145,18 +179,33 @@ const MapView = () => {
 
   return (
     <div className="relative h-screen w-full">
-      <div ref={mapContainer} className="absolute inset-0" />
-      
-      {/* Info card */}
-      <div className="absolute left-20 top-4 z-10 rounded-xl bg-card/95 px-4 py-3 shadow-[var(--shadow-elevated)] backdrop-blur-sm">
-        <p className="text-lg font-bold text-foreground">Je Locatie</p>
-        {userLocation && (
-          <p className="text-xs text-muted-foreground">
-            {userLocation[0].toFixed(4)}°N, {userLocation[1].toFixed(4)}°E
-          </p>
-        )}
-      </div>
-
+      {showViewer ? (
+        <div className="absolute inset-0 z-50 bg-background">
+          <div className="absolute top-4 left-4 z-[60]">
+            <Button onClick={() => setShowViewer(false)} variant="outline">
+              ← Terug naar kaart
+            </Button>
+          </div>
+          <StandbeeldViewer onClose={() => setShowViewer(false)} />
+        </div>
+      ) : (
+        <>
+          <div ref={mapContainer} className="absolute inset-0" />
+          
+          {/* Info card */}
+          <div className="absolute left-20 top-4 z-10 rounded-xl bg-card/95 px-4 py-3 shadow-[var(--shadow-elevated)] backdrop-blur-sm">
+            <p className="text-lg font-bold text-foreground">Je Locatie</p>
+            {userLocation && (
+              <p className="text-xs text-muted-foreground">
+                {userLocation[0].toFixed(4)}°N, {userLocation[1].toFixed(4)}°E
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground mt-2">
+              💡 Rechterklik op kaart voor marker
+            </p>
+          </div>
+        </>
+      )}
     </div>
   );
 };
