@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { Suspense, useState, lazy } from 'react';
 import MapView from '@/components/MapView';
-import ModelViewer from '@/components/ModelViewer';
+// Lazy-load de 3D viewer om importproblemen te isoleren
+const ModelViewer = lazy(() => import('@/components/ModelViewer'));
 import { Map, Box } from 'lucide-react';
 
 const Index = () => {
@@ -46,7 +47,9 @@ const Index = () => {
         ) : (
           <div className="flex h-full items-center justify-center p-8">
             <div className="h-[600px] w-full max-w-4xl">
-              <ModelViewer />
+              <Suspense fallback={<div className="flex h-full items-center justify-center text-muted-foreground">3D viewer laden...</div>}>
+                <ModelViewer />
+              </Suspense>
             </div>
           </div>
         )}
