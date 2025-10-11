@@ -6,9 +6,10 @@ import { X } from 'lucide-react';
 
 interface StandbeeldViewerProps {
   onClose: () => void;
+  modelPath?: string;
 }
 
-const StandbeeldViewer = ({ onClose }: StandbeeldViewerProps) => {
+const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.stl' }: StandbeeldViewerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,7 +60,7 @@ const StandbeeldViewer = ({ onClose }: StandbeeldViewerProps) => {
     // Load STL model
     const loader = new STLLoader();
     loader.load(
-      '/models/standbeeld_weezenhof.stl',
+      modelPath,
       (geometry) => {
         // Center the geometry
         geometry.center();
