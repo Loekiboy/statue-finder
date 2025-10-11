@@ -40,6 +40,7 @@ const MapView = () => {
   const userMarkerRef = useRef<L.Marker | null>(null);
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
 
   // Fetch models from database
   useEffect(() => {
@@ -93,7 +94,7 @@ const MapView = () => {
     map.current = L.map(mapContainer.current).setView(userLocation, 13);
 
     // Add OpenStreetMap tile layer (completely free!)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    tileLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
     }).addTo(map.current);
@@ -254,11 +255,18 @@ const MapView = () => {
       if (userMarkerRef.current) userMarkerRef.current.addTo(map.current);
       if (standbeeldMarkerRef.current) standbeeldMarkerRef.current.addTo(map.current);
       modelMarkersRef.current.forEach(marker => marker.addTo(map.current!));
-      
+
       // Force map to re-render properly after returning from viewer
-      setTimeout(() => {
-        map.current?.invalidateSize();
-      }, 100);
+      const refresh = () => {
+        map.current?.invalidateSize(true);
+        tileLayerRef.current?.redraw();
+        const center = map.current!.getCenter();
+        const zoom = map.current!.getZoom();
+        map.current!.setView(center, zoom, { animate: false });
+      };
+      // Immediate and delayed refresh to ensure DOM is settled
+      refresh();
+      setTimeout(refresh, 150);
     }
   }, [showViewer]);
 
