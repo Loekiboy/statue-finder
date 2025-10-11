@@ -143,32 +143,22 @@ const MapView = () => {
       radius: 100,
     }).addTo(map.current);
 
-    // Add right-click handler for custom markers
+    // Add right-click handler to update user location (beta test feature)
     map.current.on('contextmenu', (e: L.LeafletMouseEvent) => {
-      if (!map.current) return;
+      if (!map.current || !userMarkerRef.current) return;
       
-      const customIcon = L.divIcon({
-        className: 'custom-marker-test',
-        html: `
-          <div style="
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background-color: hsl(0, 75%, 55%);
-            border: 3px solid white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-          "></div>
-        `,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-      });
-
-      const marker = L.marker(e.latlng, { icon: customIcon })
-        .addTo(map.current)
-        .bindPopup(`<b>Custom Marker</b><br>${e.latlng.lat.toFixed(4)}°N, ${e.latlng.lng.toFixed(4)}°E`);
+      // Update user location
+      const newLocation: [number, number] = [e.latlng.lat, e.latlng.lng];
+      setUserLocation(newLocation);
       
-      customMarkersRef.current.push(marker);
-      toast.success('Marker toegevoegd!');
+      // Update marker position
+      userMarkerRef.current.setLatLng(e.latlng);
+      userMarkerRef.current.bindPopup('<b>Jouw Locatie</b><br>Je bent hier!').openPopup();
+      
+      // Center map on new location
+      map.current.setView(e.latlng, map.current.getZoom());
+      
+      toast.success('Locatie bijgewerkt!');
     });
 
     return () => {

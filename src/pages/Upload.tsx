@@ -28,6 +28,16 @@ const Upload = () => {
         });
         return;
       }
+      // Check file size (40MB = 40 * 1024 * 1024 bytes)
+      const maxSize = 40 * 1024 * 1024;
+      if (selectedFile.size > maxSize) {
+        toast({
+          title: 'Bestand te groot',
+          description: 'Maximale bestandsgrootte is 40MB',
+          variant: 'destructive',
+        });
+        return;
+      }
       setFile(selectedFile);
     }
   };
