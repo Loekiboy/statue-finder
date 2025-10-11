@@ -178,7 +178,7 @@ const MapView = () => {
               width: 35px;
               height: 35px;
               border-radius: 50%;
-              background-color: hsl(280, 75%, 55%);
+              background-color: hsl(140, 75%, 45%);
               border: 3px solid white;
               box-shadow: 0 3px 10px rgba(0,0,0,0.3);
               display: flex;
@@ -191,7 +191,7 @@ const MapView = () => {
                 color: white;
                 font-weight: bold;
                 font-size: 14px;
-              ">M</div>
+              ">S</div>
             </div>
           `,
           iconSize: [35, 35],
