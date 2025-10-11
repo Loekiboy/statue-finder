@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { toast } from 'sonner';
-import StandbeeldViewer from './StandbeeldViewer';
+
 
 // Fix for default marker icons in Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -157,12 +157,6 @@ const MapView = () => {
         )}
       </div>
 
-      {/* 3D Model overlay at standbeeld location */}
-      <div className="absolute right-4 bottom-4 z-10 h-80 w-80 rounded-xl bg-card shadow-2xl overflow-hidden border-2 border-border">
-        <div className="h-full w-full">
-          <StandbeeldViewer onClose={() => {}} />
-        </div>
-      </div>
     </div>
   );
 };
