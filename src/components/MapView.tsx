@@ -23,7 +23,6 @@ const MapView = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-  const [showStandbeeld, setShowStandbeeld] = useState(false);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
 
@@ -128,12 +127,7 @@ const MapView = () => {
     // Add marker for standbeeld
     standbeeldMarkerRef.current = L.marker(STANDBEELD_LOCATION, { icon: standbeeldIcon })
       .addTo(map.current)
-      .bindPopup('<b>Weezenhof Standbeeld</b><br>Klik om 3D model te zien');
-    
-    // Add click event to open 3D viewer
-    standbeeldMarkerRef.current.on('click', () => {
-      setShowStandbeeld(true);
-    });
+      .bindPopup('<b>Weezenhof Standbeeld</b><br>3D model zichtbaar rechtsonder');
 
     // Add circle to show accuracy for user location
     L.circle(userLocation, {
@@ -150,21 +144,26 @@ const MapView = () => {
   }, [userLocation]);
 
   return (
-    <>
-      <div className="relative h-screen w-full">
-        <div ref={mapContainer} className="absolute inset-0" />
-        <div className="absolute left-20 top-4 z-10 rounded-xl bg-card/95 px-4 py-3 shadow-[var(--shadow-elevated)] backdrop-blur-sm">
-          <p className="text-lg font-bold text-foreground">Je Locatie</p>
-          {userLocation && (
-            <p className="text-xs text-muted-foreground">
-              {userLocation[0].toFixed(4)}°N, {userLocation[1].toFixed(4)}°E
-            </p>
-          )}
+    <div className="relative h-screen w-full">
+      <div ref={mapContainer} className="absolute inset-0" />
+      
+      {/* Info card */}
+      <div className="absolute left-20 top-4 z-10 rounded-xl bg-card/95 px-4 py-3 shadow-[var(--shadow-elevated)] backdrop-blur-sm">
+        <p className="text-lg font-bold text-foreground">Je Locatie</p>
+        {userLocation && (
+          <p className="text-xs text-muted-foreground">
+            {userLocation[0].toFixed(4)}°N, {userLocation[1].toFixed(4)}°E
+          </p>
+        )}
+      </div>
+
+      {/* 3D Model overlay at standbeeld location */}
+      <div className="absolute right-4 bottom-4 z-10 h-80 w-80 rounded-xl bg-card shadow-2xl overflow-hidden border-2 border-border">
+        <div className="h-full w-full">
+          <StandbeeldViewer onClose={() => {}} />
         </div>
       </div>
-      
-      {showStandbeeld && <StandbeeldViewer onClose={() => setShowStandbeeld(false)} />}
-    </>
+    </div>
   );
 };
 

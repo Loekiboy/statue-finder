@@ -131,28 +131,15 @@ const StandbeeldViewer = ({ onClose }: StandbeeldViewerProps) => {
   }, []);
 
   return (
-    <div 
-      className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      style={{ zIndex: 9999 }}
-    >
-      <div className="relative h-[85vh] w-[90vw] max-w-5xl overflow-hidden rounded-2xl bg-card shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">Weezenhof Standbeeld</h2>
-            <p className="text-sm text-muted-foreground">Sleep om te roteren • Scroll om te zoomen</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive text-destructive-foreground transition-all hover:bg-destructive/90"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        
-        {/* 3D Container */}
-        <div ref={containerRef} className="h-[calc(100%-73px)] w-full bg-gradient-to-br from-background to-muted" />
+    <div className="relative h-full w-full">
+      {/* Header */}
+      <div className="absolute top-0 left-0 right-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm px-3 py-2">
+        <h3 className="text-sm font-bold text-foreground">Weezenhof Standbeeld</h3>
+        <p className="text-xs text-muted-foreground">Sleep om te roteren</p>
       </div>
+      
+      {/* 3D Container */}
+      <div ref={containerRef} className="h-full w-full bg-gradient-to-br from-background to-muted" />
     </div>
   );
 };
