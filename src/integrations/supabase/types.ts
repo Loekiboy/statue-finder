@@ -20,6 +20,8 @@ export type Database = {
           description: string | null
           file_path: string
           id: string
+          latitude: number | null
+          longitude: number | null
           name: string
           updated_at: string
           user_id: string
@@ -29,6 +31,8 @@ export type Database = {
           description?: string | null
           file_path: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name: string
           updated_at?: string
           user_id: string
@@ -38,6 +42,8 @@ export type Database = {
           description?: string | null
           file_path?: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           updated_at?: string
           user_id?: string

@@ -3,6 +3,16 @@ import L from 'leaflet';
 import { toast } from 'sonner';
 import StandbeeldViewer from './StandbeeldViewer';
 import { Button } from './ui/button';
+import { supabase } from '@/integrations/supabase/client';
+
+interface Model {
+  id: string;
+  name: string;
+  description: string | null;
+  file_path: string;
+  latitude: number | null;
+  longitude: number | null;
+}
 
 // Fix for default marker icons in Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -25,9 +35,31 @@ const MapView = () => {
   const map = useRef<L.Map | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [showViewer, setShowViewer] = useState(false);
+  const [selectedModelPath, setSelectedModelPath] = useState<string>('');
+  const [models, setModels] = useState<Model[]>([]);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
-  const customMarkersRef = useRef<L.Marker[]>([]);
+  const modelMarkersRef = useRef<L.Marker[]>([]);
+
+  // Fetch models from database
+  useEffect(() => {
+    const fetchModels = async () => {
+      const { data, error } = await supabase
+        .from('models')
+        .select('*')
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null);
+      
+      if (error) {
+        console.error('Error fetching models:', error);
+        return;
+      }
+      
+      setModels(data || []);
+    };
+    
+    fetchModels();
+  }, []);
 
   useEffect(() => {
     // Get user's location
@@ -132,8 +164,51 @@ const MapView = () => {
       .addTo(map.current)
       .bindPopup('<b>Weezenhof Standbeeld</b><br>Klik om 3D model te bekijken')
       .on('click', () => {
+        setSelectedModelPath('/models/standbeeld_weezenhof.stl');
         setShowViewer(true);
       });
+
+    // Add markers for uploaded models
+    models.forEach((model) => {
+      if (model.latitude && model.longitude && map.current) {
+        const modelIcon = L.divIcon({
+          className: 'custom-marker-model',
+          html: `
+            <div style="
+              width: 35px;
+              height: 35px;
+              border-radius: 50%;
+              background-color: hsl(280, 75%, 55%);
+              border: 3px solid white;
+              box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            ">
+              <div style="
+                width: 18px;
+                height: 18px;
+                color: white;
+                font-weight: bold;
+                font-size: 14px;
+              ">M</div>
+            </div>
+          `,
+          iconSize: [35, 35],
+          iconAnchor: [17.5, 17.5],
+        });
+
+        const modelMarker = L.marker([model.latitude, model.longitude], { icon: modelIcon })
+          .addTo(map.current)
+          .bindPopup(`<b>${model.name}</b><br>${model.description || 'Klik om 3D model te bekijken'}`)
+          .on('click', () => {
+            setSelectedModelPath(model.file_path);
+            setShowViewer(true);
+          });
+        
+        modelMarkersRef.current.push(modelMarker);
+      }
+    });
 
     // Add circle to show accuracy for user location
     L.circle(userLocation, {
@@ -165,7 +240,7 @@ const MapView = () => {
       map.current?.remove();
       map.current = null;
     };
-  }, [userLocation]);
+  }, [userLocation, models]);
 
   return (
     <div className="relative h-screen w-full">
@@ -176,7 +251,10 @@ const MapView = () => {
               ← Terug naar kaart
             </Button>
           </div>
-          <StandbeeldViewer onClose={() => setShowViewer(false)} />
+          <StandbeeldViewer 
+            modelPath={selectedModelPath}
+            onClose={() => setShowViewer(false)} 
+          />
         </div>
       ) : (
         <>
@@ -191,7 +269,7 @@ const MapView = () => {
               </p>
             )}
             <p className="text-xs text-muted-foreground mt-2">
-              💡 Rechterklik op kaart voor marker
+              💡 Rechterklik om locatie te wijzigen
             </p>
           </div>
         </>
