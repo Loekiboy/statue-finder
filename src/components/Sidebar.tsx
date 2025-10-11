@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Upload, LogIn, LogOut } from 'lucide-react';
+import { Home, Upload, LogIn, LogOut, Boxes } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 
@@ -32,6 +32,13 @@ const Sidebar = () => {
         className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all hover:bg-primary/90"
       >
         <Home className="h-5 w-5" />
+      </button>
+
+      <button 
+        onClick={() => navigate('/models')}
+        className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-all hover:bg-accent/90"
+      >
+        <Boxes className="h-5 w-5" />
       </button>
       
       {user && (
