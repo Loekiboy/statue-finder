@@ -242,6 +242,21 @@ const MapView = () => {
     };
   }, [userLocation, models]);
 
+  // Hide/show markers when viewer opens/closes
+  useEffect(() => {
+    if (showViewer) {
+      // Hide all markers
+      userMarkerRef.current?.remove();
+      standbeeldMarkerRef.current?.remove();
+      modelMarkersRef.current.forEach(marker => marker.remove());
+    } else if (map.current) {
+      // Show markers again
+      if (userMarkerRef.current) userMarkerRef.current.addTo(map.current);
+      if (standbeeldMarkerRef.current) standbeeldMarkerRef.current.addTo(map.current);
+      modelMarkersRef.current.forEach(marker => marker.addTo(map.current!));
+    }
+  }, [showViewer]);
+
   return (
     <div className="relative h-screen w-full">
       {showViewer ? (
