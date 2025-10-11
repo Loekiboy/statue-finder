@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface StandbeeldViewerProps {
   onClose: () => void;
@@ -11,9 +12,30 @@ interface StandbeeldViewerProps {
 
 const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.stl' }: StandbeeldViewerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [modelUrl, setModelUrl] = useState<string>('');
+
+  // Get the correct URL for the model
+  useEffect(() => {
+    const getModelUrl = async () => {
+      // If it's a public path (starts with /), use it directly
+      if (modelPath.startsWith('/')) {
+        setModelUrl(modelPath);
+        return;
+      }
+      
+      // Otherwise, it's a Supabase storage path - get the public URL
+      const { data } = supabase.storage
+        .from('models')
+        .getPublicUrl(modelPath);
+      
+      setModelUrl(data.publicUrl);
+    };
+    
+    getModelUrl();
+  }, [modelPath]);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || !modelUrl) return;
 
     const container = containerRef.current;
     
@@ -60,7 +82,7 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
     // Load STL model
     const loader = new STLLoader();
     loader.load(
-      modelPath,
+      modelUrl,
       (geometry) => {
         // Center the geometry
         geometry.center();
@@ -129,7 +151,7 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
       }
       renderer.dispose();
     };
-  }, []);
+  }, [modelUrl]);
 
   return (
     <div className="relative h-full w-full z-50">
