@@ -15,11 +15,15 @@ const DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
+// Locatie van het Weezenhof standbeeld in Gouda (voorbeeld coördinaten)
+const STANDBEELD_LOCATION: [number, number] = [52.0116, 4.7105];
+
 const MapView = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-  const markerRef = useRef<L.Marker | null>(null);
+  const userMarkerRef = useRef<L.Marker | null>(null);
+  const standbeeldMarkerRef = useRef<L.Marker | null>(null);
 
   useEffect(() => {
     // Get user's location
@@ -50,7 +54,7 @@ const MapView = () => {
     if (!mapContainer.current || !userLocation || map.current) return;
 
     // Initialize map
-    map.current = L.map(mapContainer.current).setView(userLocation, 15);
+    map.current = L.map(mapContainer.current).setView(userLocation, 13);
 
     // Add OpenStreetMap tile layer (completely free!)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -58,15 +62,15 @@ const MapView = () => {
       maxZoom: 19,
     }).addTo(map.current);
 
-    // Create custom marker icon
-    const customIcon = L.divIcon({
-      className: 'custom-marker',
+    // Create custom icon for user location (blue)
+    const userIcon = L.divIcon({
+      className: 'custom-marker-user',
       html: `
         <div style="
           width: 40px;
           height: 40px;
           border-radius: 50%;
-          background-color: hsl(195, 85%, 45%);
+          background-color: hsl(220, 85%, 55%);
           border: 4px solid white;
           box-shadow: 0 4px 12px rgba(0,0,0,0.3);
           display: flex;
@@ -85,16 +89,49 @@ const MapView = () => {
       iconAnchor: [20, 20],
     });
 
-    // Add marker with popup
-    markerRef.current = L.marker(userLocation, { icon: customIcon })
+    // Create custom icon for standbeeld (green)
+    const standbeeldIcon = L.divIcon({
+      className: 'custom-marker-standbeeld',
+      html: `
+        <div style="
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background-color: hsl(140, 75%, 45%);
+          border: 4px solid white;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <div style="
+            width: 20px;
+            height: 20px;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+          ">S</div>
+        </div>
+      `,
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
+    });
+
+    // Add marker for user location
+    userMarkerRef.current = L.marker(userLocation, { icon: userIcon })
       .addTo(map.current)
       .bindPopup('<b>Jouw Locatie</b><br>Je bent hier!')
       .openPopup();
 
-    // Add circle to show accuracy
+    // Add marker for standbeeld
+    standbeeldMarkerRef.current = L.marker(STANDBEELD_LOCATION, { icon: standbeeldIcon })
+      .addTo(map.current)
+      .bindPopup('<b>Weezenhof Standbeeld</b><br>Klik om details te zien');
+
+    // Add circle to show accuracy for user location
     L.circle(userLocation, {
-      color: 'hsl(195, 85%, 45%)',
-      fillColor: 'hsl(195, 85%, 45%)',
+      color: 'hsl(220, 85%, 55%)',
+      fillColor: 'hsl(220, 85%, 55%)',
       fillOpacity: 0.1,
       radius: 100,
     }).addTo(map.current);
@@ -107,15 +144,15 @@ const MapView = () => {
 
   return (
     <div className="relative h-screen w-full">
-      <div ref={mapContainer} className="absolute inset-0 z-0" />
-      {userLocation && (
-        <div className="absolute left-4 top-20 z-10 rounded-xl bg-card/95 px-4 py-3 shadow-[var(--shadow-elevated)] backdrop-blur-sm">
-          <p className="text-sm font-semibold text-foreground">Jouw Locatie</p>
+      <div ref={mapContainer} className="absolute inset-0" />
+      <div className="absolute left-20 top-4 z-10 rounded-xl bg-card/95 px-4 py-3 shadow-[var(--shadow-elevated)] backdrop-blur-sm">
+        <p className="text-lg font-bold text-foreground">Je Locatie</p>
+        {userLocation && (
           <p className="text-xs text-muted-foreground">
             {userLocation[0].toFixed(4)}°N, {userLocation[1].toFixed(4)}°E
           </p>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
