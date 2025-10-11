@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { X } from 'lucide-react';
 
@@ -55,16 +56,50 @@ const StandbeeldViewer = ({ onClose }: StandbeeldViewerProps) => {
     const gridHelper = new THREE.GridHelper(10, 10, 0x00aaaa, 0xcccccc);
     scene.add(gridHelper);
     
-    // Placeholder - groene kubus (vervangt het STL model tijdelijk)
-    const geometry = new THREE.BoxGeometry(2, 2, 2);
-    const material = new THREE.MeshPhongMaterial({
-      color: 0x2ca87f,
-      specular: 0x222222,
-      shininess: 100,
-    });
-    const cube = new THREE.Mesh(geometry, material);
-    cube.position.y = 1;
-    scene.add(cube);
+    // Load STL model
+    const loader = new STLLoader();
+    loader.load(
+      '/models/standbeeld_weezenhof.stl',
+      (geometry) => {
+        // Center the geometry
+        geometry.center();
+        geometry.computeVertexNormals();
+        
+        // Create material
+        const material = new THREE.MeshPhongMaterial({
+          color: 0x2ca87f,
+          specular: 0x333333,
+          shininess: 80,
+          flatShading: false,
+        });
+        
+        // Create mesh
+        const mesh = new THREE.Mesh(geometry, material);
+        
+        // Rotate to upright position (STL files often need rotation)
+        mesh.rotation.x = -Math.PI / 2;
+        
+        // Scale if needed (adjust deze waarde als het model te groot/klein is)
+        const scale = 0.05;
+        mesh.scale.set(scale, scale, scale);
+        
+        scene.add(mesh);
+        
+        console.log('STL model geladen!');
+      },
+      (progress) => {
+        console.log('Laden:', (progress.loaded / progress.total * 100).toFixed(0) + '%');
+      },
+      (error) => {
+        console.error('Fout bij laden STL:', error);
+        // Fallback: toon kubus bij fout
+        const geometry = new THREE.BoxGeometry(2, 2, 2);
+        const material = new THREE.MeshPhongMaterial({ color: 0x2ca87f });
+        const cube = new THREE.Mesh(geometry, material);
+        cube.position.y = 1;
+        scene.add(cube);
+      }
+    );
     
     // Animation loop
     let animationId: number;
@@ -92,8 +127,6 @@ const StandbeeldViewer = ({ onClose }: StandbeeldViewerProps) => {
         container.removeChild(renderer.domElement);
       }
       renderer.dispose();
-      geometry.dispose();
-      material.dispose();
     };
   }, []);
 
