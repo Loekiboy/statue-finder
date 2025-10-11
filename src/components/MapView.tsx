@@ -254,6 +254,11 @@ const MapView = () => {
       if (userMarkerRef.current) userMarkerRef.current.addTo(map.current);
       if (standbeeldMarkerRef.current) standbeeldMarkerRef.current.addTo(map.current);
       modelMarkersRef.current.forEach(marker => marker.addTo(map.current!));
+      
+      // Force map to re-render properly after returning from viewer
+      setTimeout(() => {
+        map.current?.invalidateSize();
+      }, 100);
     }
   }, [showViewer]);
 
