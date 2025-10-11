@@ -75,8 +75,11 @@ const Models = () => {
                   )}
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[600px] w-full rounded-lg overflow-hidden bg-gradient-to-br from-background to-muted">
-                    <StandbeeldViewer onClose={() => setSelectedModel(null)} />
+                  <div className="h-[600px] w-full rounded-lg overflow-hidden bg-gradient-to-br from-background to-muted relative z-50">
+                    <StandbeeldViewer 
+                      onClose={() => setSelectedModel(null)} 
+                      modelPath={selectedModel.file_path}
+                    />
                   </div>
                 </CardContent>
               </Card>
