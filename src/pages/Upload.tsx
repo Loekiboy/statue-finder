@@ -11,6 +11,7 @@ import { ArrowLeft, Upload as UploadIcon, MapPin } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { z } from 'zod';
+import { ThumbnailGenerator } from '@/components/ThumbnailGenerator';
 
 const modelSchema = z.object({
   name: z.string().trim().min(1, 'Naam is verplicht').max(100, 'Naam mag maximaal 100 tekens zijn'),
@@ -26,6 +27,9 @@ const Upload = () => {
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [generateThumbnail, setGenerateThumbnail] = useState(false);
+  const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null);
+  const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -142,15 +146,71 @@ const Upload = () => {
 
       if (uploadError) throw uploadError;
 
+      // Set the uploaded file path and trigger thumbnail generation
+      setUploadedFilePath(fileName);
+      setGenerateThumbnail(true);
+    } catch (error: any) {
+      const safeMessage = error.code === '23514' 
+        ? 'Invoer voldoet niet aan de vereisten'
+        : 'Er is een fout opgetreden bij het uploaden';
+      
+      toast({
+        title: 'Upload mislukt',
+        description: safeMessage,
+        variant: 'destructive',
+      });
+      setLoading(false);
+    }
+  };
+
+  const handleThumbnailGenerated = async (dataUrl: string) => {
+    setThumbnailDataUrl(dataUrl);
+    setGenerateThumbnail(false);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !uploadedFilePath) throw new Error('Niet ingelogd');
+
+      // Convert data URL to blob
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      
+      // Upload thumbnail to storage
+      const thumbnailFileName = `${user.id}/${Date.now()}_thumb.png`;
+      const { error: thumbnailUploadError } = await supabase.storage
+        .from('model-thumbnails')
+        .upload(thumbnailFileName, blob);
+
+      if (thumbnailUploadError) throw thumbnailUploadError;
+
+      // Get public URL for thumbnail
+      const { data: { publicUrl } } = supabase.storage
+        .from('model-thumbnails')
+        .getPublicUrl(thumbnailFileName);
+
+      // Validate input data again for DB insert
+      const validationResult = modelSchema.safeParse({
+        name,
+        description: description || undefined,
+        latitude,
+        longitude,
+      });
+
+      if (!validationResult.success) {
+        throw new Error('Validatiefout');
+      }
+
+      // Insert model with thumbnail URL
       const { error: dbError } = await supabase
         .from('models')
         .insert({
           user_id: user.id,
           name: validationResult.data.name,
           description: validationResult.data.description || null,
-          file_path: fileName,
+          file_path: uploadedFilePath,
           latitude: validationResult.data.latitude,
           longitude: validationResult.data.longitude,
+          thumbnail_url: publicUrl,
         });
 
       if (dbError) throw dbError;
@@ -174,6 +234,13 @@ const Upload = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted p-4">
+      {generateThumbnail && uploadedFilePath && (
+        <ThumbnailGenerator
+          modelPath={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/models/${uploadedFilePath}`}
+          onThumbnailGenerated={handleThumbnailGenerated}
+        />
+      )}
+      
       <div className="mx-auto max-w-2xl pt-8">
         <Button
           variant="ghost"

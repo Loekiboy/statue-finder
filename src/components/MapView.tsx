@@ -12,6 +12,7 @@ interface Model {
   file_path: string;
   latitude: number | null;
   longitude: number | null;
+  thumbnail_url: string | null;
 }
 
 // Fix for default marker icons in Leaflet
@@ -132,31 +133,34 @@ const MapView = () => {
       iconAnchor: [20, 20],
     });
 
-    // Create custom icon for standbeeld (green)
+    // Create custom icon for standbeeld (with placeholder thumbnail)
     const standbeeldIcon = L.divIcon({
       className: 'custom-marker-standbeeld',
       html: `
         <div style="
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background-color: hsl(140, 75%, 45%);
-          border: 4px solid white;
+          width: 50px;
+          height: 50px;
+          border-radius: 8px;
+          background-color: white;
+          border: 3px solid hsl(140, 75%, 45%);
           box-shadow: 0 4px 12px rgba(0,0,0,0.3);
           display: flex;
           align-items: center;
           justify-content: center;
           overflow: hidden;
+          background-image: url('/models/standbeeld_weezenhof.stl');
+          background-size: cover;
+          background-position: center;
         ">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="hsl(140, 75%, 45%)" stroke-width="2">
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
             <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
             <line x1="12" y1="22.08" x2="12" y2="12"/>
           </svg>
         </div>
       `,
-      iconSize: [40, 40],
-      iconAnchor: [20, 20],
+      iconSize: [50, 50],
+      iconAnchor: [25, 25],
     });
 
     // Add marker for user location
@@ -180,30 +184,35 @@ const MapView = () => {
     // Add markers for uploaded models
     models.forEach((model) => {
       if (model.latitude && model.longitude && map.current) {
+        const thumbnailUrl = model.thumbnail_url;
+        
         const modelIcon = L.divIcon({
           className: 'custom-marker-model',
           html: `
             <div style="
-              width: 35px;
-              height: 35px;
-              border-radius: 50%;
-              background-color: hsl(140, 75%, 45%);
-              border: 3px solid white;
+              width: 50px;
+              height: 50px;
+              border-radius: 8px;
+              background-color: white;
+              border: 3px solid hsl(140, 75%, 45%);
               box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+              overflow: hidden;
               display: flex;
               align-items: center;
               justify-content: center;
-              overflow: hidden;
+              ${thumbnailUrl ? `background-image: url('${thumbnailUrl}'); background-size: cover; background-position: center;` : ''}
             ">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                <line x1="12" y1="22.08" x2="12" y2="12"/>
-              </svg>
+              ${!thumbnailUrl ? `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="hsl(140, 75%, 45%)" stroke-width="2">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                  <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+              ` : ''}
             </div>
           `,
-          iconSize: [35, 35],
-          iconAnchor: [17.5, 17.5],
+          iconSize: [50, 50],
+          iconAnchor: [25, 25],
         });
 
         const modelMarker = L.marker([model.latitude, model.longitude], { icon: modelIcon })
