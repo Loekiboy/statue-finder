@@ -311,8 +311,8 @@ const Profile = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="nl">🇳🇱 {t.dutch}</SelectItem>
-                      <SelectItem value="en">🇬🇧 {t.english}</SelectItem>
+                      <SelectItem value="nl">{t.dutch}</SelectItem>
+                      <SelectItem value="en">{t.english}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
