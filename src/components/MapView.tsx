@@ -191,53 +191,63 @@ const MapView = () => {
     // Clear old model markers
     modelMarkersRef.current = [];
 
-    // Add markers for uploaded models
+    // Add markers for uploaded models (only within proximity)
+    const PROXIMITY_RADIUS = 50; // meters - same as the blue circle
+    
     models.forEach((model) => {
       if (model.latitude && model.longitude && map.current) {
-        const thumbnailUrl = model.thumbnail_url;
+        // Calculate distance between user and model
+        const modelLatLng = L.latLng(model.latitude, model.longitude);
+        const userLatLng = L.latLng(userLocation);
+        const distance = userLatLng.distanceTo(modelLatLng);
         
-        const modelIcon = L.divIcon({
-          className: 'custom-marker-model',
-          html: `
-            <div style="
-              width: 80px;
-              height: 80px;
-              border-radius: 12px;
-              background-color: white;
-              border: 4px solid hsl(140, 75%, 45%);
-              box-shadow: 0 4px 14px rgba(0,0,0,0.4);
-              overflow: hidden;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              ${thumbnailUrl ? `background-image: url('${thumbnailUrl}'); background-size: cover; background-position: center;` : ''}
-            ">
-              ${!thumbnailUrl ? `
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="hsl(140, 75%, 45%)" stroke-width="2">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                  <line x1="12" y1="22.08" x2="12" y2="12"/>
-                </svg>
-              ` : ''}
-            </div>
-          `,
-          iconSize: [80, 80],
-          iconAnchor: [40, 40],
-        });
-
-        const modelMarker = L.marker([model.latitude, model.longitude], { icon: modelIcon })
-          .addTo(map.current)
-          .bindPopup(`<b>${model.name}</b><br>${model.description || 'Klik om 3D model te bekijken'}`)
-          .on('click', () => {
-            setSelectedModel({
-              name: model.name,
-              description: model.description,
-              file_path: model.file_path
-            });
-            setShowViewer(true);
+        // Only show model if within proximity radius
+        if (distance <= PROXIMITY_RADIUS) {
+          const thumbnailUrl = model.thumbnail_url;
+          
+          const modelIcon = L.divIcon({
+            className: 'custom-marker-model',
+            html: `
+              <div style="
+                width: 80px;
+                height: 80px;
+                border-radius: 12px;
+                background-color: white;
+                border: 4px solid hsl(140, 75%, 45%);
+                box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+                overflow: hidden;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                ${thumbnailUrl ? `background-image: url('${thumbnailUrl}'); background-size: cover; background-position: center;` : ''}
+              ">
+                ${!thumbnailUrl ? `
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="hsl(140, 75%, 45%)" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                  </svg>
+                ` : ''}
+              </div>
+            `,
+            iconSize: [80, 80],
+            iconAnchor: [40, 40],
           });
-        
-        modelMarkersRef.current.push(modelMarker);
+
+          const modelMarker = L.marker([model.latitude, model.longitude], { icon: modelIcon })
+            .addTo(map.current)
+            .bindPopup(`<b>${model.name}</b><br>${model.description || 'Klik om 3D model te bekijken'}`)
+            .on('click', () => {
+              setSelectedModel({
+                name: model.name,
+                description: model.description,
+                file_path: model.file_path
+              });
+              setShowViewer(true);
+            });
+          
+          modelMarkersRef.current.push(modelMarker);
+        }
       }
     });
 

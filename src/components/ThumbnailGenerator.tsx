@@ -60,14 +60,14 @@ export const ThumbnailGenerator = ({ modelPath, onThumbnailGenerated }: Thumbnai
   return (
     <div style={{ position: 'absolute', left: '-9999px', width: '400px', height: '400px' }}>
       <Canvas 
-        camera={{ position: [3, 2, 3], fov: 50 }}
+        camera={{ position: [2, 3, 2], fov: 45 }}
         gl={{ preserveDrawingBuffer: true, alpha: false }}
       >
         <color attach="background" args={['#ffffff']} />
-        <ambientLight intensity={0.8} />
-        <directionalLight position={[5, 5, 5]} intensity={1.2} />
-        <directionalLight position={[-5, -5, -5]} intensity={0.5} />
-        <directionalLight position={[0, 10, 0]} intensity={0.8} />
+        <ambientLight intensity={0.7} />
+        <directionalLight position={[3, 5, 3]} intensity={1.5} />
+        <directionalLight position={[-3, 2, -2]} intensity={0.6} />
+        <directionalLight position={[0, 8, 0]} intensity={0.9} />
         <ModelRenderer modelPath={modelPath} onCapture={handleCapture} />
       </Canvas>
     </div>

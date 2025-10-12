@@ -258,7 +258,14 @@ const Profile = () => {
               <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">{t.myProfile}</h1>
               <p className="text-muted-foreground">{user.email}</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <Button 
+                onClick={() => navigate('/upload')} 
+                variant="default" 
+                className="gap-2"
+              >
+                {profile?.language === 'nl' ? 'Upload Model' : 'Upload Model'}
+              </Button>
               <Button 
                 onClick={() => setShowSettings(!showSettings)} 
                 variant="outline" 
