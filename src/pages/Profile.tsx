@@ -251,8 +251,8 @@ const Profile = () => {
     <div className="relative min-h-screen bg-background">
       <Sidebar />
       
-      <main className="min-h-screen md:pl-16 p-4 md:p-8 pb-20 md:pb-8">
-        <div className="max-w-7xl mx-auto">
+      <main className="min-h-screen md:pl-16 p-6 md:p-12 pb-24 md:pb-12">
+        <div className="max-w-7xl mx-auto space-y-8">
           <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">{t.myProfile}</h1>
