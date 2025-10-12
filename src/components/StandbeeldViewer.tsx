@@ -91,12 +91,15 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
         geometry.center();
         geometry.computeVertexNormals();
         
-        // Create material
+        // Create material with settings optimized for simplified models
         const material = new THREE.MeshPhongMaterial({
           color: 0x2ca87f,
           specular: 0x333333,
           shininess: 80,
           flatShading: false,
+          side: THREE.DoubleSide, // Render both sides
+          opacity: 1.0,
+          transparent: false,
         });
         
         // Create mesh
