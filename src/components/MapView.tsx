@@ -278,8 +278,8 @@ const MapView = () => {
   return (
     <div className="relative h-screen w-full">
       {showViewer && selectedModel ? (
-        <div className="absolute inset-0 z-50 bg-background">
-          <div className="absolute top-0 left-0 right-0 z-[60] bg-background/95 backdrop-blur-sm border-b border-border p-4">
+        <div className="absolute inset-0 z-50 bg-background flex flex-col">
+          <div className="bg-background/95 backdrop-blur-sm border-b border-border p-4 flex-shrink-0">
             <div className="flex items-start justify-between gap-4">
               <Button 
                 onClick={() => setShowViewer(false)} 
@@ -295,8 +295,9 @@ const MapView = () => {
                 )}
               </div>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">Sleep om te roteren • Scroll om te zoomen</p>
           </div>
-          <div className="pt-20">
+          <div className="flex-1 min-h-0">
             <StandbeeldViewer 
               modelPath={selectedModel.file_path}
               onClose={() => setShowViewer(false)} 

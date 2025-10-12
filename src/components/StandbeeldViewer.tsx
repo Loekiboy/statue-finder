@@ -154,16 +154,7 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
   }, [modelUrl]);
 
   return (
-    <div className="relative h-full w-full z-50">
-      {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-[60] border-b border-border bg-card/95 backdrop-blur-sm px-3 py-2">
-        <h3 className="text-sm font-bold text-foreground">3D Model Viewer</h3>
-        <p className="text-xs text-muted-foreground">Sleep om te roteren • Scroll om te zoomen</p>
-      </div>
-      
-      {/* 3D Container */}
-      <div ref={containerRef} className="h-full w-full bg-gradient-to-br from-background to-muted" />
-    </div>
+    <div ref={containerRef} className="h-full w-full bg-gradient-to-br from-background to-muted" />
   );
 };
 
