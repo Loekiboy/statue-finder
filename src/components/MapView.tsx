@@ -5,6 +5,7 @@ import Confetti from 'react-confetti';
 import StandbeeldViewer from './StandbeeldViewer';
 import { Button } from './ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Model {
   id: string;
@@ -39,6 +40,7 @@ L.Marker.prototype.options.icon = DefaultIcon;
 const STANDBEELD_LOCATION: [number, number] = [52.0116, 4.7105];
 
 const MapView = () => {
+  const { t } = useLanguage();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
@@ -115,17 +117,17 @@ const MapView = () => {
             position.coords.longitude,
           ];
           setUserLocation(coords);
-          toast.success('Locatie gevonden!');
+          toast.success(t('Locatie gevonden!', 'Location found!'));
         },
         (error) => {
           console.error('Error getting location:', error);
-          toast.error('Kon locatie niet vinden. Gebruik standaard locatie.');
+          toast.error(t('Kon locatie niet vinden. Gebruik standaard locatie.', 'Could not find location. Using default location.'));
           // Default to Amsterdam
           setUserLocation([52.3676, 4.9041]);
         }
       );
     } else {
-      toast.error('Geolocatie wordt niet ondersteund door je browser.');
+      toast.error(t('Geolocatie wordt niet ondersteund door je browser.', 'Geolocation is not supported by your browser.'));
       setUserLocation([52.3676, 4.9041]);
     }
   }, []);
@@ -223,13 +225,13 @@ const MapView = () => {
     // Add marker for user location
     userMarkerRef.current = L.marker(userLocation, { icon: userIcon })
       .addTo(map.current)
-      .bindPopup('<b>Jouw Locatie</b><br>Je bent hier!')
+      .bindPopup(`<b>${t('Jouw Locatie', 'Your Location')}</b><br>${t('Je bent hier!', "You are here!")}`)
       .openPopup();
 
     // Add marker for standbeeld with click handler
     standbeeldMarkerRef.current = L.marker(STANDBEELD_LOCATION, { icon: standbeeldIcon })
       .addTo(map.current)
-      .bindPopup('<b>Weezenhof Standbeeld</b><br>Klik om 3D model te bekijken')
+      .bindPopup(`<b>Weezenhof Standbeeld</b><br>${t('Klik om 3D model te bekijken', 'Click to view 3D model')}`)
       .on('click', () => {
         setSelectedModel({
           name: 'Weezenhof Standbeeld',
@@ -292,13 +294,13 @@ const MapView = () => {
 
         const modelMarker = L.marker([model.latitude, model.longitude], { icon: modelIcon })
           .addTo(map.current)
-          .bindPopup(`<b>${model.name}</b><br>${isDiscovered ? (model.description || 'Klik om 3D model te bekijken') : `🔒 Kom binnen ${Math.round(distance)}m om te ontdekken`}`)
+          .bindPopup(`<b>${model.name}</b><br>${isDiscovered ? (model.description || t('Klik om 3D model te bekijken', 'Click to view 3D model')) : `🔒 ${t('Kom binnen', 'Come within')} ${Math.round(distance)}m ${t('om te ontdekken', 'to discover')}`}`)
           .on('click', async () => {
             if (isDiscovered) {
               // Mark as discovered if not already
               if (!isAlreadyDiscovered && isWithinRange && user) {
                 await markModelAsDiscovered(model.id);
-                toast.success(`${model.name} gevonden! 🎉`);
+                toast.success(`${model.name} ${t('gevonden! 🎉', 'found! 🎉')}`);
               }
               setSelectedModel({
                 name: model.name,
@@ -307,7 +309,7 @@ const MapView = () => {
               });
               setShowViewer(true);
             } else {
-              toast.error(`Je bent nog ${Math.round(distance)}m verwijderd van dit model`);
+              toast.error(`${t('Je bent nog', 'You are still')} ${Math.round(distance)}m ${t('verwijderd van dit model', 'away from this model')}`);
             }
           });
         
@@ -333,12 +335,12 @@ const MapView = () => {
       
       // Update marker position
       userMarkerRef.current.setLatLng(e.latlng);
-      userMarkerRef.current.bindPopup('<b>Jouw Locatie</b><br>Je bent hier!').openPopup();
+      userMarkerRef.current.bindPopup(`<b>${t('Jouw Locatie', 'Your Location')}</b><br>${t('Je bent hier!', "You are here!")}`).openPopup();
       
       // Center map on new location
       map.current.setView(e.latlng, map.current.getZoom());
       
-      toast.success('Locatie bijgewerkt!');
+      toast.success(t('Locatie bijgewerkt!', 'Location updated!'));
     });
 
     return () => {
@@ -371,7 +373,7 @@ const MapView = () => {
                 size="lg"
                 className="shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-glow)] transition-all shrink-0"
               >
-                ← Terug
+                ← {t('Terug', 'Back')}
               </Button>
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg md:text-xl font-bold text-foreground truncate">{selectedModel.name}</h2>
@@ -380,7 +382,7 @@ const MapView = () => {
                 )}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">👆 Sleep om te roteren • 🔍 Pinch om te zoomen</p>
+            <p className="text-xs text-muted-foreground mt-2">👆 {t('Sleep om te roteren', 'Drag to rotate')} • 🔍 {t('Pinch om te zoomen', 'Pinch to zoom')}</p>
           </div>
           <div className="flex-1 min-h-0 w-full">
             <StandbeeldViewer 
@@ -396,14 +398,14 @@ const MapView = () => {
           
           {/* Mobile-optimized info card */}
           <div className="absolute left-2 md:left-20 top-2 md:top-4 right-2 md:right-auto z-20 rounded-xl bg-card/95 px-3 md:px-4 py-2 md:py-3 shadow-[var(--shadow-elevated)] backdrop-blur-sm max-w-xs">
-            <p className="text-sm md:text-lg font-bold text-foreground">📍 Je Locatie</p>
+            <p className="text-sm md:text-lg font-bold text-foreground">📍 {t('Je Locatie', 'Your Location')}</p>
             {userLocation && (
               <p className="text-xs text-muted-foreground">
                 {userLocation[0].toFixed(4)}°N, {userLocation[1].toFixed(4)}°E
               </p>
             )}
             <p className="text-xs text-muted-foreground mt-1 md:mt-2">
-              💡 Tik op standbeeld om te bekijken
+              💡 {t('Tik op standbeeld om te bekijken', 'Tap on statue to view')}
             </p>
           </div>
         </>

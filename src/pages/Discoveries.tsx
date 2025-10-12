@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useLanguage } from '@/contexts/LanguageContext';
 import Sidebar from '@/components/Sidebar';
 import StandbeeldViewer from '@/components/StandbeeldViewer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +24,7 @@ interface DiscoveredModel {
 }
 
 const Discoveries = () => {
+  const { t } = useLanguage();
   const [discoveries, setDiscoveries] = useState<DiscoveredModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<any | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -75,14 +77,6 @@ const Discoveries = () => {
     }
   };
 
-  const t = {
-    title: 'Gevonden Standbeelden',
-    subtitle: 'Alle standbeelden die je hebt ontdekt',
-    noDiscoveries: 'Nog geen standbeelden gevonden. Ga naar de kaart en ontdek je eerste model!',
-    discovered: 'Gevonden op',
-    view: 'Bekijk',
-    backToOverview: '← Terug naar overzicht',
-  };
 
   return (
     <div className="relative min-h-screen bg-background">
@@ -91,14 +85,14 @@ const Discoveries = () => {
       <main className="min-h-screen md:pl-24 p-6 md:p-12 pb-24 md:pb-12">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-foreground mb-2">{t.title}</h1>
-            <p className="text-muted-foreground">{t.subtitle}</p>
+            <h1 className="text-4xl font-bold text-foreground mb-2">{t('Gevonden Standbeelden', 'Discovered Statues')}</h1>
+            <p className="text-muted-foreground">{t('Alle standbeelden die je hebt ontdekt', 'All statues you have discovered')}</p>
           </div>
 
           {selectedModel ? (
             <div className="space-y-4">
               <Button onClick={() => setSelectedModel(null)} variant="outline">
-                {t.backToOverview}
+                {t('← Terug naar overzicht', '← Back to overview')}
               </Button>
               <Card>
                 <CardHeader>
@@ -131,7 +125,7 @@ const Discoveries = () => {
               {discoveries.length === 0 ? (
                 <div className="col-span-full text-center py-16">
                   <p className="text-muted-foreground text-lg">
-                    {t.noDiscoveries}
+                    {t('Nog geen standbeelden gevonden. Ga naar de kaart en ontdek je eerste model!', 'No statues found yet. Go to the map and discover your first model!')}
                   </p>
                 </div>
               ) : (
@@ -159,7 +153,7 @@ const Discoveries = () => {
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Calendar className="h-3 w-3" />
                           <span>
-                            {t.discovered} {new Date(discovery.discovered_at).toLocaleDateString('nl-NL')}
+                            {t('Gevonden op', 'Discovered on')} {new Date(discovery.discovered_at).toLocaleDateString('nl-NL')}
                           </span>
                         </div>
                         <Button 
@@ -168,7 +162,7 @@ const Discoveries = () => {
                           className="gap-2"
                         >
                           <Eye className="h-4 w-4" />
-                          {t.view}
+                          {t('Bekijk', 'View')}
                         </Button>
                       </div>
                     </CardContent>

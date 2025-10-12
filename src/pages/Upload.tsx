@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { ArrowLeft, Upload as UploadIcon, MapPin } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -22,6 +23,7 @@ const modelSchema = z.object({
 });
 
 const Upload = () => {
+  const { t } = useLanguage();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);

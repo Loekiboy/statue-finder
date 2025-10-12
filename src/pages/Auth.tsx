@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { z } from 'zod';
 
 const authSchema = z.object({
@@ -14,6 +15,7 @@ const authSchema = z.object({
 });
 
 const Auth = () => {
+  const { t } = useLanguage();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -79,9 +81,9 @@ const Auth = () => {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-muted p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>{isLogin ? 'Inloggen' : 'Registreren'}</CardTitle>
+          <CardTitle>{t(isLogin ? 'Inloggen' : 'Registreren', isLogin ? 'Login' : 'Register')}</CardTitle>
           <CardDescription>
-            {isLogin ? 'Log in om 3D modellen te uploaden' : 'Maak een account aan'}
+            {t(isLogin ? 'Log in om 3D modellen te uploaden' : 'Maak een account aan', isLogin ? 'Login to upload 3D models' : 'Create an account')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -97,7 +99,7 @@ const Auth = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Wachtwoord</Label>
+              <Label htmlFor="password">{t('Wachtwoord', 'Password')}</Label>
               <Input
                 id="password"
                 type="password"
@@ -107,7 +109,7 @@ const Auth = () => {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Bezig...' : isLogin ? 'Inloggen' : 'Registreren'}
+              {t(loading ? 'Bezig...' : isLogin ? 'Inloggen' : 'Registreren', loading ? 'Loading...' : isLogin ? 'Login' : 'Register')}
             </Button>
             <Button
               type="button"
@@ -115,7 +117,7 @@ const Auth = () => {
               className="w-full"
               onClick={() => setIsLogin(!isLogin)}
             >
-              {isLogin ? 'Nog geen account? Registreer' : 'Heb je al een account? Log in'}
+              {t(isLogin ? 'Nog geen account? Registreer' : 'Heb je al een account? Log in', isLogin ? "Don't have an account? Register" : 'Already have an account? Login')}
             </Button>
           </form>
         </CardContent>
