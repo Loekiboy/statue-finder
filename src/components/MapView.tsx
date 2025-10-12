@@ -144,12 +144,12 @@ const MapView = () => {
       className: 'custom-marker-standbeeld',
       html: `
         <div style="
-          width: 50px;
-          height: 50px;
-          border-radius: 8px;
+          width: 80px;
+          height: 80px;
+          border-radius: 12px;
           background-color: white;
-          border: 3px solid hsl(140, 75%, 45%);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          border: 4px solid hsl(140, 75%, 45%);
+          box-shadow: 0 6px 16px rgba(0,0,0,0.4);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -158,15 +158,15 @@ const MapView = () => {
           background-size: cover;
           background-position: center;
         ">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="hsl(140, 75%, 45%)" stroke-width="2">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="hsl(140, 75%, 45%)" stroke-width="2">
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
             <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
             <line x1="12" y1="22.08" x2="12" y2="12"/>
           </svg>
         </div>
       `,
-      iconSize: [50, 50],
-      iconAnchor: [25, 25],
+      iconSize: [80, 80],
+      iconAnchor: [40, 40],
     });
 
     // Add marker for user location
@@ -200,12 +200,12 @@ const MapView = () => {
           className: 'custom-marker-model',
           html: `
             <div style="
-              width: 50px;
-              height: 50px;
-              border-radius: 8px;
+              width: 80px;
+              height: 80px;
+              border-radius: 12px;
               background-color: white;
-              border: 3px solid hsl(140, 75%, 45%);
-              box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+              border: 4px solid hsl(140, 75%, 45%);
+              box-shadow: 0 4px 14px rgba(0,0,0,0.4);
               overflow: hidden;
               display: flex;
               align-items: center;
@@ -213,7 +213,7 @@ const MapView = () => {
               ${thumbnailUrl ? `background-image: url('${thumbnailUrl}'); background-size: cover; background-position: center;` : ''}
             ">
               ${!thumbnailUrl ? `
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="hsl(140, 75%, 45%)" stroke-width="2">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="hsl(140, 75%, 45%)" stroke-width="2">
                   <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                   <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
                   <line x1="12" y1="22.08" x2="12" y2="12"/>
@@ -221,8 +221,8 @@ const MapView = () => {
               ` : ''}
             </div>
           `,
-          iconSize: [50, 50],
-          iconAnchor: [25, 25],
+          iconSize: [80, 80],
+          iconAnchor: [40, 40],
         });
 
         const modelMarker = L.marker([model.latitude, model.longitude], { icon: modelIcon })
