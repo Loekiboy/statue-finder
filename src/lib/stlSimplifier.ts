@@ -1,43 +1,73 @@
-import * as THREE from 'three';
-import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
-import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
-import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-
-export const simplifySTL = async (file: File, targetSizeRatio: number = 0.5): Promise<File> => {
+export const simplifySTL = async (file: File, reductionRatio: number = 0.33): Promise<File> => {
   console.log('Starting STL simplification...');
   
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
-    reader.onload = async (e) => {
+    reader.onload = (e) => {
       try {
         const arrayBuffer = e.target?.result as ArrayBuffer;
+        const uint8Array = new Uint8Array(arrayBuffer);
         
-        // Load the STL using Three.js
-        const loader = new STLLoader();
-        let geometry = loader.parse(arrayBuffer);
+        // Parse STL binary format
+        const view = new DataView(arrayBuffer);
+        const header = uint8Array.slice(0, 80);
         
-        console.log(`Original triangles: ${geometry.attributes.position.count / 3}`);
+        // Read number of triangles
+        const numTriangles = view.getUint32(80, true);
+        
+        console.log(`Original triangles: ${numTriangles}`);
         console.log(`Original size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
         
-        // Merge vertices that are very close together to reduce file size
-        geometry = mergeVertices(geometry);
+        // Keep only 1/3 of triangles (remove 2/3)
+        const targetTriangles = Math.max(
+          Math.floor(numTriangles * reductionRatio),
+          100 // Minimum aantal triangles
+        );
         
-        // Compute normals for proper rendering
-        geometry.computeVertexNormals();
+        const skipRatio = Math.floor(numTriangles / targetTriangles);
+        console.log(`Target triangles: ${targetTriangles}, Skip ratio: ${skipRatio}`);
         
-        console.log(`Simplified triangles: ${geometry.attributes.position.count / 3}`);
+        // Collect simplified triangles - keep every Nth triangle
+        const selectedTriangles: Uint8Array[] = [];
+        let currentOffset = 84; // Start of first triangle
         
-        // Export back to STL format
-        const exporter = new STLExporter();
-        const mesh = new THREE.Mesh(geometry);
-        const stlString = exporter.parse(mesh, { binary: true });
+        for (let i = 0; i < numTriangles; i++) {
+          // Keep every skipRatio-th triangle
+          if (i % skipRatio === 0 && selectedTriangles.length < targetTriangles) {
+            const triangle = uint8Array.slice(currentOffset, currentOffset + 50);
+            selectedTriangles.push(triangle);
+          }
+          currentOffset += 50;
+        }
         
-        // Convert to File
-        const blob = new Blob([stlString], { type: 'application/octet-stream' });
+        console.log(`Selected ${selectedTriangles.length} triangles`);
+        
+        // Build new STL file
+        const newFileSize = 80 + 4 + (selectedTriangles.length * 50);
+        const newBuffer = new ArrayBuffer(newFileSize);
+        const newUint8 = new Uint8Array(newBuffer);
+        const newView = new DataView(newBuffer);
+        
+        // Write header
+        newUint8.set(header, 0);
+        
+        // Write triangle count
+        newView.setUint32(80, selectedTriangles.length, true);
+        
+        // Write triangles
+        let writeOffset = 84;
+        for (const triangle of selectedTriangles) {
+          newUint8.set(triangle, writeOffset);
+          writeOffset += 50;
+        }
+        
+        const finalSizeMB = (newBuffer.byteLength / 1024 / 1024).toFixed(2);
+        console.log(`New size: ${finalSizeMB} MB`);
+        
+        // Create new File
+        const blob = new Blob([newBuffer], { type: 'application/octet-stream' });
         const newFile = new File([blob], file.name, { type: file.type });
-        
-        console.log(`New size: ${(newFile.size / 1024 / 1024).toFixed(2)} MB`);
         
         resolve(newFile);
       } catch (error) {

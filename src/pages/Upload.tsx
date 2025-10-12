@@ -34,6 +34,8 @@ const Upload = () => {
   const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
   const [showSizeWarning, setShowSizeWarning] = useState(false);
   const [largeFile, setLargeFile] = useState<File | null>(null);
+  const [originalFileSize, setOriginalFileSize] = useState<number>(0);
+  const [wasSimplified, setWasSimplified] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -80,6 +82,7 @@ const Upload = () => {
     
     setShowSizeWarning(false);
     setLoading(true);
+    setOriginalFileSize(largeFile.size);
     
     try {
       toast({
@@ -87,16 +90,14 @@ const Upload = () => {
         description: 'Dit kan even duren',
       });
       
-      // Simplify in browser
-      const simplifiedFile = await simplifySTL(largeFile, 0.5);
+      // Simplify in browser - remove 2/3 of triangles
+      const simplifiedFile = await simplifySTL(largeFile, 0.33);
       
       setFile(simplifiedFile);
       setLargeFile(null);
+      setWasSimplified(true);
       
-      toast({
-        title: 'Model versimpeld!',
-        description: `Nieuwe grootte: ${(simplifiedFile.size / 1024 / 1024).toFixed(2)} MB`,
-      });
+      // Don't show size message yet - will show after location selection
     } catch (error) {
       console.error('Simplification error:', error);
       toast({
@@ -104,6 +105,8 @@ const Upload = () => {
         description: 'Probeer een kleiner bestand of versimpel het handmatig',
         variant: 'destructive',
       });
+      setWasSimplified(false);
+      setOriginalFileSize(0);
     } finally {
       setLoading(false);
     }
@@ -136,7 +139,17 @@ const Upload = () => {
       setLatitude(e.latlng.lat);
       setLongitude(e.latlng.lng);
       
+      // Show location selected message
       toast({ title: 'Locatie geselecteerd!' });
+      
+      // Show simplification result after location selection
+      if (wasSimplified && file) {
+        toast({
+          title: 'Model versimpeld!',
+          description: `Van ${(originalFileSize / 1024 / 1024).toFixed(2)} MB naar ${(file.size / 1024 / 1024).toFixed(2)} MB`,
+        });
+        setWasSimplified(false); // Reset flag
+      }
     });
 
     return () => {
