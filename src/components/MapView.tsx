@@ -278,7 +278,7 @@ const MapView = () => {
   return (
     <div className="relative h-screen w-full">
       {showViewer && selectedModel ? (
-        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        <div className="fixed inset-0 z-30 bg-background flex flex-col">
           <div className="bg-background/98 backdrop-blur-sm border-b border-border p-3 md:p-4 flex-shrink-0 safe-area-top">
             <div className="flex items-start gap-3">
               <Button 
@@ -307,10 +307,10 @@ const MapView = () => {
         </div>
       ) : (
         <>
-          <div ref={mapContainer} className="absolute inset-0" />
+          <div ref={mapContainer} className="absolute inset-0 pb-16 md:pb-0" />
           
           {/* Mobile-optimized info card */}
-          <div className="absolute left-2 md:left-20 top-2 md:top-4 right-2 md:right-auto z-10 rounded-xl bg-card/95 px-3 md:px-4 py-2 md:py-3 shadow-[var(--shadow-elevated)] backdrop-blur-sm max-w-xs">
+          <div className="absolute left-2 md:left-20 top-2 md:top-4 right-2 md:right-auto z-20 rounded-xl bg-card/95 px-3 md:px-4 py-2 md:py-3 shadow-[var(--shadow-elevated)] backdrop-blur-sm max-w-xs">
             <p className="text-sm md:text-lg font-bold text-foreground">📍 Je Locatie</p>
             {userLocation && (
               <p className="text-xs text-muted-foreground">
