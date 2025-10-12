@@ -6,6 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { z } from 'zod';
+
+const authSchema = z.object({
+  email: z.string().trim().email('Ongeldig e-mailadres').max(255),
+  password: z.string().min(6, 'Wachtwoord moet minimaal 6 tekens zijn').max(72),
+});
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -17,21 +23,35 @@ const Auth = () => {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate input
+    const validationResult = authSchema.safeParse({ email, password });
+    
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors[0]?.message || 'Ongeldige invoer';
+      toast({
+        title: 'Validatiefout',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+          email: validationResult.data.email,
+          password: validationResult.data.password,
         });
         if (error) throw error;
         toast({ title: 'Welkom terug!' });
         navigate('/');
       } else {
         const { error } = await supabase.auth.signUp({
-          email,
-          password,
+          email: validationResult.data.email,
+          password: validationResult.data.password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
           },
@@ -41,9 +61,13 @@ const Auth = () => {
         setIsLogin(true);
       }
     } catch (error: any) {
+      const safeMessage = error.code === 'invalid_credentials'
+        ? 'Onjuiste inloggegevens'
+        : 'Er is een fout opgetreden';
+      
       toast({
         title: 'Fout',
-        description: error.message,
+        description: safeMessage,
         variant: 'destructive',
       });
     } finally {

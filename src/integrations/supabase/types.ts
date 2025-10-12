@@ -52,7 +52,39 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_models: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          file_path: string | null
+          id: string | null
+          latitude: number | null
+          longitude: number | null
+          name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          file_path?: string | null
+          id?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          file_path?: string | null
+          id?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

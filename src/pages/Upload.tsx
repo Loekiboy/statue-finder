@@ -10,6 +10,14 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Upload as UploadIcon, MapPin } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { z } from 'zod';
+
+const modelSchema = z.object({
+  name: z.string().trim().min(1, 'Naam is verplicht').max(100, 'Naam mag maximaal 100 tekens zijn'),
+  description: z.string().trim().max(1000, 'Beschrijving mag maximaal 1000 tekens zijn').optional(),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+});
 
 const Upload = () => {
   const [name, setName] = useState('');
@@ -101,6 +109,24 @@ const Upload = () => {
       return;
     }
 
+    // Validate input data
+    const validationResult = modelSchema.safeParse({
+      name,
+      description: description || undefined,
+      latitude,
+      longitude,
+    });
+
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors[0]?.message || 'Ongeldige invoer';
+      toast({
+        title: 'Validatiefout',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -120,11 +146,11 @@ const Upload = () => {
         .from('models')
         .insert({
           user_id: user.id,
-          name,
-          description,
+          name: validationResult.data.name,
+          description: validationResult.data.description || null,
           file_path: fileName,
-          latitude,
-          longitude,
+          latitude: validationResult.data.latitude,
+          longitude: validationResult.data.longitude,
         });
 
       if (dbError) throw dbError;
@@ -132,9 +158,13 @@ const Upload = () => {
       toast({ title: 'Model geüpload!' });
       navigate('/');
     } catch (error: any) {
+      const safeMessage = error.code === '23514' 
+        ? 'Invoer voldoet niet aan de vereisten'
+        : 'Er is een fout opgetreden bij het uploaden';
+      
       toast({
         title: 'Upload mislukt',
-        description: error.message,
+        description: safeMessage,
         variant: 'destructive',
       });
     } finally {
