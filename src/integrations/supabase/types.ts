@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      discovered_models: {
+        Row: {
+          discovered_at: string
+          id: string
+          model_id: string
+          user_id: string
+        }
+        Insert: {
+          discovered_at?: string
+          id?: string
+          model_id: string
+          user_id: string
+        }
+        Update: {
+          discovered_at?: string
+          id?: string
+          model_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discovered_models_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discovered_models_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "public_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       models: {
         Row: {
           created_at: string

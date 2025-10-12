@@ -8,9 +8,10 @@ import { supabase } from '@/integrations/supabase/client';
 interface StandbeeldViewerProps {
   onClose: () => void;
   modelPath?: string;
+  autoRotate?: boolean;
 }
 
-const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.stl' }: StandbeeldViewerProps) => {
+const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.stl', autoRotate = false }: StandbeeldViewerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [modelUrl, setModelUrl] = useState<string>('');
 
@@ -62,6 +63,8 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
+    controls.autoRotate = autoRotate;
+    controls.autoRotateSpeed = 2.0;
     
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { toast } from 'sonner';
+import Confetti from 'react-confetti';
 import StandbeeldViewer from './StandbeeldViewer';
 import { Button } from './ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -44,10 +45,45 @@ const MapView = () => {
   const [showViewer, setShowViewer] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModelInfo | null>(null);
   const [models, setModels] = useState<Model[]>([]);
+  const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
+
+
+  // Get current user
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Fetch discovered models
+  useEffect(() => {
+    const fetchDiscoveredModels = async () => {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from('discovered_models')
+        .select('model_id')
+        .eq('user_id', user.id);
+      
+      if (!error && data) {
+        setDiscoveredModels(data.map(d => d.model_id));
+      }
+    };
+    
+    fetchDiscoveredModels();
+  }, [user]);
 
   // Fetch models from database
   useEffect(() => {
@@ -93,6 +129,21 @@ const MapView = () => {
       setUserLocation([52.3676, 4.9041]);
     }
   }, []);
+
+
+  const markModelAsDiscovered = async (modelId: string) => {
+    if (!user) return;
+    
+    const { error } = await supabase
+      .from('discovered_models')
+      .insert({ user_id: user.id, model_id: modelId });
+    
+    if (!error) {
+      setDiscoveredModels(prev => [...prev, modelId]);
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 5000);
+    }
+  };
 
   useEffect(() => {
     if (!mapContainer.current || !userLocation || showViewer) return;
@@ -201,8 +252,11 @@ const MapView = () => {
         const userLatLng = L.latLng(userLocation);
         const distance = userLatLng.distanceTo(modelLatLng);
         
-        // Check if model is discovered (within range)
-        const isDiscovered = distance <= DISCOVERY_RADIUS;
+        // Check if model is already discovered in database
+        const isAlreadyDiscovered = discoveredModels.includes(model.id);
+        // Check if model is within discovery range
+        const isWithinRange = distance <= DISCOVERY_RADIUS;
+        const isDiscovered = isAlreadyDiscovered || isWithinRange;
         const thumbnailUrl = model.thumbnail_url;
         
         const modelIcon = L.divIcon({
@@ -239,15 +293,19 @@ const MapView = () => {
         const modelMarker = L.marker([model.latitude, model.longitude], { icon: modelIcon })
           .addTo(map.current)
           .bindPopup(`<b>${model.name}</b><br>${isDiscovered ? (model.description || 'Klik om 3D model te bekijken') : `🔒 Kom binnen ${Math.round(distance)}m om te ontdekken`}`)
-          .on('click', () => {
+          .on('click', async () => {
             if (isDiscovered) {
+              // Mark as discovered if not already
+              if (!isAlreadyDiscovered && isWithinRange && user) {
+                await markModelAsDiscovered(model.id);
+                toast.success(`${model.name} gevonden! 🎉`);
+              }
               setSelectedModel({
                 name: model.name,
                 description: model.description,
                 file_path: model.file_path
               });
               setShowViewer(true);
-              toast.success(`${model.name} gevonden! 🎉`);
             } else {
               toast.error(`Je bent nog ${Math.round(distance)}m verwijderd van dit model`);
             }
@@ -289,10 +347,18 @@ const MapView = () => {
         map.current = null;
       }
     };
-  }, [userLocation, models, showViewer]);
+  }, [userLocation, models, showViewer, discoveredModels, user]);
 
   return (
     <div className="relative h-screen w-full">
+      {showConfetti && (
+        <Confetti
+          width={window.innerWidth}
+          height={window.innerHeight}
+          recycle={false}
+          numberOfPieces={500}
+        />
+      )}
       {showViewer && selectedModel ? (
         <div className="fixed inset-0 z-30 bg-background flex flex-col">
           <div className="bg-background/98 backdrop-blur-sm border-b border-border p-3 md:p-4 flex-shrink-0 safe-area-top">
@@ -317,7 +383,8 @@ const MapView = () => {
           <div className="flex-1 min-h-0 w-full">
             <StandbeeldViewer 
               modelPath={selectedModel.file_path}
-              onClose={() => setShowViewer(false)} 
+              onClose={() => setShowViewer(false)}
+              autoRotate={true}
             />
           </div>
         </div>
