@@ -266,7 +266,11 @@ const MapView = () => {
       {showViewer ? (
         <div className="absolute inset-0 z-50 bg-background">
           <div className="absolute top-4 left-4 z-[60]">
-            <Button onClick={() => setShowViewer(false)} variant="outline">
+            <Button 
+              onClick={() => setShowViewer(false)} 
+              variant="default"
+              className="shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-glow)] transition-all"
+            >
               ← Terug naar kaart
             </Button>
           </div>
