@@ -13,6 +13,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { z } from 'zod';
 import { ThumbnailGenerator } from '@/components/ThumbnailGenerator';
+import { simplifySTL } from '@/lib/stlSimplifier';
 
 const modelSchema = z.object({
   name: z.string().trim().min(1, 'Naam is verplicht').max(100, 'Naam mag maximaal 100 tekens zijn'),
@@ -74,36 +75,38 @@ const Upload = () => {
     }
   };
 
-  const handleSimplifyAndContinue = () => {
-    // Instead of trying to simplify, we'll inform the user they need to reduce the file size
+  const handleSimplifyAndContinue = async () => {
+    if (!largeFile) return;
+    
     setShowSizeWarning(false);
-    setLargeFile(null);
-    toast({
-      title: 'Versimpel het model eerst',
-      description: 'Gebruik een tool zoals Blender of MeshLab om het aantal polygonen te verminderen voor het uploaden.',
-      variant: 'destructive',
-    });
-  };
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const result = reader.result as string;
-        resolve(result.split(',')[1]);
-      };
-      reader.onerror = error => reject(error);
-    });
-  };
-
-  const base64ToBlob = (base64: string, type: string): Blob => {
-    const binaryString = window.atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+    setLoading(true);
+    
+    try {
+      toast({
+        title: 'Model wordt versimpeld...',
+        description: 'Dit kan even duren',
+      });
+      
+      // Simplify in browser
+      const simplifiedFile = await simplifySTL(largeFile, 0.5);
+      
+      setFile(simplifiedFile);
+      setLargeFile(null);
+      
+      toast({
+        title: 'Model versimpeld!',
+        description: `Nieuwe grootte: ${(simplifiedFile.size / 1024 / 1024).toFixed(2)} MB`,
+      });
+    } catch (error) {
+      console.error('Simplification error:', error);
+      toast({
+        title: 'Versimpeling mislukt',
+        description: 'Probeer een kleiner bestand of versimpel het handmatig',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
-    return new Blob([bytes], { type });
   };
 
   useEffect(() => {
@@ -283,26 +286,20 @@ const Upload = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Model is groter dan 20 MB</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-4">
-              <p>
-                Het geselecteerde bestand is {largeFile ? (largeFile.size / 1024 / 1024).toFixed(2) : '0'} MB.
-              </p>
-              <p>
-                Upload bestanden kleiner dan 20 MB. Je kunt het model versimpelen met gratis tools zoals:
-              </p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li><strong>Blender</strong> (Decimatie modifier)</li>
-                <li><strong>MeshLab</strong> (Simplification filters)</li>
-                <li><strong>Online STL verkleiners</strong></li>
-              </ul>
+            <AlertDialogDescription>
+              Het geselecteerde bestand is {largeFile ? (largeFile.size / 1024 / 1024).toFixed(2) : '0'} MB.
+              De bestandsgrootte kan automatisch verkleind worden naar ongeveer 20 MB door het aantal polygonen te verminderen.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => {
+            <AlertDialogCancel onClick={() => {
               setLargeFile(null);
               setShowSizeWarning(false);
             }}>
-              Ik begrijp het
+              Kies ander model
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleSimplifyAndContinue} disabled={loading}>
+              {loading ? 'Bezig...' : 'Ga door'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
