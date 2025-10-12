@@ -6,7 +6,7 @@ const Index = () => {
     <div className="relative min-h-screen bg-background">
       <Sidebar />
       
-      <main className="h-screen pl-16">
+      <main className="h-screen md:pl-16">
         <MapView />
       </main>
     </div>

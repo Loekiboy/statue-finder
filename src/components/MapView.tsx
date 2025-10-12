@@ -103,8 +103,8 @@ const MapView = () => {
       map.current = null;
     }
 
-    // Initialize map
-    map.current = L.map(mapContainer.current).setView(userLocation, 13);
+    // Initialize map with high zoom for Pokémon Go style
+    map.current = L.map(mapContainer.current).setView(userLocation, 18);
 
     // Add OpenStreetMap tile layer (completely free!)
     tileLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -241,12 +241,12 @@ const MapView = () => {
       }
     });
 
-    // Add circle to show accuracy for user location
+    // Add circle to show accuracy for user location (smaller for mobile)
     L.circle(userLocation, {
       color: 'hsl(220, 85%, 55%)',
       fillColor: 'hsl(220, 85%, 55%)',
       fillOpacity: 0.1,
-      radius: 100,
+      radius: 50,
     }).addTo(map.current);
 
     // Add right-click handler to update user location (beta test feature)
@@ -278,26 +278,27 @@ const MapView = () => {
   return (
     <div className="relative h-screen w-full">
       {showViewer && selectedModel ? (
-        <div className="absolute inset-0 z-50 bg-background flex flex-col">
-          <div className="bg-background/95 backdrop-blur-sm border-b border-border p-4 flex-shrink-0">
-            <div className="flex items-start justify-between gap-4">
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+          <div className="bg-background/98 backdrop-blur-sm border-b border-border p-3 md:p-4 flex-shrink-0 safe-area-top">
+            <div className="flex items-start gap-3">
               <Button 
                 onClick={() => setShowViewer(false)} 
                 variant="default"
+                size="lg"
                 className="shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-glow)] transition-all shrink-0"
               >
-                ← Terug naar kaart
+                ← Terug
               </Button>
               <div className="flex-1 min-w-0">
-                <h2 className="text-xl font-bold text-foreground truncate">{selectedModel.name}</h2>
+                <h2 className="text-lg md:text-xl font-bold text-foreground truncate">{selectedModel.name}</h2>
                 {selectedModel.description && (
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{selectedModel.description}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground mt-1 line-clamp-2">{selectedModel.description}</p>
                 )}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">Sleep om te roteren • Scroll om te zoomen</p>
+            <p className="text-xs text-muted-foreground mt-2">👆 Sleep om te roteren • 🔍 Pinch om te zoomen</p>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 w-full">
             <StandbeeldViewer 
               modelPath={selectedModel.file_path}
               onClose={() => setShowViewer(false)} 
@@ -308,16 +309,16 @@ const MapView = () => {
         <>
           <div ref={mapContainer} className="absolute inset-0" />
           
-          {/* Info card */}
-          <div className="absolute left-20 top-4 z-10 rounded-xl bg-card/95 px-4 py-3 shadow-[var(--shadow-elevated)] backdrop-blur-sm">
-            <p className="text-lg font-bold text-foreground">Je Locatie</p>
+          {/* Mobile-optimized info card */}
+          <div className="absolute left-2 md:left-20 top-2 md:top-4 right-2 md:right-auto z-10 rounded-xl bg-card/95 px-3 md:px-4 py-2 md:py-3 shadow-[var(--shadow-elevated)] backdrop-blur-sm max-w-xs">
+            <p className="text-sm md:text-lg font-bold text-foreground">📍 Je Locatie</p>
             {userLocation && (
               <p className="text-xs text-muted-foreground">
                 {userLocation[0].toFixed(4)}°N, {userLocation[1].toFixed(4)}°E
               </p>
             )}
-            <p className="text-xs text-muted-foreground mt-2">
-              💡 Rechterklik om locatie te wijzigen
+            <p className="text-xs text-muted-foreground mt-1 md:mt-2">
+              💡 Tik op standbeeld om te bekijken
             </p>
           </div>
         </>

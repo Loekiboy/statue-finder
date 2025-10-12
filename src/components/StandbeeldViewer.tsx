@@ -43,14 +43,14 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf5f5f5);
     
-    // Camera setup
+    // Camera setup - closer for better mobile view
     const camera = new THREE.PerspectiveCamera(
-      75,
+      60,
       container.clientWidth / container.clientHeight,
       0.1,
       1000
     );
-    camera.position.set(3, 3, 5);
+    camera.position.set(2, 2, 3);
     
     // Renderer setup
     const renderer = new THREE.WebGLRenderer({ antialias: true });
