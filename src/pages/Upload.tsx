@@ -6,14 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Upload as UploadIcon, MapPin } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { z } from 'zod';
 import { ThumbnailGenerator } from '@/components/ThumbnailGenerator';
-import { simplifySTL } from '@/lib/stlSimplifier';
 
 const modelSchema = z.object({
   name: z.string().trim().min(1, 'Naam is verplicht').max(100, 'Naam mag maximaal 100 tekens zijn'),
@@ -33,9 +32,7 @@ const Upload = () => {
   const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null);
   const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
   const [showSizeWarning, setShowSizeWarning] = useState(false);
-  const [largeFile, setLargeFile] = useState<File | null>(null);
-  const [originalFileSize, setOriginalFileSize] = useState<number>(0);
-  const [wasSimplified, setWasSimplified] = useState(false);
+  const [largeFileSize, setLargeFileSize] = useState<number>(0);
   const navigate = useNavigate();
   const { toast } = useToast();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -56,19 +53,9 @@ const Upload = () => {
       
       // Check file size - show warning for files > 20MB
       const warningSize = 20 * 1024 * 1024; // 20MB
-      const maxSize = 40 * 1024 * 1024; // 40MB hard limit
-      
-      if (selectedFile.size > maxSize) {
-        toast({
-          title: 'Bestand te groot',
-          description: 'Maximale bestandsgrootte is 40MB',
-          variant: 'destructive',
-        });
-        return;
-      }
       
       if (selectedFile.size > warningSize) {
-        setLargeFile(selectedFile);
+        setLargeFileSize(selectedFile.size);
         setShowSizeWarning(true);
         return;
       }
@@ -77,40 +64,6 @@ const Upload = () => {
     }
   };
 
-  const handleSimplifyAndContinue = async () => {
-    if (!largeFile) return;
-    
-    setShowSizeWarning(false);
-    setLoading(true);
-    setOriginalFileSize(largeFile.size);
-    
-    try {
-      toast({
-        title: 'Model wordt versimpeld...',
-        description: 'Dit kan even duren',
-      });
-      
-      // Simplify in browser - remove 2/3 of triangles
-      const simplifiedFile = await simplifySTL(largeFile, 0.33);
-      
-      setFile(simplifiedFile);
-      setLargeFile(null);
-      setWasSimplified(true);
-      
-      // Don't show size message yet - will show after location selection
-    } catch (error) {
-      console.error('Simplification error:', error);
-      toast({
-        title: 'Versimpeling mislukt',
-        description: 'Probeer een kleiner bestand of versimpel het handmatig',
-        variant: 'destructive',
-      });
-      setWasSimplified(false);
-      setOriginalFileSize(0);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
@@ -139,17 +92,7 @@ const Upload = () => {
       setLatitude(e.latlng.lat);
       setLongitude(e.latlng.lng);
       
-      // Show location selected message
       toast({ title: 'Locatie geselecteerd!' });
-      
-      // Show simplification result after location selection
-      if (wasSimplified && file) {
-        toast({
-          title: 'Model versimpeld!',
-          description: `Van ${(originalFileSize / 1024 / 1024).toFixed(2)} MB naar ${(file.size / 1024 / 1024).toFixed(2)} MB`,
-        });
-        setWasSimplified(false); // Reset flag
-      }
     });
 
     return () => {
@@ -299,20 +242,27 @@ const Upload = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Model is groter dan 20 MB</AlertDialogTitle>
-            <AlertDialogDescription>
-              Het geselecteerde bestand is {largeFile ? (largeFile.size / 1024 / 1024).toFixed(2) : '0'} MB.
-              De bestandsgrootte kan automatisch verkleind worden naar ongeveer 20 MB door het aantal polygonen te verminderen.
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Het geselecteerde bestand is {(largeFileSize / 1024 / 1024).toFixed(2)} MB.
+                Voor betere prestaties raden we aan om het model eerst te verkleinen.
+              </p>
+              <div>
+                <p className="font-semibold mb-2">Handige tools om je model te verkleinen:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li><strong>Blender</strong> - Gratis 3D software met decimatie modifier</li>
+                  <li><strong>MeshLab</strong> - Gratis tool specifiek voor mesh simplificatie</li>
+                  <li><strong>Online STL reducers</strong> - Zoals convertio.co of meshconvert.com</li>
+                </ul>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setLargeFile(null);
+            <AlertDialogAction onClick={() => {
+              setLargeFileSize(0);
               setShowSizeWarning(false);
             }}>
-              Kies ander model
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleSimplifyAndContinue} disabled={loading}>
-              {loading ? 'Bezig...' : 'Ga door'}
+              Oké, begrepen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
