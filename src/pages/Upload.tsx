@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Upload as UploadIcon, MapPin } from 'lucide-react';
 import L from 'leaflet';
@@ -30,6 +31,8 @@ const Upload = () => {
   const [generateThumbnail, setGenerateThumbnail] = useState(false);
   const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null);
   const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
+  const [showSizeWarning, setShowSizeWarning] = useState(false);
+  const [largeFile, setLargeFile] = useState<File | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -47,8 +50,11 @@ const Upload = () => {
         });
         return;
       }
-      // Check file size (40MB = 40 * 1024 * 1024 bytes)
-      const maxSize = 40 * 1024 * 1024;
+      
+      // Check file size - show warning for files > 20MB
+      const warningSize = 20 * 1024 * 1024; // 20MB
+      const maxSize = 40 * 1024 * 1024; // 40MB hard limit
+      
       if (selectedFile.size > maxSize) {
         toast({
           title: 'Bestand te groot',
@@ -57,8 +63,77 @@ const Upload = () => {
         });
         return;
       }
+      
+      if (selectedFile.size > warningSize) {
+        setLargeFile(selectedFile);
+        setShowSizeWarning(true);
+        return;
+      }
+      
       setFile(selectedFile);
     }
+  };
+
+  const handleSimplifyAndContinue = async () => {
+    if (!largeFile) return;
+    
+    setShowSizeWarning(false);
+    setLoading(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Niet ingelogd');
+
+      // Call edge function to simplify the model
+      const { data, error } = await supabase.functions.invoke('simplify-model', {
+        body: { 
+          file: await fileToBase64(largeFile),
+          fileName: largeFile.name 
+        }
+      });
+
+      if (error) throw error;
+
+      // Convert simplified model back to File
+      const simplifiedBlob = base64ToBlob(data.simplifiedModel, 'application/octet-stream');
+      const simplifiedFile = new File([simplifiedBlob], largeFile.name, { type: 'application/octet-stream' });
+      
+      setFile(simplifiedFile);
+      toast({
+        title: 'Model versimpeld!',
+        description: `Nieuwe grootte: ${(simplifiedFile.size / 1024 / 1024).toFixed(2)} MB`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Versimpeling mislukt',
+        description: 'Probeer een kleiner bestand te uploaden',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+      setLargeFile(null);
+    }
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(',')[1]); // Remove data:application/octet-stream;base64,
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const base64ToBlob = (base64: string, type: string): Blob => {
+    const binaryString = window.atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return new Blob([bytes], { type });
   };
 
   useEffect(() => {
@@ -234,6 +309,29 @@ const Upload = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted p-4">
+      <AlertDialog open={showSizeWarning} onOpenChange={setShowSizeWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Model is meer dan 20 MB</AlertDialogTitle>
+            <AlertDialogDescription>
+              Het geselecteerde bestand is {largeFile ? (largeFile.size / 1024 / 1024).toFixed(2) : '0'} MB.
+              Als je doorgaat wordt de bestandsgrootte automatisch verkleind naar ongeveer 20 MB.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setLargeFile(null);
+              setShowSizeWarning(false);
+            }}>
+              Kies ander model
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleSimplifyAndContinue}>
+              Ga door
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {generateThumbnail && uploadedFilePath && (
         <ThumbnailGenerator
           modelPath={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/models/${uploadedFilePath}`}
