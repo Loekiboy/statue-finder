@@ -15,6 +15,12 @@ interface Model {
   thumbnail_url: string | null;
 }
 
+interface SelectedModelInfo {
+  name: string;
+  description: string | null;
+  file_path: string;
+}
+
 // Fix for default marker icons in Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -36,7 +42,7 @@ const MapView = () => {
   const map = useRef<L.Map | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [showViewer, setShowViewer] = useState(false);
-  const [selectedModelPath, setSelectedModelPath] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<SelectedModelInfo | null>(null);
   const [models, setModels] = useState<Model[]>([]);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
@@ -174,7 +180,11 @@ const MapView = () => {
       .addTo(map.current)
       .bindPopup('<b>Weezenhof Standbeeld</b><br>Klik om 3D model te bekijken')
       .on('click', () => {
-        setSelectedModelPath('/models/standbeeld_weezenhof.stl');
+        setSelectedModel({
+          name: 'Weezenhof Standbeeld',
+          description: 'Historisch standbeeld in Gouda',
+          file_path: '/models/standbeeld_weezenhof.stl'
+        });
         setShowViewer(true);
       });
 
@@ -219,7 +229,11 @@ const MapView = () => {
           .addTo(map.current)
           .bindPopup(`<b>${model.name}</b><br>${model.description || 'Klik om 3D model te bekijken'}`)
           .on('click', () => {
-            setSelectedModelPath(model.file_path);
+            setSelectedModel({
+              name: model.name,
+              description: model.description,
+              file_path: model.file_path
+            });
             setShowViewer(true);
           });
         
@@ -263,21 +277,31 @@ const MapView = () => {
 
   return (
     <div className="relative h-screen w-full">
-      {showViewer ? (
+      {showViewer && selectedModel ? (
         <div className="absolute inset-0 z-50 bg-background">
-          <div className="absolute top-4 left-4 z-[60]">
-            <Button 
-              onClick={() => setShowViewer(false)} 
-              variant="default"
-              className="shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-glow)] transition-all"
-            >
-              ← Terug naar kaart
-            </Button>
+          <div className="absolute top-0 left-0 right-0 z-[60] bg-background/95 backdrop-blur-sm border-b border-border p-4">
+            <div className="flex items-start justify-between gap-4">
+              <Button 
+                onClick={() => setShowViewer(false)} 
+                variant="default"
+                className="shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-glow)] transition-all shrink-0"
+              >
+                ← Terug naar kaart
+              </Button>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-bold text-foreground truncate">{selectedModel.name}</h2>
+                {selectedModel.description && (
+                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{selectedModel.description}</p>
+                )}
+              </div>
+            </div>
           </div>
-          <StandbeeldViewer 
-            modelPath={selectedModelPath}
-            onClose={() => setShowViewer(false)} 
-          />
+          <div className="pt-20">
+            <StandbeeldViewer 
+              modelPath={selectedModel.file_path}
+              onClose={() => setShowViewer(false)} 
+            />
+          </div>
         </div>
       ) : (
         <>
