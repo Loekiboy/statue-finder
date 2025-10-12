@@ -26,11 +26,11 @@ const Discoveries = () => {
   }, []);
 
   const fetchModels = async () => {
+    // Use the public_models view instead of direct table access
+    // This view excludes sensitive user_id field for better privacy
     const { data, error } = await supabase
-      .from('models')
+      .from('public_models')
       .select('*')
-      .not('latitude', 'is', null)
-      .not('longitude', 'is', null)
       .order('created_at', { ascending: false });
 
     if (error) {
