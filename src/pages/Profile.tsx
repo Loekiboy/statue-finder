@@ -59,6 +59,12 @@ const Profile = () => {
   }, [navigate]);
 
   useEffect(() => {
+    // Apply saved theme immediately on mount
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+    if (savedTheme) {
+      applyTheme(savedTheme);
+    }
+
     if (user) {
       fetchMyModels();
       fetchProfile();
@@ -81,6 +87,7 @@ const Profile = () => {
     } else {
       setProfile(data as Profile);
       applyTheme(data.theme as 'light' | 'dark');
+      localStorage.setItem('language', data.language);
     }
   };
 
@@ -134,6 +141,7 @@ const Profile = () => {
     } else {
       document.documentElement.classList.remove('dark');
     }
+    localStorage.setItem('theme', theme);
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
@@ -152,6 +160,7 @@ const Profile = () => {
     } else {
       setProfile(data as Profile);
       if (updates.theme) applyTheme(updates.theme);
+      if (updates.language) localStorage.setItem('language', updates.language);
       toast.success(profile.language === 'nl' ? 'Instellingen opgeslagen!' : 'Settings saved!');
     }
   };

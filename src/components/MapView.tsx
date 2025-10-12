@@ -352,12 +352,14 @@ const MapView = () => {
   return (
     <div className="relative h-screen w-full">
       {showConfetti && (
-        <Confetti
-          width={window.innerWidth}
-          height={window.innerHeight}
-          recycle={false}
-          numberOfPieces={500}
-        />
+        <div className="fixed inset-0 z-50 pointer-events-none">
+          <Confetti
+            width={window.innerWidth}
+            height={window.innerHeight}
+            recycle={false}
+            numberOfPieces={500}
+          />
+        </div>
       )}
       {showViewer && selectedModel ? (
         <div className="fixed inset-0 z-30 bg-background flex flex-col">
