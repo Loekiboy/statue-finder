@@ -45,7 +45,7 @@ const Discoveries = () => {
     <div className="relative min-h-screen bg-background">
       <Sidebar />
       
-      <main className="min-h-screen pl-16 p-8">
+      <main className="min-h-screen md:pl-24 p-6 md:p-12 pb-24 md:pb-12">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-foreground mb-2">Gevonden Standbeelden</h1>
