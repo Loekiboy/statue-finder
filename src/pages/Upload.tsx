@@ -74,45 +74,15 @@ const Upload = () => {
     }
   };
 
-  const handleSimplifyAndContinue = async () => {
-    if (!largeFile) return;
-    
+  const handleSimplifyAndContinue = () => {
+    // Instead of trying to simplify, we'll inform the user they need to reduce the file size
     setShowSizeWarning(false);
-    setLoading(true);
-    
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Niet ingelogd');
-
-      // Call edge function to simplify the model
-      const { data, error } = await supabase.functions.invoke('simplify-model', {
-        body: { 
-          file: await fileToBase64(largeFile),
-          fileName: largeFile.name 
-        }
-      });
-
-      if (error) throw error;
-
-      // Convert simplified model back to File
-      const simplifiedBlob = base64ToBlob(data.simplifiedModel, 'application/octet-stream');
-      const simplifiedFile = new File([simplifiedBlob], largeFile.name, { type: 'application/octet-stream' });
-      
-      setFile(simplifiedFile);
-      toast({
-        title: 'Model versimpeld!',
-        description: `Nieuwe grootte: ${(simplifiedFile.size / 1024 / 1024).toFixed(2)} MB`,
-      });
-    } catch (error) {
-      toast({
-        title: 'Versimpeling mislukt',
-        description: 'Probeer een kleiner bestand te uploaden',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-      setLargeFile(null);
-    }
+    setLargeFile(null);
+    toast({
+      title: 'Versimpel het model eerst',
+      description: 'Gebruik een tool zoals Blender of MeshLab om het aantal polygonen te verminderen voor het uploaden.',
+      variant: 'destructive',
+    });
   };
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -121,7 +91,7 @@ const Upload = () => {
       reader.readAsDataURL(file);
       reader.onload = () => {
         const result = reader.result as string;
-        resolve(result.split(',')[1]); // Remove data:application/octet-stream;base64,
+        resolve(result.split(',')[1]);
       };
       reader.onerror = error => reject(error);
     });
@@ -312,21 +282,27 @@ const Upload = () => {
       <AlertDialog open={showSizeWarning} onOpenChange={setShowSizeWarning}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Model is meer dan 20 MB</AlertDialogTitle>
-            <AlertDialogDescription>
-              Het geselecteerde bestand is {largeFile ? (largeFile.size / 1024 / 1024).toFixed(2) : '0'} MB.
-              Als je doorgaat wordt de bestandsgrootte automatisch verkleind naar ongeveer 20 MB.
+            <AlertDialogTitle>Model is groter dan 20 MB</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p>
+                Het geselecteerde bestand is {largeFile ? (largeFile.size / 1024 / 1024).toFixed(2) : '0'} MB.
+              </p>
+              <p>
+                Upload bestanden kleiner dan 20 MB. Je kunt het model versimpelen met gratis tools zoals:
+              </p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><strong>Blender</strong> (Decimatie modifier)</li>
+                <li><strong>MeshLab</strong> (Simplification filters)</li>
+                <li><strong>Online STL verkleiners</strong></li>
+              </ul>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
+            <AlertDialogAction onClick={() => {
               setLargeFile(null);
               setShowSizeWarning(false);
             }}>
-              Kies ander model
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleSimplifyAndContinue}>
-              Ga door
+              Ik begrijp het
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
