@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useLanguage } from '@/contexts/LanguageContext';
 import Sidebar from '@/components/Sidebar';
 import StandbeeldViewer from '@/components/StandbeeldViewer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +18,7 @@ interface Model {
 }
 
 const Models = () => {
+  const { t } = useLanguage();
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState<Model | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -44,7 +46,7 @@ const Models = () => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      toast.error('Fout bij ophalen modellen');
+      toast.error(t('Fout bij ophalen modellen', 'Error fetching models'));
       console.error(error);
     } else {
       setModels(data || []);
@@ -52,7 +54,7 @@ const Models = () => {
   };
 
   const handleDelete = async (modelId: string, filePath: string) => {
-    if (!confirm('Weet je zeker dat je dit model wilt verwijderen?')) return;
+    if (!confirm(t('Weet je zeker dat je dit model wilt verwijderen?', 'Are you sure you want to delete this model?'))) return;
 
     // Delete file from storage
     const { error: storageError } = await supabase.storage
@@ -60,7 +62,7 @@ const Models = () => {
       .remove([filePath]);
 
     if (storageError) {
-      toast.error('Fout bij verwijderen bestand');
+      toast.error(t('Fout bij verwijderen bestand', 'Error deleting file'));
       console.error(storageError);
       return;
     }
@@ -72,10 +74,10 @@ const Models = () => {
       .eq('id', modelId);
 
     if (dbError) {
-      toast.error('Fout bij verwijderen model');
+      toast.error(t('Fout bij verwijderen model', 'Error deleting model'));
       console.error(dbError);
     } else {
-      toast.success('Model verwijderd!');
+      toast.success(t('Model verwijderd!', 'Model deleted!'));
       fetchModels();
       if (selectedModel?.id === modelId) {
         setSelectedModel(null);
@@ -87,17 +89,17 @@ const Models = () => {
     <div className="relative min-h-screen bg-background">
       <Sidebar />
       
-      <main className="min-h-screen md:pl-24 p-6 md:p-12 pb-24 md:pb-12">
+      <main className="min-h-screen md:pl-20 lg:pl-24 p-6 md:p-12 pb-24 md:pb-12">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-foreground mb-2">3D Modellen Collectie</h1>
-            <p className="text-muted-foreground">Bekijk alle geüploade 3D modellen</p>
+            <h1 className="text-4xl font-bold text-foreground mb-2">{t('3D Modellen Collectie', '3D Models Collection')}</h1>
+            <p className="text-muted-foreground">{t('Bekijk alle geüploade 3D modellen', 'View all uploaded 3D models')}</p>
           </div>
 
           {selectedModel ? (
             <div className="space-y-4">
               <Button onClick={() => setSelectedModel(null)} variant="outline">
-                ← Terug naar overzicht
+                {t('← Terug naar overzicht', '← Back to overview')}
               </Button>
               <Card>
                 <CardHeader>
@@ -121,7 +123,7 @@ const Models = () => {
               {models.length === 0 ? (
                 <div className="col-span-full text-center py-16">
                   <p className="text-muted-foreground text-lg">
-                    Nog geen modellen gevonden. {user ? 'Upload je eerste model!' : 'Log in om modellen te uploaden.'}
+                    {user ? t('Nog geen modellen gevonden. Upload je eerste model!', 'No models found yet. Upload your first model!') : t('Nog geen modellen gevonden. Log in om modellen te uploaden.', 'No models found yet. Log in to upload models.')}
                   </p>
                 </div>
               ) : (
@@ -145,7 +147,7 @@ const Models = () => {
                             className="gap-2"
                           >
                             <Eye className="h-4 w-4" />
-                            Bekijk
+                            {t('Bekijk', 'View')}
                           </Button>
                           {user?.id === model.user_id && (
                             <Button 

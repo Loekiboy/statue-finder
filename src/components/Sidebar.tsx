@@ -3,9 +3,11 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Upload, LogIn, User as UserIcon, Boxes, Map, Compass } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
 
 const Sidebar = () => {
+  const { t } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -27,9 +29,9 @@ const Sidebar = () => {
   };
 
   const navItems = [
-    { icon: Map, path: '/', label: 'Kaart', variant: 'primary' as const },
-    { icon: Compass, path: '/discoveries', label: 'Ontdekken', variant: 'accent' as const },
-    { icon: Boxes, path: '/models', label: 'Modellen', variant: 'accent' as const },
+    { icon: Map, path: '/', labelNl: 'Kaart', labelEn: 'Map', variant: 'primary' as const },
+    { icon: Compass, path: '/discoveries', labelNl: 'Ontdekken', labelEn: 'Discoveries', variant: 'accent' as const },
+    { icon: Boxes, path: '/models', labelNl: 'Modellen', labelEn: 'Models', variant: 'accent' as const },
   ];
 
   return (
@@ -50,7 +52,7 @@ const Sidebar = () => {
                   ? 'bg-primary text-primary-foreground shadow-[var(--shadow-elevated)]'
                   : 'bg-accent text-accent-foreground hover:bg-accent/90'
               )}
-              title={item.label}
+              title={t(item.labelNl, item.labelEn)}
             >
               <Icon className="h-5 w-5" />
             </button>
@@ -66,7 +68,7 @@ const Sidebar = () => {
                 ? 'bg-primary text-primary-foreground shadow-[var(--shadow-elevated)]'
                 : 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
             )}
-            title="Upload"
+            title={t('Upload', 'Upload')}
           >
             <Upload className="h-5 w-5" />
           </button>
@@ -81,7 +83,7 @@ const Sidebar = () => {
                 ? 'bg-primary text-primary-foreground shadow-[var(--shadow-elevated)]'
                 : 'bg-muted text-muted-foreground hover:bg-muted/80'
             )}
-            title="Profiel"
+            title={t('Profiel', 'Profile')}
           >
             <UserIcon className="h-5 w-5" />
           </button>
@@ -89,7 +91,7 @@ const Sidebar = () => {
           <button 
             onClick={() => handleNavigation('/auth')}
             className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-all hover:bg-accent/90 mt-auto"
-            title="Inloggen"
+            title={t('Inloggen', 'Login')}
           >
             <LogIn className="h-5 w-5" />
           </button>
@@ -115,7 +117,7 @@ const Sidebar = () => {
                 )}
               >
                 <Icon className="h-5 w-5" />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-[10px] font-medium">{t(item.labelNl, item.labelEn)}</span>
               </button>
             );
           })}
@@ -131,7 +133,7 @@ const Sidebar = () => {
               )}
             >
               <UserIcon className="h-5 w-5" />
-              <span className="text-[10px] font-medium">Profiel</span>
+              <span className="text-[10px] font-medium">{t('Profiel', 'Profile')}</span>
             </button>
           ) : (
             <button 
