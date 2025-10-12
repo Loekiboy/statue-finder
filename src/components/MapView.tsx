@@ -88,7 +88,13 @@ const MapView = () => {
   }, []);
 
   useEffect(() => {
-    if (!mapContainer.current || !userLocation || map.current) return;
+    if (!mapContainer.current || !userLocation || showViewer) return;
+
+    // Clean up existing map if it exists
+    if (map.current) {
+      map.current.remove();
+      map.current = null;
+    }
 
     // Initialize map
     map.current = L.map(mapContainer.current).setView(userLocation, 13);
@@ -169,6 +175,9 @@ const MapView = () => {
         setShowViewer(true);
       });
 
+    // Clear old model markers
+    modelMarkersRef.current = [];
+
     // Add markers for uploaded models
     models.forEach((model) => {
       if (model.latitude && model.longitude && map.current) {
@@ -238,37 +247,12 @@ const MapView = () => {
     });
 
     return () => {
-      map.current?.remove();
-      map.current = null;
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
     };
-  }, [userLocation, models]);
-
-  // Hide/show markers when viewer opens/closes
-  useEffect(() => {
-    if (showViewer) {
-      // Hide all markers
-      userMarkerRef.current?.remove();
-      standbeeldMarkerRef.current?.remove();
-      modelMarkersRef.current.forEach(marker => marker.remove());
-    } else if (map.current) {
-      // Show markers again
-      if (userMarkerRef.current) userMarkerRef.current.addTo(map.current);
-      if (standbeeldMarkerRef.current) standbeeldMarkerRef.current.addTo(map.current);
-      modelMarkersRef.current.forEach(marker => marker.addTo(map.current!));
-
-      // Force map to re-render properly after returning from viewer
-      const refresh = () => {
-        map.current?.invalidateSize(true);
-        tileLayerRef.current?.redraw();
-        const center = map.current!.getCenter();
-        const zoom = map.current!.getZoom();
-        map.current!.setView(center, zoom, { animate: false });
-      };
-      // Immediate and delayed refresh to ensure DOM is settled
-      refresh();
-      setTimeout(refresh, 150);
-    }
-  }, [showViewer]);
+  }, [userLocation, models, showViewer]);
 
   return (
     <div className="relative h-screen w-full">
