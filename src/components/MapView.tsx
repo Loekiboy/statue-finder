@@ -142,35 +142,65 @@ const MapView = () => {
     }
 
     let hasShownSuccess = false;
+    let watchId: number | null = null;
 
-    const watchId = navigator.geolocation.watchPosition(
+    // First try to get current position (works better in Safari)
+    navigator.geolocation.getCurrentPosition(
       (position) => {
         const coords: [number, number] = [
           position.coords.latitude,
           position.coords.longitude,
         ];
         setUserLocation(coords);
-        
-        if (!hasShownSuccess) {
-          toast.success(t('Locatie gevonden!', 'Location found!'));
-          hasShownSuccess = true;
-        }
+        toast.success(t('Locatie gevonden!', 'Location found!'));
+        hasShownSuccess = true;
+
+        // After successful initial position, start watching for updates
+        watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            const coords: [number, number] = [
+              position.coords.latitude,
+              position.coords.longitude,
+            ];
+            setUserLocation(coords);
+          },
+          (error) => {
+            console.error('Watch position error:', error.code, error.message);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 27000, // Longer timeout for Safari
+            maximumAge: 5000 // Allow cached position up to 5s old
+          }
+        );
       },
       (error) => {
-        console.error('Geolocation error:', error);
-        toast.error(t('Kon locatie niet vinden. Gebruik standaard locatie.', 'Could not find location. Using default location.'));
+        console.error('Geolocation error:', error.code, error.message);
+        let errorMessage = t('Kon locatie niet vinden.', 'Could not find location.');
+        
+        if (error.code === 1) {
+          errorMessage = t('Locatie toegang geweigerd. Sta locatie toe in Safari instellingen.', 'Location access denied. Allow location in Safari settings.');
+        } else if (error.code === 2) {
+          errorMessage = t('Locatie niet beschikbaar.', 'Location unavailable.');
+        } else if (error.code === 3) {
+          errorMessage = t('Locatie timeout. Probeer opnieuw.', 'Location timeout. Try again.');
+        }
+        
+        toast.error(errorMessage);
         setUserLocation([52.3676, 4.9041]);
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+        timeout: 27000, // Longer timeout for Safari
+        maximumAge: 5000
       }
     );
 
     // Cleanup function to stop watching when component unmounts
     return () => {
-      navigator.geolocation.clearWatch(watchId);
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
     };
   }, []);
 
