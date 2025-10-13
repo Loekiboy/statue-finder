@@ -101,23 +101,14 @@ const Sidebar = () => {
       {/* Mobile bottom navigation with liquid glass effect */}
       <nav className="fixed bottom-0 left-0 right-0 z-[2000] md:hidden pb-safe">
         {/* Liquid glass background effect */}
-        <div 
-          className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/80 to-background/60"
-          style={{
-            backdropFilter: 'blur(20px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-          }}
+        <div
+          className="absolute inset-0 supports-[backdrop-filter]:backdrop-blur-2xl supports-[backdrop-filter]:bg-background/70 bg-card/90 border-t border-border shadow-[var(--shadow-elevated)]"
         />
         
         {/* Glass reflection overlay */}
         <div 
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(255, 255, 255, 0.05) 100%)',
-            mixBlendMode: 'overlay'
-          }}
+          className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-foreground/5 via-transparent to-foreground/10 mix-blend-overlay"
+          aria-hidden="true"
         />
         
         {/* Navigation buttons */}
@@ -133,13 +124,9 @@ const Sidebar = () => {
                 className={cn(
                   'flex flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 transition-all min-w-[60px] relative',
                   isActive 
-                    ? 'text-primary' 
+                    ? 'text-primary bg-primary/15 ring-1 ring-primary/20 shadow-[var(--shadow-elevated)]' 
                     : 'text-muted-foreground hover:text-foreground'
                 )}
-                style={isActive ? {
-                  background: 'rgba(var(--primary-rgb, 59, 130, 246), 0.15)',
-                  boxShadow: '0 4px 12px rgba(var(--primary-rgb, 59, 130, 246), 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
-                } : undefined}
               >
                 <Icon className="h-5 w-5" />
                 <span className="text-[10px] font-medium">{t(item.labelNl, item.labelEn)}</span>
@@ -150,16 +137,12 @@ const Sidebar = () => {
           {user ? (
             <button 
               onClick={() => handleNavigation('/profile')}
-              className={cn(
-                'flex flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 transition-all min-w-[60px]',
-                location.pathname === '/profile'
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-              style={location.pathname === '/profile' ? {
-                background: 'rgba(var(--primary-rgb, 59, 130, 246), 0.15)',
-                boxShadow: '0 4px 12px rgba(var(--primary-rgb, 59, 130, 246), 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
-              } : undefined}
+               className={cn(
+                 'flex flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 transition-all min-w-[60px]',
+                 location.pathname === '/profile'
+                   ? 'text-primary bg-primary/15 ring-1 ring-primary/20 shadow-[var(--shadow-elevated)]'
+                   : 'text-muted-foreground hover:text-foreground'
+               )}
             >
               <UserIcon className="h-5 w-5" />
               <span className="text-[10px] font-medium">{t('Profiel', 'Profile')}</span>
