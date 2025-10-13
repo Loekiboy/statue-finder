@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import Confetti from 'react-confetti';
 import StandbeeldViewer from './StandbeeldViewer';
 import { Button } from './ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { isOnWiFi, cacheMapTiles, cacheNearbyModels, clearOldCaches } from '@/lib/cacheManager';
@@ -55,6 +56,9 @@ const MapView = () => {
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const [showLocationDialog, setShowLocationDialog] = useState(false);
+  const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
+  const accuracyCircleRef = useRef<L.Circle | null>(null);
 
 
   // Get current user
@@ -196,13 +200,12 @@ const MapView = () => {
       }
     );
 
-    // Cleanup function to stop watching when component unmounts
     return () => {
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, []);
+  }, [locationPermissionGranted]);
 
 
   const markModelAsDiscovered = async (modelId: string) => {
@@ -300,6 +303,14 @@ const MapView = () => {
     userMarkerRef.current = L.marker(userLocation, { icon: userIcon })
       .addTo(map.current);
 
+    // Add circle to show accuracy for user location (smaller for mobile)
+    accuracyCircleRef.current = L.circle(userLocation, {
+      color: 'hsl(220, 85%, 55%)',
+      fillColor: 'hsl(220, 85%, 55%)',
+      fillOpacity: 0.1,
+      radius: 50,
+    }).addTo(map.current);
+
     // Add marker for standbeeld with click handler
     standbeeldMarkerRef.current = L.marker(STANDBEELD_LOCATION, { icon: standbeeldIcon })
       .addTo(map.current)
@@ -313,7 +324,40 @@ const MapView = () => {
         setShowViewer(true);
       });
 
+    return () => {
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+    };
+  }, [showViewer]);
+
+  // Update user location marker smoothly without recreating map
+  useEffect(() => {
+    if (!userLocation || !map.current || !userMarkerRef.current) return;
+
+    // Smooth pan to new location
+    map.current.panTo(userLocation, {
+      animate: true,
+      duration: 0.5,
+      easeLinearity: 0.25
+    });
+
+    // Update marker position
+    userMarkerRef.current.setLatLng(userLocation);
+
+    // Update accuracy circle
+    if (accuracyCircleRef.current) {
+      accuracyCircleRef.current.setLatLng(userLocation);
+    }
+  }, [userLocation]);
+
+  // Update model markers when models or discovered models change
+  useEffect(() => {
+    if (!map.current || !userLocation || models.length === 0) return;
+
     // Clear old model markers
+    modelMarkersRef.current.forEach(marker => marker.remove());
     modelMarkersRef.current = [];
 
     // Add markers for uploaded models
@@ -388,42 +432,59 @@ const MapView = () => {
         modelMarkersRef.current.push(modelMarker);
       }
     });
+  }, [models, discoveredModels, userLocation, user]);
 
-    // Add circle to show accuracy for user location (smaller for mobile)
-    L.circle(userLocation, {
-      color: 'hsl(220, 85%, 55%)',
-      fillColor: 'hsl(220, 85%, 55%)',
-      fillOpacity: 0.1,
-      radius: 50,
-    }).addTo(map.current);
+  // Add right-click handler to update user location (beta test feature)
+  useEffect(() => {
+    if (!map.current) return;
 
-    // Add right-click handler to update user location (beta test feature)
-    map.current.on('contextmenu', (e: L.LeafletMouseEvent) => {
+    const handleContextMenu = (e: L.LeafletMouseEvent) => {
       if (!map.current || !userMarkerRef.current) return;
       
-      // Update user location
       const newLocation: [number, number] = [e.latlng.lat, e.latlng.lng];
       setUserLocation(newLocation);
-      
-      // Update marker position
-      userMarkerRef.current.setLatLng(e.latlng);
-      
-      // Center map on new location
-      map.current.setView(e.latlng, map.current.getZoom());
-      
       toast.success(t('Locatie bijgewerkt!', 'Location updated!'));
-    });
+    };
+
+    map.current.on('contextmenu', handleContextMenu);
 
     return () => {
       if (map.current) {
-        map.current.remove();
-        map.current = null;
+        map.current.off('contextmenu', handleContextMenu);
       }
     };
-  }, [userLocation, models, showViewer, discoveredModels, user]);
+  }, []);
 
   return (
     <div className="relative h-screen w-full">
+      <AlertDialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>📍 {t('Locatie Toestemming', 'Location Permission')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                'Deze app heeft toegang tot je locatie nodig om standbeelden in je buurt te vinden. Je locatie wordt alleen gebruikt om de kaart te tonen.',
+                'This app needs access to your location to find statues near you. Your location is only used to show the map.'
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowLocationDialog(false);
+              setUserLocation([52.3676, 4.9041]);
+            }}>
+              {t('Weigeren', 'Deny')}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowLocationDialog(false);
+              setLocationPermissionGranted(true);
+            }}>
+              {t('Toestaan', 'Allow')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
       {showConfetti && (
         <div className="fixed inset-0 z-50 pointer-events-none">
           <Confetti
