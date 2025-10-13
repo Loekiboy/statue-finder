@@ -45,6 +45,7 @@ const MapView = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [initialLocation, setInitialLocation] = useState<[number, number] | null>(null);
   const [showViewer, setShowViewer] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModelInfo | null>(null);
   const [models, setModels] = useState<Model[]>([]);
@@ -152,6 +153,9 @@ const MapView = () => {
           position.coords.longitude,
         ];
         setUserLocation(coords);
+        if (!initialLocation) {
+          setInitialLocation(coords);
+        }
         toast.success(t('Locatie gevonden!', 'Location found!'));
         hasShownSuccess = true;
 
@@ -219,8 +223,9 @@ const MapView = () => {
     }
   };
 
+  // Initialize map once with initial location
   useEffect(() => {
-    if (!mapContainer.current || !userLocation || showViewer) return;
+    if (!mapContainer.current || !initialLocation || showViewer) return;
 
     // Clean up existing map if it exists
     if (map.current) {
@@ -229,7 +234,7 @@ const MapView = () => {
     }
 
     // Initialize map with high zoom for Pokémon Go style
-    map.current = L.map(mapContainer.current).setView(userLocation, 18);
+    map.current = L.map(mapContainer.current).setView(initialLocation, 18);
 
     // Add OpenStreetMap tile layer met cache ondersteuning
     tileLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -297,7 +302,7 @@ const MapView = () => {
     });
 
     // Add marker for user location
-    userMarkerRef.current = L.marker(userLocation, { icon: userIcon })
+    userMarkerRef.current = L.marker(initialLocation, { icon: userIcon })
       .addTo(map.current);
 
     // Add marker for standbeeld with click handler
@@ -390,7 +395,7 @@ const MapView = () => {
     });
 
     // Add circle to show accuracy for user location (smaller for mobile)
-    L.circle(userLocation, {
+    L.circle(initialLocation, {
       color: 'hsl(220, 85%, 55%)',
       fillColor: 'hsl(220, 85%, 55%)',
       fillOpacity: 0.1,
@@ -420,7 +425,21 @@ const MapView = () => {
         map.current = null;
       }
     };
-  }, [userLocation, models, showViewer, discoveredModels, user]);
+  }, [initialLocation, models, showViewer, discoveredModels, user]);
+
+  // Update user marker position when location changes
+  useEffect(() => {
+    if (!userLocation || !userMarkerRef.current || !map.current) return;
+    
+    // Update marker position smoothly
+    userMarkerRef.current.setLatLng(userLocation);
+    
+    // Optionally pan map to keep user in view (smooth pan)
+    map.current.panTo(userLocation, {
+      animate: true,
+      duration: 0.5
+    });
+  }, [userLocation]);
 
   return (
     <div className="relative h-screen w-full">
