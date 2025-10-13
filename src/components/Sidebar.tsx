@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
+import FluidGlassNav from './FluidGlassNav';
 
 const Sidebar = () => {
   const { t } = useLanguage();
@@ -99,8 +100,25 @@ const Sidebar = () => {
       </aside>
 
       {/* Mobile bottom navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-[2000] border-t border-border bg-card/98 backdrop-blur-sm md:hidden pb-safe">
-        <div className="flex items-center justify-around px-2 py-2">
+      <nav className="fixed bottom-0 left-0 right-0 z-[2000] md:hidden pb-safe">
+        {/* Fluid glass background */}
+        <div className="absolute inset-0 overflow-hidden">
+          <FluidGlassNav 
+            navItems={[
+              ...navItems.map(item => ({ 
+                label: t(item.labelNl, item.labelEn), 
+                link: item.path 
+              })),
+              user 
+                ? { label: t('Profiel', 'Profile'), link: '/profile' }
+                : { label: t('Inloggen', 'Login'), link: '/auth' }
+            ]}
+            onNavigate={handleNavigation}
+          />
+        </div>
+        
+        {/* Navigation buttons - now with pointer-events */}
+        <div className="relative z-10 flex items-center justify-around px-2 py-2" style={{ pointerEvents: 'auto' }}>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -112,8 +130,8 @@ const Sidebar = () => {
                 className={cn(
                   'flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 transition-all min-w-[60px]',
                   isActive 
-                    ? 'bg-primary text-primary-foreground shadow-[var(--shadow-elevated)]' 
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    ? 'bg-primary/20 text-white shadow-lg' 
+                    : 'text-white/80 hover:bg-white/10 hover:text-white'
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -128,8 +146,8 @@ const Sidebar = () => {
               className={cn(
                 'flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 transition-all min-w-[60px]',
                 location.pathname === '/profile'
-                  ? 'bg-primary text-primary-foreground shadow-[var(--shadow-elevated)]'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  ? 'bg-primary/20 text-white shadow-lg'
+                  : 'text-white/80 hover:bg-white/10 hover:text-white'
               )}
             >
               <UserIcon className="h-5 w-5" />
@@ -138,7 +156,7 @@ const Sidebar = () => {
           ) : (
             <button 
               onClick={() => handleNavigation('/auth')}
-              className="flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 transition-all text-muted-foreground hover:bg-accent hover:text-accent-foreground min-w-[60px]"
+              className="flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 transition-all text-white/80 hover:bg-white/10 hover:text-white min-w-[60px]"
             >
               <LogIn className="h-5 w-5" />
               <span className="text-[10px] font-medium">Login</span>
