@@ -461,7 +461,7 @@ const MapView = () => {
   return (
     <div className="relative h-screen w-full">
       <AlertDialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[100]">
           <AlertDialogHeader>
             <AlertDialogTitle>{t('Locatie toestemming', 'Location Permission')}</AlertDialogTitle>
             <AlertDialogDescription>
