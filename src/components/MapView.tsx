@@ -108,8 +108,20 @@ const MapView = () => {
   }, []);
 
   useEffect(() => {
-    // Get user's location
-    if (navigator.geolocation) {
+    // Get user's location with retry mechanism
+    let attemptCount = 0;
+    const maxAttempts = 10;
+    const retryDelay = 3000; // 3 seconds between attempts
+
+    const attemptGeolocation = () => {
+      if (!navigator.geolocation) {
+        toast.error(t('Geolocatie wordt niet ondersteund door je browser.', 'Geolocation is not supported by your browser.'));
+        setUserLocation([52.3676, 4.9041]);
+        return;
+      }
+
+      attemptCount++;
+      
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const coords: [number, number] = [
@@ -120,16 +132,28 @@ const MapView = () => {
           toast.success(t('Locatie gevonden!', 'Location found!'));
         },
         (error) => {
-          console.error('Error getting location:', error);
-          toast.error(t('Kon locatie niet vinden. Gebruik standaard locatie.', 'Could not find location. Using default location.'));
-          // Default to Amsterdam
-          setUserLocation([52.3676, 4.9041]);
+          console.error(`Geolocation attempt ${attemptCount} failed:`, error);
+          
+          if (attemptCount < maxAttempts) {
+            toast.error(t(
+              `Locatie ophalen mislukt. Nieuwe poging ${attemptCount}/${maxAttempts}...`, 
+              `Failed to get location. Retrying ${attemptCount}/${maxAttempts}...`
+            ));
+            setTimeout(attemptGeolocation, retryDelay);
+          } else {
+            toast.error(t('Kon locatie niet vinden na meerdere pogingen. Gebruik standaard locatie.', 'Could not find location after multiple attempts. Using default location.'));
+            setUserLocation([52.3676, 4.9041]);
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
         }
       );
-    } else {
-      toast.error(t('Geolocatie wordt niet ondersteund door je browser.', 'Geolocation is not supported by your browser.'));
-      setUserLocation([52.3676, 4.9041]);
-    }
+    };
+
+    attemptGeolocation();
   }, []);
 
 
