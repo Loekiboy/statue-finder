@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
-import FluidGlassNav from './FluidGlassNav';
 
 const Sidebar = () => {
   const { t } = useLanguage();
@@ -99,26 +98,30 @@ const Sidebar = () => {
         )}
       </aside>
 
-      {/* Mobile bottom navigation */}
+      {/* Mobile bottom navigation with liquid glass effect */}
       <nav className="fixed bottom-0 left-0 right-0 z-[2000] md:hidden pb-safe">
-        {/* Fluid glass background */}
-        <div className="absolute inset-0 overflow-hidden">
-          <FluidGlassNav 
-            navItems={[
-              ...navItems.map(item => ({ 
-                label: t(item.labelNl, item.labelEn), 
-                link: item.path 
-              })),
-              user 
-                ? { label: t('Profiel', 'Profile'), link: '/profile' }
-                : { label: t('Inloggen', 'Login'), link: '/auth' }
-            ]}
-            onNavigate={handleNavigation}
-          />
-        </div>
+        {/* Liquid glass background effect */}
+        <div 
+          className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/80 to-background/60"
+          style={{
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+          }}
+        />
         
-        {/* Navigation buttons - now with pointer-events */}
-        <div className="relative z-10 flex items-center justify-around px-2 py-2" style={{ pointerEvents: 'auto' }}>
+        {/* Glass reflection overlay */}
+        <div 
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(255, 255, 255, 0.05) 100%)',
+            mixBlendMode: 'overlay'
+          }}
+        />
+        
+        {/* Navigation buttons */}
+        <div className="relative z-10 flex items-center justify-around px-2 py-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -128,11 +131,15 @@ const Sidebar = () => {
                 key={item.path}
                 onClick={() => handleNavigation(item.path)}
                 className={cn(
-                  'flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 transition-all min-w-[60px]',
+                  'flex flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 transition-all min-w-[60px] relative',
                   isActive 
-                    ? 'bg-primary/20 text-white shadow-lg' 
-                    : 'text-white/80 hover:bg-white/10 hover:text-white'
+                    ? 'text-primary' 
+                    : 'text-muted-foreground hover:text-foreground'
                 )}
+                style={isActive ? {
+                  background: 'rgba(var(--primary-rgb, 59, 130, 246), 0.15)',
+                  boxShadow: '0 4px 12px rgba(var(--primary-rgb, 59, 130, 246), 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                } : undefined}
               >
                 <Icon className="h-5 w-5" />
                 <span className="text-[10px] font-medium">{t(item.labelNl, item.labelEn)}</span>
@@ -144,11 +151,15 @@ const Sidebar = () => {
             <button 
               onClick={() => handleNavigation('/profile')}
               className={cn(
-                'flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 transition-all min-w-[60px]',
+                'flex flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 transition-all min-w-[60px]',
                 location.pathname === '/profile'
-                  ? 'bg-primary/20 text-white shadow-lg'
-                  : 'text-white/80 hover:bg-white/10 hover:text-white'
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
+              style={location.pathname === '/profile' ? {
+                background: 'rgba(var(--primary-rgb, 59, 130, 246), 0.15)',
+                boxShadow: '0 4px 12px rgba(var(--primary-rgb, 59, 130, 246), 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+              } : undefined}
             >
               <UserIcon className="h-5 w-5" />
               <span className="text-[10px] font-medium">{t('Profiel', 'Profile')}</span>
@@ -156,7 +167,7 @@ const Sidebar = () => {
           ) : (
             <button 
               onClick={() => handleNavigation('/auth')}
-              className="flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 transition-all text-white/80 hover:bg-white/10 hover:text-white min-w-[60px]"
+              className="flex flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 transition-all text-muted-foreground hover:text-foreground min-w-[60px]"
             >
               <LogIn className="h-5 w-5" />
               <span className="text-[10px] font-medium">Login</span>
