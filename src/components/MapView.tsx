@@ -6,6 +6,7 @@ import StandbeeldViewer from './StandbeeldViewer';
 import { Button } from './ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { isOnWiFi, cacheMapTiles, cacheNearbyModels, clearOldCaches } from '@/lib/cacheManager';
 
 interface Model {
   id: string;
@@ -105,7 +106,32 @@ const MapView = () => {
     };
     
     fetchModels();
+    clearOldCaches(); // Ruim oude caches op bij opstarten
   }, []);
+
+  // Auto-cache wanneer op WiFi
+  useEffect(() => {
+    if (!userLocation || models.length === 0) return;
+    
+    const autoCacheData = async () => {
+      if (isOnWiFi()) {
+        console.log('WiFi gedetecteerd - starten met caching...');
+        
+        // Cache kaart tiles rond gebruiker
+        await cacheMapTiles(userLocation, 3);
+        
+        // Cache modellen binnen 500m
+        await cacheNearbyModels(userLocation, models, 500);
+        
+        console.log('Caching voltooid!');
+      }
+    };
+    
+    // Cache na 2 seconden om niet te interfereren met app loading
+    const timer = setTimeout(autoCacheData, 2000);
+    
+    return () => clearTimeout(timer);
+  }, [userLocation, models]);
 
   useEffect(() => {
     // Watch user's location continuously
@@ -175,10 +201,12 @@ const MapView = () => {
     // Initialize map with high zoom for Pokémon Go style
     map.current = L.map(mapContainer.current).setView(userLocation, 18);
 
-    // Add OpenStreetMap tile layer (completely free!)
+    // Add OpenStreetMap tile layer met cache ondersteuning
     tileLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
+      // Gebruik browser cache voor tiles
+      crossOrigin: true,
     }).addTo(map.current);
 
     // Create custom icon for user location (blue)
