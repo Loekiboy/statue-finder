@@ -248,9 +248,7 @@ const MapView = () => {
 
     // Add marker for user location
     userMarkerRef.current = L.marker(userLocation, { icon: userIcon })
-      .addTo(map.current)
-      .bindPopup(`<b>${t('Jouw Locatie', 'Your Location')}</b><br>${t('Je bent hier!', "You are here!")}`)
-      .openPopup();
+      .addTo(map.current);
 
     // Add marker for standbeeld with click handler
     standbeeldMarkerRef.current = L.marker(STANDBEELD_LOCATION, { icon: standbeeldIcon })
@@ -359,7 +357,6 @@ const MapView = () => {
       
       // Update marker position
       userMarkerRef.current.setLatLng(e.latlng);
-      userMarkerRef.current.bindPopup(`<b>${t('Jouw Locatie', 'Your Location')}</b><br>${t('Je bent hier!', "You are here!")}`).openPopup();
       
       // Center map on new location
       map.current.setView(e.latlng, map.current.getZoom());
