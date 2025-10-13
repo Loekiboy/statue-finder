@@ -56,6 +56,7 @@ const MapView = () => {
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const accuracyCircleRef = useRef<L.Circle | null>(null);
 
 
   // Get current user
@@ -395,7 +396,7 @@ const MapView = () => {
     });
 
     // Add circle to show accuracy for user location (smaller for mobile)
-    L.circle(initialLocation, {
+    accuracyCircleRef.current = L.circle(initialLocation, {
       color: 'hsl(220, 85%, 55%)',
       fillColor: 'hsl(220, 85%, 55%)',
       fillOpacity: 0.1,
@@ -429,16 +430,15 @@ const MapView = () => {
 
   // Update user marker position when location changes
   useEffect(() => {
-    if (!userLocation || !userMarkerRef.current || !map.current) return;
+    if (!userLocation || !userMarkerRef.current) return;
     
     // Update marker position smoothly
     userMarkerRef.current.setLatLng(userLocation);
     
-    // Optionally pan map to keep user in view (smooth pan)
-    map.current.panTo(userLocation, {
-      animate: true,
-      duration: 0.5
-    });
+    // Update accuracy circle position
+    if (accuracyCircleRef.current) {
+      accuracyCircleRef.current.setLatLng(userLocation);
+    }
   }, [userLocation]);
 
   return (
