@@ -4,6 +4,7 @@ import { useRef, useState, useEffect, memo } from 'react';
 import { Canvas, createPortal, useFrame, useThree } from '@react-three/fiber';
 import {
   useFBO,
+  useGLTF,
   MeshTransmissionMaterial,
   Text
 } from '@react-three/drei';
@@ -39,13 +40,20 @@ export default function FluidGlassNav({ navItems, onNavigate }: FluidGlassNavPro
 
 const Bar = memo(function Bar({ navItems, onNavigate }: FluidGlassNavProps) {
   const ref = useRef<THREE.Mesh>(null!);
+  const { nodes } = useGLTF('/assets/3d/bar.glb');
   const buffer = useFBO();
   const { viewport: vp } = useThree();
   const [scene] = useState(() => new THREE.Scene());
+  const geoWidthRef = useRef(1);
 
-  // Create a simple rounded box geometry
-  const geometry = new THREE.BoxGeometry(10, 0.8, 0.2, 32, 32, 32);
-  
+  useEffect(() => {
+    const geo = (nodes.Cube as any)?.geometry;
+    if (geo) {
+      geo.computeBoundingBox();
+      geoWidthRef.current = geo.boundingBox.max.x - geo.boundingBox.min.x || 1;
+    }
+  }, [nodes]);
+
   useFrame((state, delta) => {
     const { gl, viewport, camera } = state;
     const v = viewport.getCurrentViewport(camera, [0, 0, 15]);
@@ -55,13 +63,16 @@ const Bar = memo(function Bar({ navItems, onNavigate }: FluidGlassNavProps) {
     easing.damp3(ref.current.position, [0, destY, 15], 0.15, delta);
 
     // Auto-scale based on viewport width
-    const desiredWidth = v.width * 0.95;
-    const scaleX = desiredWidth / 10;
-    ref.current.scale.set(scaleX, 0.8, 1);
+    const maxWorld = v.width * 0.9;
+    const desired = maxWorld / geoWidthRef.current;
+    ref.current.scale.setScalar(Math.min(0.15, desired));
 
     gl.setRenderTarget(buffer);
     gl.render(scene, camera);
     gl.setRenderTarget(null);
+
+    // Background Color
+    gl.setClearColor(0x000000, 0);
   });
 
   return (
@@ -73,7 +84,7 @@ const Bar = memo(function Bar({ navItems, onNavigate }: FluidGlassNavProps) {
       </mesh>
       <mesh 
         ref={ref} 
-        geometry={geometry}
+        geometry={(nodes.Cube as any)?.geometry}
       >
         <MeshTransmissionMaterial
           buffer={buffer.texture}
@@ -165,3 +176,5 @@ function NavItems({ navItems, onNavigate }: FluidGlassNavProps) {
   );
 }
 
+// Preload the 3D model
+useGLTF.preload('/assets/3d/bar.glb');
