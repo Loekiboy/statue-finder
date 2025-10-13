@@ -57,8 +57,8 @@ const MapView = () => {
   const modelMarkersRef = useRef<L.Marker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const [showLocationDialog, setShowLocationDialog] = useState(false);
-  const [mapInitialized, setMapInitialized] = useState(false);
   const accuracyCircleRef = useRef<L.Circle | null>(null);
+  const geoWatchIdRef = useRef<number | null>(null);
 
 
   // Get current user
@@ -158,8 +158,6 @@ const MapView = () => {
       return;
     }
 
-    let watchId: number | null = null;
-
     // Get current position and start watching
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -171,7 +169,7 @@ const MapView = () => {
         toast.success(t('Locatie gevonden!', 'Location found!'));
 
         // Start watching for updates
-        watchId = navigator.geolocation.watchPosition(
+        geoWatchIdRef.current = navigator.geolocation.watchPosition(
           (position) => {
             const coords: [number, number] = [
               position.coords.latitude,
@@ -210,14 +208,19 @@ const MapView = () => {
       }
     );
 
-    // Cleanup
+  
+  // Cleanup geolocation watcher on unmount
+  useEffect(() => {
     return () => {
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
+      if (geoWatchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(geoWatchIdRef.current);
+      }
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
       }
     };
-  };
-
+  }, []);
 
   const markModelAsDiscovered = async (modelId: string) => {
     if (!user) return;
@@ -235,11 +238,11 @@ const MapView = () => {
 
   // Initialize map once
   useEffect(() => {
-    if (!mapContainer.current || !userLocation || showViewer || mapInitialized) return;
+    if (!mapContainer.current || !userLocation || showViewer) return;
 
     // Initialize map with high zoom for Pokémon Go style
     map.current = L.map(mapContainer.current).setView(userLocation, 18);
-    setMapInitialized(true);
+    
 
     // Add OpenStreetMap tile layer met cache ondersteuning
     tileLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -428,14 +431,14 @@ const MapView = () => {
       if (map.current) {
         map.current.remove();
         map.current = null;
-        setMapInitialized(false);
+        
       }
     };
-  }, [mapInitialized, userLocation, models, showViewer, discoveredModels, user]);
+  }, [userLocation, models, showViewer, discoveredModels, user]);
 
   // Update user marker position smoothly when location changes
   useEffect(() => {
-    if (!map.current || !userLocation || !mapInitialized) return;
+    if (!map.current || !userLocation) return;
 
     // Update user marker position smoothly
     if (userMarkerRef.current) {
@@ -453,7 +456,7 @@ const MapView = () => {
       duration: 0.5,
       easeLinearity: 0.25
     });
-  }, [userLocation, mapInitialized]);
+  }, [userLocation]);
 
   return (
     <div className="relative h-screen w-full">
