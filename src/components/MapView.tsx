@@ -231,13 +231,9 @@ const MapView = () => {
   };
 
   useEffect(() => {
+    // Initialize map only once when we have a location and viewer is not open
     if (!mapContainer.current || !userLocation || showViewer) return;
-
-    // Clean up existing map if it exists
-    if (map.current) {
-      map.current.remove();
-      map.current = null;
-    }
+    if (map.current) return; // prevent re-creation
 
     // Initialize map with high zoom for Pokémon Go style
     map.current = L.map(mapContainer.current).setView(userLocation, 18);
@@ -246,7 +242,6 @@ const MapView = () => {
     tileLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
-      // Gebruik browser cache voor tiles
       crossOrigin: true,
     }).addTo(map.current);
 
@@ -308,8 +303,7 @@ const MapView = () => {
     });
 
     // Add marker for user location
-    userMarkerRef.current = L.marker(userLocation, { icon: userIcon })
-      .addTo(map.current);
+    userMarkerRef.current = L.marker(userLocation, { icon: userIcon }).addTo(map.current);
 
     // Add circle to show accuracy for user location (smaller for mobile)
     accuracyCircleRef.current = L.circle(userLocation, {
@@ -331,14 +325,17 @@ const MapView = () => {
         });
         setShowViewer(true);
       });
+  }, [userLocation, showViewer]);
 
+  // Cleanup map on unmount only
+  useEffect(() => {
     return () => {
       if (map.current) {
         map.current.remove();
         map.current = null;
       }
     };
-  }, [showViewer]);
+  }, []);
 
   // Update user location marker smoothly without recreating map
   useEffect(() => {
