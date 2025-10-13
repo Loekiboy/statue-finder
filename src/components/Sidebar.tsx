@@ -98,21 +98,9 @@ const Sidebar = () => {
         )}
       </aside>
 
-      {/* Mobile bottom navigation with liquid glass effect */}
-      <nav className="fixed bottom-0 left-0 right-0 z-[2000] md:hidden pb-safe">
-        {/* Liquid glass background effect */}
-        <div
-          className="absolute inset-0 supports-[backdrop-filter]:backdrop-blur-2xl supports-[backdrop-filter]:bg-background/70 bg-card/90 border-t border-border shadow-[var(--shadow-elevated)]"
-        />
-        
-        {/* Glass reflection overlay */}
-        <div 
-          className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-foreground/5 via-transparent to-foreground/10 mix-blend-overlay"
-          aria-hidden="true"
-        />
-        
-        {/* Navigation buttons */}
-        <div className="relative z-10 flex items-center justify-around px-2 py-2">
+      {/* Mobile bottom navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-[2000] border-t border-border bg-card/98 backdrop-blur-sm md:hidden pb-safe">
+        <div className="flex items-center justify-around px-2 py-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -122,10 +110,10 @@ const Sidebar = () => {
                 key={item.path}
                 onClick={() => handleNavigation(item.path)}
                 className={cn(
-                  'flex flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 transition-all min-w-[60px] relative',
+                  'flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 transition-all min-w-[60px]',
                   isActive 
-                    ? 'text-primary bg-primary/15 ring-1 ring-primary/20 shadow-[var(--shadow-elevated)]' 
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-primary text-primary-foreground shadow-[var(--shadow-elevated)]' 
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -137,12 +125,12 @@ const Sidebar = () => {
           {user ? (
             <button 
               onClick={() => handleNavigation('/profile')}
-               className={cn(
-                 'flex flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 transition-all min-w-[60px]',
-                 location.pathname === '/profile'
-                   ? 'text-primary bg-primary/15 ring-1 ring-primary/20 shadow-[var(--shadow-elevated)]'
-                   : 'text-muted-foreground hover:text-foreground'
-               )}
+              className={cn(
+                'flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 transition-all min-w-[60px]',
+                location.pathname === '/profile'
+                  ? 'bg-primary text-primary-foreground shadow-[var(--shadow-elevated)]'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              )}
             >
               <UserIcon className="h-5 w-5" />
               <span className="text-[10px] font-medium">{t('Profiel', 'Profile')}</span>
@@ -150,7 +138,7 @@ const Sidebar = () => {
           ) : (
             <button 
               onClick={() => handleNavigation('/auth')}
-              className="flex flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 transition-all text-muted-foreground hover:text-foreground min-w-[60px]"
+              className="flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 transition-all text-muted-foreground hover:bg-accent hover:text-accent-foreground min-w-[60px]"
             >
               <LogIn className="h-5 w-5" />
               <span className="text-[10px] font-medium">Login</span>
