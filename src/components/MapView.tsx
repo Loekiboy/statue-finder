@@ -139,7 +139,9 @@ const MapView = () => {
     // Watch user's location continuously
     if (!navigator.geolocation) {
       toast.error(t('Geolocatie wordt niet ondersteund door je browser.', 'Geolocation is not supported by your browser.'));
-      setUserLocation([52.3676, 4.9041]);
+      const fallback: [number, number] = [52.3676, 4.9041];
+      setUserLocation(fallback);
+      setInitialLocation(fallback);
       return;
     }
 
@@ -192,7 +194,11 @@ const MapView = () => {
         }
         
         toast.error(errorMessage);
-        setUserLocation([52.3676, 4.9041]);
+        const fallback: [number, number] = [52.3676, 4.9041];
+        setUserLocation(fallback);
+        if (!initialLocation) {
+          setInitialLocation(fallback);
+        }
       },
       {
         enableHighAccuracy: true,
