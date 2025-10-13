@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import Confetti from 'react-confetti';
 import StandbeeldViewer from './StandbeeldViewer';
 import { Button } from './ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { isOnWiFi, cacheMapTiles, cacheNearbyModels, clearOldCaches } from '@/lib/cacheManager';
@@ -55,6 +56,9 @@ const MapView = () => {
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const [showLocationDialog, setShowLocationDialog] = useState(false);
+  const [mapInitialized, setMapInitialized] = useState(false);
+  const accuracyCircleRef = useRef<L.Circle | null>(null);
 
 
   // Get current user
@@ -133,18 +137,30 @@ const MapView = () => {
     return () => clearTimeout(timer);
   }, [userLocation, models]);
 
+  // Initialize with default location first
   useEffect(() => {
-    // Watch user's location continuously
-    if (!navigator.geolocation) {
-      toast.error(t('Geolocatie wordt niet ondersteund door je browser.', 'Geolocation is not supported by your browser.'));
-      setUserLocation([52.3676, 4.9041]);
+    setUserLocation([52.3676, 4.9041]); // Default Amsterdam location
+    // Show location permission dialog
+    setTimeout(() => setShowLocationDialog(true), 500);
+  }, []);
+
+  // Handle location permission
+  const handleLocationPermission = (granted: boolean) => {
+    setShowLocationDialog(false);
+    
+    if (!granted) {
+      toast.info(t('Je kunt de kaart bekijken met standaard locatie', 'You can view the map with default location'));
       return;
     }
 
-    let hasShownSuccess = false;
+    if (!navigator.geolocation) {
+      toast.error(t('Geolocatie wordt niet ondersteund door je browser.', 'Geolocation is not supported by your browser.'));
+      return;
+    }
+
     let watchId: number | null = null;
 
-    // First try to get current position (works better in Safari)
+    // Get current position and start watching
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const coords: [number, number] = [
@@ -153,9 +169,8 @@ const MapView = () => {
         ];
         setUserLocation(coords);
         toast.success(t('Locatie gevonden!', 'Location found!'));
-        hasShownSuccess = true;
 
-        // After successful initial position, start watching for updates
+        // Start watching for updates
         watchId = navigator.geolocation.watchPosition(
           (position) => {
             const coords: [number, number] = [
@@ -169,8 +184,8 @@ const MapView = () => {
           },
           {
             enableHighAccuracy: true,
-            timeout: 27000, // Longer timeout for Safari
-            maximumAge: 5000 // Allow cached position up to 5s old
+            timeout: 27000,
+            maximumAge: 5000
           }
         );
       },
@@ -179,30 +194,29 @@ const MapView = () => {
         let errorMessage = t('Kon locatie niet vinden.', 'Could not find location.');
         
         if (error.code === 1) {
-          errorMessage = t('Locatie toegang geweigerd. Sta locatie toe in Safari instellingen.', 'Location access denied. Allow location in Safari settings.');
+          errorMessage = t('Locatie toegang geweigerd.', 'Location access denied.');
         } else if (error.code === 2) {
           errorMessage = t('Locatie niet beschikbaar.', 'Location unavailable.');
         } else if (error.code === 3) {
-          errorMessage = t('Locatie timeout. Probeer opnieuw.', 'Location timeout. Try again.');
+          errorMessage = t('Locatie timeout.', 'Location timeout.');
         }
         
         toast.error(errorMessage);
-        setUserLocation([52.3676, 4.9041]);
       },
       {
         enableHighAccuracy: true,
-        timeout: 27000, // Longer timeout for Safari
+        timeout: 27000,
         maximumAge: 5000
       }
     );
 
-    // Cleanup function to stop watching when component unmounts
+    // Cleanup
     return () => {
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, []);
+  };
 
 
   const markModelAsDiscovered = async (modelId: string) => {
@@ -219,17 +233,13 @@ const MapView = () => {
     }
   };
 
+  // Initialize map once
   useEffect(() => {
-    if (!mapContainer.current || !userLocation || showViewer) return;
-
-    // Clean up existing map if it exists
-    if (map.current) {
-      map.current.remove();
-      map.current = null;
-    }
+    if (!mapContainer.current || !userLocation || showViewer || mapInitialized) return;
 
     // Initialize map with high zoom for Pokémon Go style
     map.current = L.map(mapContainer.current).setView(userLocation, 18);
+    setMapInitialized(true);
 
     // Add OpenStreetMap tile layer met cache ondersteuning
     tileLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -390,7 +400,7 @@ const MapView = () => {
     });
 
     // Add circle to show accuracy for user location (smaller for mobile)
-    L.circle(userLocation, {
+    accuracyCircleRef.current = L.circle(userLocation, {
       color: 'hsl(220, 85%, 55%)',
       fillColor: 'hsl(220, 85%, 55%)',
       fillOpacity: 0.1,
@@ -418,12 +428,57 @@ const MapView = () => {
       if (map.current) {
         map.current.remove();
         map.current = null;
+        setMapInitialized(false);
       }
     };
-  }, [userLocation, models, showViewer, discoveredModels, user]);
+  }, [mapInitialized, userLocation, models, showViewer, discoveredModels, user]);
+
+  // Update user marker position smoothly when location changes
+  useEffect(() => {
+    if (!map.current || !userLocation || !mapInitialized) return;
+
+    // Update user marker position smoothly
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLatLng(userLocation);
+    }
+
+    // Update accuracy circle position
+    if (accuracyCircleRef.current) {
+      accuracyCircleRef.current.setLatLng(userLocation);
+    }
+
+    // Smoothly pan map to new location
+    map.current.panTo(userLocation, {
+      animate: true,
+      duration: 0.5,
+      easeLinearity: 0.25
+    });
+  }, [userLocation, mapInitialized]);
 
   return (
     <div className="relative h-screen w-full">
+      <AlertDialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('Locatie toestemming', 'Location Permission')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                'Deze app gebruikt je locatie om 3D modellen in je omgeving te vinden. Wil je locatie toegang toestaan?',
+                'This app uses your location to find 3D models in your area. Do you want to allow location access?'
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleLocationPermission(false)}>
+              {t('Niet nu', 'Not now')}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleLocationPermission(true)}>
+              {t('Toestaan', 'Allow')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {showConfetti && (
         <div className="fixed inset-0 z-50 pointer-events-none">
           <Confetti
