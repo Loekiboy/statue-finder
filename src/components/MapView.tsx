@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import Confetti from 'react-confetti';
 import StandbeeldViewer from './StandbeeldViewer';
 import { Button } from './ui/button';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogOverlay } from './ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { isOnWiFi, cacheMapTiles, cacheNearbyModels, clearOldCaches } from '@/lib/cacheManager';
@@ -326,81 +326,8 @@ const MapView = () => {
         setShowViewer(true);
       });
 
-    // Clear old model markers
-    modelMarkersRef.current = [];
+    // Model markers are handled in a separate effect to avoid map re-creation
 
-    // Add markers for uploaded models
-    const DISCOVERY_RADIUS = 50; // meters - discovery range
-    
-    models.forEach((model) => {
-      if (model.latitude && model.longitude && map.current) {
-        // Calculate distance between user and model
-        const modelLatLng = L.latLng(model.latitude, model.longitude);
-        const userLatLng = L.latLng(userLocation);
-        const distance = userLatLng.distanceTo(modelLatLng);
-        
-        // Check if model is already discovered in database
-        const isAlreadyDiscovered = discoveredModels.includes(model.id);
-        // Check if model is within discovery range
-        const isWithinRange = distance <= DISCOVERY_RADIUS;
-        const isDiscovered = isAlreadyDiscovered || isWithinRange;
-        const thumbnailUrl = model.thumbnail_url;
-        
-        const modelIcon = L.divIcon({
-          className: 'custom-marker-model',
-          html: `
-            <div style="
-              width: 80px;
-              height: 80px;
-              border-radius: 12px;
-              background-color: white;
-              border: 4px solid ${isDiscovered ? 'hsl(140, 75%, 45%)' : 'hsl(0, 0%, 60%)'};
-              box-shadow: 0 4px 14px rgba(0,0,0,0.4);
-              overflow: hidden;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              ${thumbnailUrl && isDiscovered ? `background-image: url('${thumbnailUrl}'); background-size: cover; background-position: center;` : ''}
-              ${!isDiscovered ? 'filter: grayscale(100%) opacity(0.5);' : ''}
-            ">
-              ${!thumbnailUrl || !isDiscovered ? `
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="${isDiscovered ? 'hsl(140, 75%, 45%)' : 'hsl(0, 0%, 60%)'}" stroke-width="2">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                  <line x1="12" y1="22.08" x2="12" y2="12"/>
-                </svg>
-              ` : ''}
-              ${isDiscovered ? '<div style="position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; background: hsl(140, 75%, 45%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px;">✓</div>' : ''}
-            </div>
-          `,
-          iconSize: [80, 80],
-          iconAnchor: [40, 40],
-        });
-
-        const modelMarker = L.marker([model.latitude, model.longitude], { icon: modelIcon })
-          .addTo(map.current)
-          .bindPopup(`<b>${model.name}</b><br>${isDiscovered ? (model.description || t('Klik om 3D model te bekijken', 'Click to view 3D model')) : `🔒 ${t('Kom binnen', 'Come within')} ${Math.round(distance)}m ${t('om te ontdekken', 'to discover')}`}`)
-          .on('click', async () => {
-            if (isDiscovered) {
-              // Mark as discovered if not already
-              if (!isAlreadyDiscovered && isWithinRange && user) {
-                await markModelAsDiscovered(model.id);
-                toast.success(`${model.name} ${t('gevonden! 🎉', 'found! 🎉')}`);
-              }
-              setSelectedModel({
-                name: model.name,
-                description: model.description,
-                file_path: model.file_path
-              });
-              setShowViewer(true);
-            } else {
-              toast.error(`${t('Je bent nog', 'You are still')} ${Math.round(distance)}m ${t('verwijderd van dit model', 'away from this model')}`);
-            }
-          });
-        
-        modelMarkersRef.current.push(modelMarker);
-      }
-    });
 
     // Add circle to show accuracy for user location (smaller for mobile)
     accuracyCircleRef.current = L.circle(userLocation, {
@@ -434,7 +361,92 @@ const MapView = () => {
         
       }
     };
-  }, [userLocation, models, showViewer, discoveredModels, user]);
+  }, [showViewer]);
+
+  // Sync model markers without recreating the map
+  useEffect(() => {
+    if (!map.current || showViewer) return;
+
+    // Remove existing model markers
+    modelMarkersRef.current.forEach((m) => m.remove());
+    modelMarkersRef.current = [];
+
+    const DISCOVERY_RADIUS = 50; // meters - discovery range
+
+    models.forEach((model) => {
+      if (model.latitude && model.longitude && map.current) {
+        // Calculate distance between user and model if we have user location
+        const modelLatLng = L.latLng(model.latitude, model.longitude);
+        const userLatLng = userLocation ? L.latLng(userLocation) : null;
+        const distance = userLatLng ? userLatLng.distanceTo(modelLatLng) : Infinity;
+
+        const isAlreadyDiscovered = discoveredModels.includes(model.id);
+        const isWithinRange = distance <= DISCOVERY_RADIUS;
+        const isDiscovered = isAlreadyDiscovered || isWithinRange;
+        const thumbnailUrl = model.thumbnail_url;
+
+        const borderColor = isDiscovered ? 'hsl(140, 75%, 45%)' : 'hsl(0, 0%, 60%)';
+        const strokeColor = borderColor;
+        const grayscale = !isDiscovered ? 'filter: grayscale(100%) opacity(0.5);' : '';
+        const bgImage = thumbnailUrl && isDiscovered ? `background-image: url('${thumbnailUrl}'); background-size: cover; background-position: center;` : '';
+
+        const modelIcon = L.divIcon({
+          className: 'custom-marker-model',
+          html: `
+            <div style="
+              width: 80px;
+              height: 80px;
+              border-radius: 12px;
+              background-color: white;
+              border: 4px solid ${borderColor};
+              box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+              overflow: hidden;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              ${bgImage}
+              ${grayscale}
+            ">
+              ${!thumbnailUrl || !isDiscovered ? `
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="2">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                  <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+              ` : ''}
+              ${isDiscovered ? '<div style="position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; background: hsl(140, 75%, 45%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px;">✓</div>' : ''}
+            </div>
+          `,
+          iconSize: [80, 80],
+          iconAnchor: [40, 40],
+        });
+
+        const modelMarker = L.marker([model.latitude, model.longitude], { icon: modelIcon })
+          .addTo(map.current!)
+          .bindPopup(`<b>${model.name}</b><br>${isDiscovered ? (model.description || t('Klik om 3D model te bekijken', 'Click to view 3D model')) : `🔒 ${t('Kom binnen', 'Come within')} ${isFinite(distance) ? Math.round(distance) : '?'}m ${t('om te ontdekken', 'to discover')}`}`)
+          .on('click', async () => {
+            if (isDiscovered) {
+              if (!isAlreadyDiscovered && isWithinRange && user) {
+                await markModelAsDiscovered(model.id);
+                toast.success(`${model.name} ${t('gevonden! 🎉', 'found! 🎉')}`);
+              }
+              setSelectedModel({
+                name: model.name,
+                description: model.description,
+                file_path: model.file_path
+              });
+              setShowViewer(true);
+            } else if (isFinite(distance)) {
+              toast.error(`${t('Je bent nog', 'You are still')} ${Math.round(distance)}m ${t('verwijderd van dit model', 'away from this model')}`);
+            } else {
+              toast.error(t('Wacht op je locatie…', 'Waiting for your location…'));
+            }
+          });
+
+        modelMarkersRef.current.push(modelMarker);
+      }
+    });
+  }, [models, discoveredModels, userLocation, user, showViewer]);
 
   // Update user marker position smoothly when location changes
   useEffect(() => {
@@ -461,7 +473,8 @@ const MapView = () => {
   return (
     <div className="relative h-screen w-full">
       <AlertDialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
-        <AlertDialogContent className="z-[100]">
+        <AlertDialogOverlay className="fixed inset-0 z-[9998] bg-background/80 backdrop-blur-sm" />
+        <AlertDialogContent className="z-[9999]">
           <AlertDialogHeader>
             <AlertDialogTitle>{t('Locatie toestemming', 'Location Permission')}</AlertDialogTitle>
             <AlertDialogDescription>
