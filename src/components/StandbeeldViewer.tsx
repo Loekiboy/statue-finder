@@ -105,8 +105,8 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
         // Create mesh
         const mesh = new THREE.Mesh(geometry, material);
         
-        // Rotate to upright position (STL files often need rotation)
-        mesh.rotation.x = -Math.PI / 2;
+        // No rotation needed - model should be upright by default
+        // mesh.rotation.x = -Math.PI / 2;
         
         // Scale if needed (adjust deze waarde als het model te groot/klein is)
         const scale = 0.05;
