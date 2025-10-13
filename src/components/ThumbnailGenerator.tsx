@@ -45,7 +45,7 @@ const ModelRenderer = ({ modelPath, onCapture }: { modelPath: string; onCapture:
   if (!geometry) return null;
 
   return (
-    <mesh ref={meshRef} geometry={geometry}>
+    <mesh ref={meshRef} geometry={geometry} rotation={[-Math.PI / 2, 0, 0]}>
       <meshStandardMaterial color="#22c55e" metalness={0.3} roughness={0.4} />
     </mesh>
   );
