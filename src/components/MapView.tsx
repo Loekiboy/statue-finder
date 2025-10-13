@@ -137,11 +137,20 @@ const MapView = () => {
     return () => clearTimeout(timer);
   }, [userLocation, models]);
 
+  // Show location permission dialog on mount and set default location
   useEffect(() => {
+    setShowLocationDialog(true);
+    // Set default location immediately so map can load
+    setUserLocation([52.3676, 4.9041]);
+  }, []);
+
+  // Request location when permission granted
+  useEffect(() => {
+    if (!locationPermissionGranted) return;
+
     // Watch user's location continuously
     if (!navigator.geolocation) {
       toast.error(t('Geolocatie wordt niet ondersteund door je browser.', 'Geolocation is not supported by your browser.'));
-      setUserLocation([52.3676, 4.9041]);
       return;
     }
 
@@ -173,8 +182,8 @@ const MapView = () => {
           },
           {
             enableHighAccuracy: true,
-            timeout: 27000, // Longer timeout for Safari
-            maximumAge: 5000 // Allow cached position up to 5s old
+            timeout: 27000,
+            maximumAge: 5000
           }
         );
       },
@@ -191,11 +200,10 @@ const MapView = () => {
         }
         
         toast.error(errorMessage);
-        setUserLocation([52.3676, 4.9041]);
       },
       {
         enableHighAccuracy: true,
-        timeout: 27000, // Longer timeout for Safari
+        timeout: 27000,
         maximumAge: 5000
       }
     );
@@ -471,7 +479,7 @@ const MapView = () => {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => {
               setShowLocationDialog(false);
-              setUserLocation([52.3676, 4.9041]);
+              // Keep default location set in initial useEffect
             }}>
               {t('Weigeren', 'Deny')}
             </AlertDialogCancel>
