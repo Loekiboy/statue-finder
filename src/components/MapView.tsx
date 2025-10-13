@@ -207,8 +207,8 @@ const MapView = () => {
         maximumAge: 5000
       }
     );
+  };
 
-  
   // Cleanup geolocation watcher on unmount
   useEffect(() => {
     return () => {
