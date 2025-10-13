@@ -108,52 +108,44 @@ const MapView = () => {
   }, []);
 
   useEffect(() => {
-    // Get user's location with retry mechanism
-    let attemptCount = 0;
-    const maxAttempts = 10;
-    const retryDelay = 3000; // 3 seconds between attempts
+    // Watch user's location continuously
+    if (!navigator.geolocation) {
+      toast.error(t('Geolocatie wordt niet ondersteund door je browser.', 'Geolocation is not supported by your browser.'));
+      setUserLocation([52.3676, 4.9041]);
+      return;
+    }
 
-    const attemptGeolocation = () => {
-      if (!navigator.geolocation) {
-        toast.error(t('Geolocatie wordt niet ondersteund door je browser.', 'Geolocation is not supported by your browser.'));
-        setUserLocation([52.3676, 4.9041]);
-        return;
-      }
+    let hasShownSuccess = false;
 
-      attemptCount++;
-      
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const coords: [number, number] = [
-            position.coords.latitude,
-            position.coords.longitude,
-          ];
-          setUserLocation(coords);
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const coords: [number, number] = [
+          position.coords.latitude,
+          position.coords.longitude,
+        ];
+        setUserLocation(coords);
+        
+        if (!hasShownSuccess) {
           toast.success(t('Locatie gevonden!', 'Location found!'));
-        },
-        (error) => {
-          console.error(`Geolocation attempt ${attemptCount} failed:`, error);
-          
-          if (attemptCount < maxAttempts) {
-            toast.error(t(
-              `Locatie ophalen mislukt. Nieuwe poging ${attemptCount}/${maxAttempts}...`, 
-              `Failed to get location. Retrying ${attemptCount}/${maxAttempts}...`
-            ));
-            setTimeout(attemptGeolocation, retryDelay);
-          } else {
-            toast.error(t('Kon locatie niet vinden na meerdere pogingen. Gebruik standaard locatie.', 'Could not find location after multiple attempts. Using default location.'));
-            setUserLocation([52.3676, 4.9041]);
-          }
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
+          hasShownSuccess = true;
         }
-      );
-    };
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        toast.error(t('Kon locatie niet vinden. Gebruik standaard locatie.', 'Could not find location. Using default location.'));
+        setUserLocation([52.3676, 4.9041]);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
 
-    attemptGeolocation();
+    // Cleanup function to stop watching when component unmounts
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
   }, []);
 
 
