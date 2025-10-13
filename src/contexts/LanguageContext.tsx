@@ -40,9 +40,18 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const setLanguage = (lang: Language) => {
+  const setLanguage = async (lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem('language', lang);
+    
+    // Update in database if user is logged in
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      await supabase
+        .from('profiles')
+        .update({ language: lang })
+        .eq('user_id', session.user.id);
+    }
   };
 
   const t = (nl: string, en: string) => {
