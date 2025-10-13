@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import Confetti from 'react-confetti';
 import StandbeeldViewer from './StandbeeldViewer';
 import { Button } from './ui/button';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { isOnWiFi, cacheMapTiles, cacheNearbyModels, clearOldCaches } from '@/lib/cacheManager';
@@ -56,9 +55,6 @@ const MapView = () => {
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
-  const [showLocationDialog, setShowLocationDialog] = useState(false);
-  const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
-  const accuracyCircleRef = useRef<L.Circle | null>(null);
 
 
   // Get current user
@@ -137,20 +133,11 @@ const MapView = () => {
     return () => clearTimeout(timer);
   }, [userLocation, models]);
 
-  // Show location permission dialog on mount and set default location
   useEffect(() => {
-    setShowLocationDialog(true);
-    // Set default location immediately so map can load
-    setUserLocation([52.3676, 4.9041]);
-  }, []);
-
-  // Request location when permission granted
-  useEffect(() => {
-    if (!locationPermissionGranted) return;
-
     // Watch user's location continuously
     if (!navigator.geolocation) {
       toast.error(t('Geolocatie wordt niet ondersteund door je browser.', 'Geolocation is not supported by your browser.'));
+      setUserLocation([52.3676, 4.9041]);
       return;
     }
 
@@ -182,8 +169,8 @@ const MapView = () => {
           },
           {
             enableHighAccuracy: true,
-            timeout: 27000,
-            maximumAge: 5000
+            timeout: 27000, // Longer timeout for Safari
+            maximumAge: 5000 // Allow cached position up to 5s old
           }
         );
       },
@@ -200,20 +187,22 @@ const MapView = () => {
         }
         
         toast.error(errorMessage);
+        setUserLocation([52.3676, 4.9041]);
       },
       {
         enableHighAccuracy: true,
-        timeout: 27000,
+        timeout: 27000, // Longer timeout for Safari
         maximumAge: 5000
       }
     );
 
+    // Cleanup function to stop watching when component unmounts
     return () => {
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [locationPermissionGranted]);
+  }, []);
 
 
   const markModelAsDiscovered = async (modelId: string) => {
@@ -231,9 +220,13 @@ const MapView = () => {
   };
 
   useEffect(() => {
-    // Initialize map only once when we have a location and viewer is not open
     if (!mapContainer.current || !userLocation || showViewer) return;
-    if (map.current) return; // prevent re-creation
+
+    // Clean up existing map if it exists
+    if (map.current) {
+      map.current.remove();
+      map.current = null;
+    }
 
     // Initialize map with high zoom for Pokémon Go style
     map.current = L.map(mapContainer.current).setView(userLocation, 18);
@@ -242,6 +235,7 @@ const MapView = () => {
     tileLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
+      // Gebruik browser cache voor tiles
       crossOrigin: true,
     }).addTo(map.current);
 
@@ -303,15 +297,8 @@ const MapView = () => {
     });
 
     // Add marker for user location
-    userMarkerRef.current = L.marker(userLocation, { icon: userIcon }).addTo(map.current);
-
-    // Add circle to show accuracy for user location (smaller for mobile)
-    accuracyCircleRef.current = L.circle(userLocation, {
-      color: 'hsl(220, 85%, 55%)',
-      fillColor: 'hsl(220, 85%, 55%)',
-      fillOpacity: 0.1,
-      radius: 50,
-    }).addTo(map.current);
+    userMarkerRef.current = L.marker(userLocation, { icon: userIcon })
+      .addTo(map.current);
 
     // Add marker for standbeeld with click handler
     standbeeldMarkerRef.current = L.marker(STANDBEELD_LOCATION, { icon: standbeeldIcon })
@@ -325,44 +312,8 @@ const MapView = () => {
         });
         setShowViewer(true);
       });
-  }, [userLocation, showViewer]);
-
-  // Cleanup map on unmount only
-  useEffect(() => {
-    return () => {
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
-      }
-    };
-  }, []);
-
-  // Update user location marker smoothly without recreating map
-  useEffect(() => {
-    if (!userLocation || !map.current || !userMarkerRef.current) return;
-
-    // Smooth pan to new location
-    map.current.panTo(userLocation, {
-      animate: true,
-      duration: 0.5,
-      easeLinearity: 0.25
-    });
-
-    // Update marker position
-    userMarkerRef.current.setLatLng(userLocation);
-
-    // Update accuracy circle
-    if (accuracyCircleRef.current) {
-      accuracyCircleRef.current.setLatLng(userLocation);
-    }
-  }, [userLocation]);
-
-  // Update model markers when models or discovered models change
-  useEffect(() => {
-    if (!map.current || !userLocation || models.length === 0) return;
 
     // Clear old model markers
-    modelMarkersRef.current.forEach(marker => marker.remove());
     modelMarkersRef.current = [];
 
     // Add markers for uploaded models
@@ -437,59 +388,42 @@ const MapView = () => {
         modelMarkersRef.current.push(modelMarker);
       }
     });
-  }, [models, discoveredModels, userLocation, user]);
 
-  // Add right-click handler to update user location (beta test feature)
-  useEffect(() => {
-    if (!map.current) return;
+    // Add circle to show accuracy for user location (smaller for mobile)
+    L.circle(userLocation, {
+      color: 'hsl(220, 85%, 55%)',
+      fillColor: 'hsl(220, 85%, 55%)',
+      fillOpacity: 0.1,
+      radius: 50,
+    }).addTo(map.current);
 
-    const handleContextMenu = (e: L.LeafletMouseEvent) => {
+    // Add right-click handler to update user location (beta test feature)
+    map.current.on('contextmenu', (e: L.LeafletMouseEvent) => {
       if (!map.current || !userMarkerRef.current) return;
       
+      // Update user location
       const newLocation: [number, number] = [e.latlng.lat, e.latlng.lng];
       setUserLocation(newLocation);
+      
+      // Update marker position
+      userMarkerRef.current.setLatLng(e.latlng);
+      
+      // Center map on new location
+      map.current.setView(e.latlng, map.current.getZoom());
+      
       toast.success(t('Locatie bijgewerkt!', 'Location updated!'));
-    };
-
-    map.current.on('contextmenu', handleContextMenu);
+    });
 
     return () => {
       if (map.current) {
-        map.current.off('contextmenu', handleContextMenu);
+        map.current.remove();
+        map.current = null;
       }
     };
-  }, []);
+  }, [userLocation, models, showViewer, discoveredModels, user]);
 
   return (
     <div className="relative h-screen w-full">
-      <AlertDialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>📍 {t('Locatie Toestemming', 'Location Permission')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(
-                'Deze app heeft toegang tot je locatie nodig om standbeelden in je buurt te vinden. Je locatie wordt alleen gebruikt om de kaart te tonen.',
-                'This app needs access to your location to find statues near you. Your location is only used to show the map.'
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setShowLocationDialog(false);
-              // Keep default location set in initial useEffect
-            }}>
-              {t('Weigeren', 'Deny')}
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              setShowLocationDialog(false);
-              setLocationPermissionGranted(true);
-            }}>
-              {t('Toestaan', 'Allow')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      
       {showConfetti && (
         <div className="fixed inset-0 z-50 pointer-events-none">
           <Confetti
