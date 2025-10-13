@@ -1,12 +1,12 @@
 /* eslint-disable react/no-unknown-property */
 import * as THREE from 'three';
 import { useRef, useState, useEffect, memo } from 'react';
-import { Canvas, createPortal, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, createPortal, useFrame, useThree, extend } from '@react-three/fiber';
 import {
   useFBO,
-  useGLTF,
   MeshTransmissionMaterial,
-  Text
+  Text,
+  RoundedBox
 } from '@react-three/drei';
 import { easing } from 'maath';
 
@@ -40,38 +40,29 @@ export default function FluidGlassNav({ navItems, onNavigate }: FluidGlassNavPro
 
 const Bar = memo(function Bar({ navItems, onNavigate }: FluidGlassNavProps) {
   const ref = useRef<THREE.Mesh>(null!);
-  const { nodes } = useGLTF('/assets/3d/bar.glb');
   const buffer = useFBO();
   const { viewport: vp } = useThree();
   const [scene] = useState(() => new THREE.Scene());
-  const geoWidthRef = useRef(1);
-
-  useEffect(() => {
-    const geo = (nodes.Cube as any)?.geometry;
-    if (geo) {
-      geo.computeBoundingBox();
-      geoWidthRef.current = geo.boundingBox.max.x - geo.boundingBox.min.x || 1;
-    }
-  }, [nodes]);
 
   useFrame((state, delta) => {
     const { gl, viewport, camera } = state;
     const v = viewport.getCurrentViewport(camera, [0, 0, 15]);
 
     // Lock to bottom
-    const destY = -v.height / 2 + 0.2;
+    const destY = -v.height / 2 + 0.35;
     easing.damp3(ref.current.position, [0, destY, 15], 0.15, delta);
 
     // Auto-scale based on viewport width
-    const maxWorld = v.width * 0.9;
-    const desired = maxWorld / geoWidthRef.current;
-    ref.current.scale.setScalar(Math.min(0.15, desired));
+    const scaleX = v.width * 0.95;
+    const scaleY = 0.6;
+    const scaleZ = 0.2;
+    easing.damp3(ref.current.scale, [scaleX, scaleY, scaleZ], 0.15, delta);
 
     gl.setRenderTarget(buffer);
     gl.render(scene, camera);
     gl.setRenderTarget(null);
 
-    // Background Color
+    // Transparent background
     gl.setClearColor(0x000000, 0);
   });
 
@@ -82,23 +73,30 @@ const Bar = memo(function Bar({ navItems, onNavigate }: FluidGlassNavProps) {
         <planeGeometry />
         <meshBasicMaterial map={buffer.texture} transparent />
       </mesh>
-      <mesh 
+      <RoundedBox 
         ref={ref} 
-        geometry={(nodes.Cube as any)?.geometry}
+        args={[1, 1, 0.15]}
+        radius={0.05}
+        smoothness={8}
       >
         <MeshTransmissionMaterial
           buffer={buffer.texture}
           transmission={1}
           roughness={0}
-          thickness={10}
-          ior={1.15}
-          chromaticAberration={0.1}
-          anisotropy={0.01}
+          thickness={0.5}
+          ior={1.2}
+          chromaticAberration={0.15}
+          anisotropy={0.1}
+          distortion={0.1}
+          distortionScale={0.5}
+          temporalDistortion={0.1}
           color="#ffffff"
           attenuationColor="#ffffff"
-          attenuationDistance={0.25}
+          attenuationDistance={0.5}
+          opacity={0.9}
+          transparent
         />
-      </mesh>
+      </RoundedBox>
       <NavItems navItems={navItems} onNavigate={onNavigate} />
     </>
   );
@@ -109,9 +107,9 @@ function NavItems({ navItems, onNavigate }: FluidGlassNavProps) {
   const { viewport, camera } = useThree();
 
   const DEVICE = {
-    mobile: { max: 639, spacing: 0.5, fontSize: 0.08 },
-    tablet: { max: 1023, spacing: 0.6, fontSize: 0.09 },
-    desktop: { max: Infinity, spacing: 0.7, fontSize: 0.1 }
+    mobile: { max: 639, spacing: 0.8, fontSize: 0.12 },
+    tablet: { max: 1023, spacing: 0.9, fontSize: 0.13 },
+    desktop: { max: Infinity, spacing: 1.0, fontSize: 0.14 }
   };
   
   const getDevice = () => {
@@ -133,7 +131,7 @@ function NavItems({ navItems, onNavigate }: FluidGlassNavProps) {
   useFrame(() => {
     if (!group.current) return;
     const v = viewport.getCurrentViewport(camera, [0, 0, 15]);
-    group.current.position.set(0, -v.height / 2 + 0.2, 15.1);
+    group.current.position.set(0, -v.height / 2 + 0.35, 15.2);
 
     group.current.children.forEach((child, i) => {
       child.position.x = (i - (navItems.length - 1) / 2) * spacing;
@@ -157,10 +155,9 @@ function NavItems({ navItems, onNavigate }: FluidGlassNavProps) {
           color="white"
           anchorX="center"
           anchorY="middle"
-          outlineWidth={0.002}
-          outlineBlur="20%"
-          outlineColor="#000"
-          outlineOpacity={0.5}
+          outlineWidth={0.004}
+          outlineColor="#000000"
+          outlineOpacity={0.8}
           renderOrder={10}
           onClick={(e) => {
             e.stopPropagation();
@@ -175,6 +172,3 @@ function NavItems({ navItems, onNavigate }: FluidGlassNavProps) {
     </group>
   );
 }
-
-// Preload the 3D model
-useGLTF.preload('/assets/3d/bar.glb');
