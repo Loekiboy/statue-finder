@@ -26,6 +26,7 @@ const modelSchema = z.object({
 
 const Upload = () => {
   const { t } = useLanguage();
+  const [uploadType, setUploadType] = useState<'photo' | 'model' | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -220,13 +221,14 @@ const Upload = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) {
-      toast({ title: t('Selecteer een bestand', 'Select a file'), variant: 'destructive' });
-      return;
-    }
     
     if (!photo) {
       toast({ title: t('Selecteer een foto', 'Select a photo'), variant: 'destructive' });
+      return;
+    }
+    
+    if (uploadType === 'model' && !file) {
+      toast({ title: t('Selecteer een 3D model bestand', 'Select a 3D model file'), variant: 'destructive' });
       return;
     }
     
@@ -263,15 +265,6 @@ const Upload = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error(t('Niet ingelogd', 'Not logged in'));
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('models')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
       // Upload photo
       const photoExt = photo.name.split('.').pop();
       const photoFileName = `${user.id}/${Date.now()}_photo.${photoExt}`;
@@ -282,10 +275,46 @@ const Upload = () => {
 
       if (photoUploadError) throw photoUploadError;
 
-      // Set the uploaded file paths and trigger thumbnail generation
-      setUploadedFilePath(fileName);
-      setUploadedPhotoPath(photoFileName);
-      setGenerateThumbnail(true);
+      if (uploadType === 'model') {
+        // Upload 3D model file
+        const fileExt = file!.name.split('.').pop();
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('models')
+          .upload(fileName, file!);
+
+        if (uploadError) throw uploadError;
+
+        // Set the uploaded file paths and trigger thumbnail generation
+        setUploadedFilePath(fileName);
+        setUploadedPhotoPath(photoFileName);
+        setGenerateThumbnail(true);
+      } else {
+        // Photo only upload - save directly to database
+        const { data: { publicUrl: photoUrl } } = supabase.storage
+          .from('model-thumbnails')
+          .getPublicUrl(photoFileName);
+
+        const { error: dbError } = await supabase
+          .from('models')
+          .insert({
+            user_id: user.id,
+            name: validationResult.data.name,
+            description: validationResult.data.description || null,
+            file_path: '', // No 3D model for photo-only uploads
+            latitude: validationResult.data.latitude,
+            longitude: validationResult.data.longitude,
+            thumbnail_url: photoUrl,
+            photo_url: photoUrl,
+          });
+
+        if (dbError) throw dbError;
+
+        toast({ title: t('Foto geüpload!', 'Photo uploaded!') });
+        navigate('/');
+        setLoading(false);
+      }
     } catch (error: any) {
       const safeMessage = error.code === '23514' 
         ? t('Invoer voldoet niet aan de vereisten', 'Input does not meet requirements')
@@ -423,15 +452,52 @@ const Upload = () => {
           {t('Terug naar kaart', 'Back to map')}
         </Button>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UploadIcon className="h-6 w-6" />
-              {t('3D Model Uploaden', 'Upload 3D Model')}
-            </CardTitle>
-            <CardDescription>{t('Upload je eigen .stl 3D model met beschrijving', 'Upload your own .stl 3D model with description')}</CardDescription>
-          </CardHeader>
-          <CardContent>
+        {!uploadType ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UploadIcon className="h-6 w-6" />
+                {t('Wat wil je uploaden?', 'What do you want to upload?')}
+              </CardTitle>
+              <CardDescription>{t('Kies tussen een foto of een 3D model', 'Choose between a photo or a 3D model')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button 
+                onClick={() => setUploadType('photo')} 
+                className="w-full h-24 text-lg"
+                variant="outline"
+              >
+                <ImageIcon className="mr-2 h-6 w-6" />
+                {t('Foto Uploaden', 'Upload Photo')}
+              </Button>
+              <Button 
+                onClick={() => setUploadType('model')} 
+                className="w-full h-24 text-lg"
+                variant="outline"
+              >
+                <UploadIcon className="mr-2 h-6 w-6" />
+                {t('3D Model Uploaden', 'Upload 3D Model')}
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {uploadType === 'photo' ? <ImageIcon className="h-6 w-6" /> : <UploadIcon className="h-6 w-6" />}
+                {uploadType === 'photo' 
+                  ? t('Foto Uploaden', 'Upload Photo')
+                  : t('3D Model Uploaden', 'Upload 3D Model')
+                }
+              </CardTitle>
+              <CardDescription>
+                {uploadType === 'photo'
+                  ? t('Upload een foto van een standbeeld', 'Upload a photo of a statue')
+                  : t('Upload je eigen .stl 3D model met beschrijving', 'Upload your own .stl 3D model with description')
+                }
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">{t('Naam', 'Name')}</Label>
@@ -464,7 +530,6 @@ const Upload = () => {
                   id="photo"
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   onChange={handlePhotoChange}
                   required
                 />
@@ -482,21 +547,23 @@ const Upload = () => {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="file">3D Model (.stl)</Label>
-                <Input
-                  id="file"
-                  type="file"
-                  accept=".stl"
-                  onChange={handleFileChange}
-                  required
-                />
-                {file && (
-                  <p className="text-sm text-muted-foreground">
-                    {t('Geselecteerd:', 'Selected:')} {file.name}
-                  </p>
-                )}
-              </div>
+              {uploadType === 'model' && (
+                <div className="space-y-2">
+                  <Label htmlFor="file">3D Model (.stl)</Label>
+                  <Input
+                    id="file"
+                    type="file"
+                    accept=".stl"
+                    onChange={handleFileChange}
+                    required
+                  />
+                  {file && (
+                    <p className="text-sm text-muted-foreground">
+                      {t('Geselecteerd:', 'Selected:')} {file.name}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
@@ -514,12 +581,33 @@ const Upload = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {t(loading ? 'Uploaden...' : 'Upload Model', loading ? 'Uploading...' : 'Upload Model')}
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setUploadType(null);
+                    setFile(null);
+                    setPhoto(null);
+                    setPhotoPreview(null);
+                    setName('');
+                    setDescription('');
+                  }}
+                  className="w-1/3"
+                >
+                  {t('Terug', 'Back')}
+                </Button>
+                <Button type="submit" className="w-2/3" disabled={loading}>
+                  {uploadType === 'photo'
+                    ? t(loading ? 'Uploaden...' : 'Upload Foto', loading ? 'Uploading...' : 'Upload Photo')
+                    : t(loading ? 'Uploaden...' : 'Upload Model', loading ? 'Uploading...' : 'Upload Model')
+                  }
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );
