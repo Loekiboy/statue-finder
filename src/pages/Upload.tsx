@@ -86,31 +86,38 @@ const Upload = () => {
       }
 
       try {
-        // Extract EXIF data first
-        const arrayBuffer = await selectedFile.arrayBuffer();
-        const tags = ExifReader.load(arrayBuffer);
-        
-        // Check for GPS data
-        if (tags.GPSLatitude && tags.GPSLongitude) {
-          const lat = parseFloat(tags.GPSLatitude.description);
-          const lon = parseFloat(tags.GPSLongitude.description);
+        // Try to extract EXIF data (wrapped in try-catch for mobile compatibility)
+        try {
+          const arrayBuffer = await selectedFile.arrayBuffer();
+          const tags = ExifReader.load(arrayBuffer);
           
-          setLatitude(lat);
-          setLongitude(lon);
-          
-          // Update map marker
-          if (map.current) {
-            if (marker.current) {
-              marker.current.remove();
+          // Check for GPS data
+          if (tags.GPSLatitude && tags.GPSLongitude) {
+            const lat = parseFloat(tags.GPSLatitude.description);
+            const lon = parseFloat(tags.GPSLongitude.description);
+            
+            if (!isNaN(lat) && !isNaN(lon)) {
+              setLatitude(lat);
+              setLongitude(lon);
+              
+              // Update map marker
+              if (map.current) {
+                if (marker.current) {
+                  marker.current.remove();
+                }
+                marker.current = L.marker([lat, lon]).addTo(map.current);
+                map.current.setView([lat, lon], 15);
+              }
+              
+              toast({ 
+                title: t('Locatie gevonden!', 'Location found!'),
+                description: t('Locatie is automatisch ingesteld uit de foto', 'Location was automatically set from the photo')
+              });
             }
-            marker.current = L.marker([lat, lon]).addTo(map.current);
-            map.current.setView([lat, lon], 15);
           }
-          
-          toast({ 
-            title: t('Locatie gevonden!', 'Location found!'),
-            description: t('Locatie is automatisch ingesteld uit de foto', 'Location was automatically set from the photo')
-          });
+        } catch (exifError) {
+          console.log('No EXIF data found or error reading EXIF:', exifError);
+          // Continue without EXIF data - not a critical error
         }
 
         // Compress image if needed
@@ -127,15 +134,25 @@ const Upload = () => {
             maxSizeMB: 3,
             maxWidthOrHeight: 1920,
             useWebWorker: true,
+            fileType: selectedFile.type as any,
           };
           
-          processedFile = await imageCompression(selectedFile, options);
-          
-          toast({
-            title: t('Foto gecomprimeerd!', 'Photo compressed!'),
-            description: t(`Van ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB naar ${(processedFile.size / 1024 / 1024).toFixed(2)}MB`, 
-                          `From ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB to ${(processedFile.size / 1024 / 1024).toFixed(2)}MB`)
-          });
+          try {
+            processedFile = await imageCompression(selectedFile, options);
+            
+            toast({
+              title: t('Foto gecomprimeerd!', 'Photo compressed!'),
+              description: t(`Van ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB naar ${(processedFile.size / 1024 / 1024).toFixed(2)}MB`, 
+                            `From ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB to ${(processedFile.size / 1024 / 1024).toFixed(2)}MB`)
+            });
+          } catch (compressionError) {
+            console.error('Compression error:', compressionError);
+            toast({
+              title: t('Compressie mislukt', 'Compression failed'),
+              description: t('Foto wordt gebruikt zonder compressie', 'Photo will be used without compression')
+            });
+            // Use original file if compression fails
+          }
         }
         
         setPhoto(processedFile);
@@ -145,12 +162,19 @@ const Upload = () => {
         reader.onloadend = () => {
           setPhotoPreview(reader.result as string);
         };
+        reader.onerror = () => {
+          toast({
+            title: t('Fout bij laden preview', 'Error loading preview'),
+            variant: 'destructive',
+          });
+        };
         reader.readAsDataURL(processedFile);
         
       } catch (error) {
         console.error('Error processing photo:', error);
         toast({
           title: t('Fout bij verwerken foto', 'Error processing photo'),
+          description: String(error),
           variant: 'destructive',
         });
       }
@@ -440,6 +464,7 @@ const Upload = () => {
                   id="photo"
                   type="file"
                   accept="image/*"
+                  capture="environment"
                   onChange={handlePhotoChange}
                   required
                 />
