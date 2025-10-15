@@ -3,6 +3,7 @@ import L from 'leaflet';
 import { toast } from 'sonner';
 import Confetti from 'react-confetti';
 import StandbeeldViewer from './StandbeeldViewer';
+import PhotoViewer from './PhotoViewer';
 import { Button } from './ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -16,12 +17,14 @@ interface Model {
   latitude: number | null;
   longitude: number | null;
   thumbnail_url: string | null;
+  photo_url: string | null;
 }
 
 interface SelectedModelInfo {
   name: string;
   description: string | null;
   file_path: string;
+  photo_url?: string | null;
 }
 
 // Fix for default marker icons in Leaflet
@@ -47,6 +50,7 @@ const MapView = () => {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [initialLocation, setInitialLocation] = useState<[number, number] | null>(null);
   const [showViewer, setShowViewer] = useState(false);
+  const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModelInfo | null>(null);
   const [models, setModels] = useState<Model[]>([]);
   const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
@@ -389,9 +393,16 @@ const MapView = () => {
               setSelectedModel({
                 name: model.name,
                 description: model.description,
-                file_path: model.file_path
+                file_path: model.file_path,
+                photo_url: model.photo_url
               });
-              setShowViewer(true);
+              
+              // Check if this is a photo-only upload (no 3D model)
+              if (!model.file_path && model.photo_url) {
+                setShowPhotoViewer(true);
+              } else {
+                setShowViewer(true);
+              }
             } else {
               toast.error(`${t('Je bent nog', 'You are still')} ${Math.round(distance)}m ${t('verwijderd van dit model', 'away from this model')}`);
             }
@@ -459,7 +470,14 @@ const MapView = () => {
           />
         </div>
       )}
-      {showViewer && selectedModel ? (
+      {showPhotoViewer && selectedModel && selectedModel.photo_url ? (
+        <PhotoViewer
+          photoUrl={selectedModel.photo_url}
+          name={selectedModel.name}
+          description={selectedModel.description}
+          onClose={() => setShowPhotoViewer(false)}
+        />
+      ) : showViewer && selectedModel ? (
         <div className="fixed inset-0 z-30 bg-background flex flex-col">
           <div className="bg-background/98 backdrop-blur-sm border-b border-border p-3 md:p-4 flex-shrink-0 safe-area-top">
             <div className="flex items-start gap-3">
@@ -481,7 +499,7 @@ const MapView = () => {
             <p className="text-xs text-muted-foreground mt-2">👆 {t('Sleep om te roteren', 'Drag to rotate')} • 🔍 {t('Pinch om te zoomen', 'Pinch to zoom')}</p>
           </div>
           <div className="flex-1 min-h-0 w-full">
-            <StandbeeldViewer 
+            <StandbeeldViewer
               modelPath={selectedModel.file_path}
               onClose={() => setShowViewer(false)}
               autoRotate={true}

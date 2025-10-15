@@ -565,21 +565,43 @@ const Upload = () => {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  {t('Locatie (klik op de kaart of upload foto met GPS-data)', 'Location (click on the map or upload photo with GPS data)')}
-                </Label>
-                <div 
-                  ref={mapContainer} 
-                  className="h-64 w-full rounded-md border"
-                />
-                {latitude !== null && longitude !== null && (
-                  <p className="text-sm text-muted-foreground">
-                    {t('Geselecteerd:', 'Selected:')} {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
-                  </p>
-                )}
-              </div>
+              {uploadType === 'model' && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    {t('Locatie (klik op de kaart of upload foto met GPS-data)', 'Location (click on the map or upload photo with GPS data)')}
+                  </Label>
+                  <div 
+                    ref={mapContainer} 
+                    className="h-64 w-full rounded-md border"
+                  />
+                  {latitude !== null && longitude !== null && (
+                    <p className="text-sm text-muted-foreground">
+                      {t('Geselecteerd:', 'Selected:')} {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
+                    </p>
+                  )}
+                </div>
+              )}
+              
+              {uploadType === 'photo' && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    {t('Locatie', 'Location')}
+                  </Label>
+                  {latitude && longitude ? (
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm">
+                        📍 {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {t('Upload een foto met locatiegegevens', 'Upload a photo with location data')}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Button 
