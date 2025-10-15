@@ -9,11 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { ArrowLeft, Upload as UploadIcon, MapPin } from 'lucide-react';
+import { ArrowLeft, Upload as UploadIcon, MapPin, Image as ImageIcon } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { z } from 'zod';
 import { ThumbnailGenerator } from '@/components/ThumbnailGenerator';
+import ExifReader from 'exifreader';
+import imageCompression from 'browser-image-compression';
 
 const modelSchema = z.object({
   name: z.string().trim().min(1, 'Naam is verplicht').max(100, 'Naam mag maximaal 100 tekens zijn'),
@@ -27,12 +29,15 @@ const Upload = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [generateThumbnail, setGenerateThumbnail] = useState(false);
   const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null);
   const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
+  const [uploadedPhotoPath, setUploadedPhotoPath] = useState<string | null>(null);
   const [showSizeWarning, setShowSizeWarning] = useState(false);
   const [largeFileSize, setLargeFileSize] = useState<number>(0);
   const navigate = useNavigate();
@@ -63,6 +68,92 @@ const Upload = () => {
       }
       
       setFile(selectedFile);
+    }
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      
+      // Check if it's an image
+      if (!selectedFile.type.startsWith('image/')) {
+        toast({
+          title: t('Ongeldig bestand', 'Invalid file'),
+          description: t('Upload alleen afbeeldingen', 'Upload only images'),
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      try {
+        // Extract EXIF data first
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        const tags = ExifReader.load(arrayBuffer);
+        
+        // Check for GPS data
+        if (tags.GPSLatitude && tags.GPSLongitude) {
+          const lat = parseFloat(tags.GPSLatitude.description);
+          const lon = parseFloat(tags.GPSLongitude.description);
+          
+          setLatitude(lat);
+          setLongitude(lon);
+          
+          // Update map marker
+          if (map.current) {
+            if (marker.current) {
+              marker.current.remove();
+            }
+            marker.current = L.marker([lat, lon]).addTo(map.current);
+            map.current.setView([lat, lon], 15);
+          }
+          
+          toast({ 
+            title: t('Locatie gevonden!', 'Location found!'),
+            description: t('Locatie is automatisch ingesteld uit de foto', 'Location was automatically set from the photo')
+          });
+        }
+
+        // Compress image if needed
+        const maxSize = 3 * 1024 * 1024; // 3MB
+        let processedFile = selectedFile;
+        
+        if (selectedFile.size > maxSize) {
+          toast({
+            title: t('Comprimeren...', 'Compressing...'),
+            description: t('Foto wordt verkleind', 'Photo is being compressed')
+          });
+          
+          const options = {
+            maxSizeMB: 3,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+          };
+          
+          processedFile = await imageCompression(selectedFile, options);
+          
+          toast({
+            title: t('Foto gecomprimeerd!', 'Photo compressed!'),
+            description: t(`Van ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB naar ${(processedFile.size / 1024 / 1024).toFixed(2)}MB`, 
+                          `From ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB to ${(processedFile.size / 1024 / 1024).toFixed(2)}MB`)
+          });
+        }
+        
+        setPhoto(processedFile);
+        
+        // Create preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPhotoPreview(reader.result as string);
+        };
+        reader.readAsDataURL(processedFile);
+        
+      } catch (error) {
+        console.error('Error processing photo:', error);
+        toast({
+          title: t('Fout bij verwerken foto', 'Error processing photo'),
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -110,10 +201,15 @@ const Upload = () => {
       return;
     }
     
+    if (!photo) {
+      toast({ title: t('Selecteer een foto', 'Select a photo'), variant: 'destructive' });
+      return;
+    }
+    
     if (latitude === null || longitude === null) {
       toast({ 
         title: t('Selecteer een locatie', 'Select a location'), 
-        description: t('Klik op de kaart om een locatie te selecteren', 'Click on the map to select a location'),
+        description: t('Klik op de kaart om een locatie te selecteren of upload een foto met locatiegegevens', 'Click on the map to select a location or upload a photo with location data'),
         variant: 'destructive' 
       });
       return;
@@ -152,8 +248,19 @@ const Upload = () => {
 
       if (uploadError) throw uploadError;
 
-      // Set the uploaded file path and trigger thumbnail generation
+      // Upload photo
+      const photoExt = photo.name.split('.').pop();
+      const photoFileName = `${user.id}/${Date.now()}_photo.${photoExt}`;
+      
+      const { error: photoUploadError } = await supabase.storage
+        .from('model-thumbnails')
+        .upload(photoFileName, photo);
+
+      if (photoUploadError) throw photoUploadError;
+
+      // Set the uploaded file paths and trigger thumbnail generation
       setUploadedFilePath(fileName);
+      setUploadedPhotoPath(photoFileName);
       setGenerateThumbnail(true);
     } catch (error: any) {
       const safeMessage = error.code === '23514' 
@@ -175,7 +282,7 @@ const Upload = () => {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user || !uploadedFilePath) throw new Error(t('Niet ingelogd', 'Not logged in'));
+      if (!user || !uploadedFilePath || !uploadedPhotoPath) throw new Error(t('Niet ingelogd', 'Not logged in'));
 
       // Convert data URL to blob
       const response = await fetch(dataUrl);
@@ -189,10 +296,14 @@ const Upload = () => {
 
       if (thumbnailUploadError) throw thumbnailUploadError;
 
-      // Get public URL for thumbnail
-      const { data: { publicUrl } } = supabase.storage
+      // Get public URLs
+      const { data: { publicUrl: thumbnailUrl } } = supabase.storage
         .from('model-thumbnails')
         .getPublicUrl(thumbnailFileName);
+      
+      const { data: { publicUrl: photoUrl } } = supabase.storage
+        .from('model-thumbnails')
+        .getPublicUrl(uploadedPhotoPath);
 
       // Validate input data again for DB insert
       const validationResult = modelSchema.safeParse({
@@ -206,7 +317,7 @@ const Upload = () => {
         throw new Error(t('Validatiefout', 'Validation error'));
       }
 
-      // Insert model with thumbnail URL
+      // Insert model with thumbnail and photo URLs
       const { error: dbError } = await supabase
         .from('models')
         .insert({
@@ -216,7 +327,8 @@ const Upload = () => {
           file_path: uploadedFilePath,
           latitude: validationResult.data.latitude,
           longitude: validationResult.data.longitude,
-          thumbnail_url: publicUrl,
+          thumbnail_url: thumbnailUrl,
+          photo_url: photoUrl,
         });
 
       if (dbError) throw dbError;
@@ -320,6 +432,32 @@ const Upload = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="photo" className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  {t('Foto van het standbeeld', 'Photo of the statue')} *
+                </Label>
+                <Input
+                  id="photo"
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  required
+                />
+                {photoPreview && (
+                  <div className="mt-2">
+                    <img 
+                      src={photoPreview} 
+                      alt="Preview" 
+                      className="max-h-48 rounded-md object-cover"
+                    />
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {t('Als je foto locatiegegevens bevat, wordt de locatie automatisch ingevuld', 'If your photo contains location data, the location will be filled automatically')}
+                </p>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="file">3D Model (.stl)</Label>
                 <Input
                   id="file"
@@ -338,7 +476,7 @@ const Upload = () => {
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  {t('Locatie (klik op de kaart)', 'Location (click on the map)')}
+                  {t('Locatie (klik op de kaart of upload foto met GPS-data)', 'Location (click on the map or upload photo with GPS data)')}
                 </Label>
                 <div 
                   ref={mapContainer} 
