@@ -34,6 +34,7 @@ const Upload = () => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+  const [manualLocation, setManualLocation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [generateThumbnail, setGenerateThumbnail] = useState(false);
   const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null);
@@ -100,6 +101,7 @@ const Upload = () => {
             if (!isNaN(lat) && !isNaN(lon)) {
               setLatitude(lat);
               setLongitude(lon);
+              setManualLocation(false);
               
               // Update map marker
               if (map.current) {
@@ -114,7 +116,11 @@ const Upload = () => {
                 title: t('Locatie gevonden!', 'Location found!'),
                 description: t('Locatie is automatisch ingesteld uit de foto', 'Location was automatically set from the photo')
               });
+            } else {
+              setManualLocation(true);
             }
+          } else {
+            setManualLocation(true);
           }
         } catch (exifError) {
           console.log('No EXIF data found or error reading EXIF:', exifError);
@@ -589,16 +595,38 @@ const Upload = () => {
                     <MapPin className="h-4 w-4" />
                     {t('Locatie', 'Location')}
                   </Label>
-                  {latitude && longitude ? (
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm">
-                        📍 {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
+                  {manualLocation ? (
+                    <>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {t('Klik op de kaart om een locatie te selecteren', 'Click on the map to select a location')}
                       </p>
-                    </div>
+                      <div 
+                        ref={mapContainer} 
+                        className="h-64 w-full rounded-md border"
+                      />
+                      {latitude !== null && longitude !== null && (
+                        <p className="text-sm text-muted-foreground">
+                          {t('Geselecteerd:', 'Selected:')} {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
+                        </p>
+                      )}
+                    </>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
-                      {t('Upload een foto met locatiegegevens', 'Upload a photo with location data')}
-                    </p>
+                    latitude && longitude && (
+                      <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm">
+                          📍 {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
+                        </p>
+                        <Button 
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => setManualLocation(true)}
+                        >
+                          {t('Locatie handmatig kiezen', 'Choose location manually')}
+                        </Button>
+                      </div>
+                    )
                   )}
                 </div>
               )}

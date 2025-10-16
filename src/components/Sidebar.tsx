@@ -30,7 +30,7 @@ const Sidebar = () => {
 
   const navItems = [
     { icon: Map, path: '/', labelNl: 'Kaart', labelEn: 'Map', variant: 'primary' as const },
-    { icon: Compass, path: '/discoveries', labelNl: 'Ontdekken', labelEn: 'Discoveries', variant: 'accent' as const },
+    { icon: Compass, path: '/discoveries', labelNl: 'Ontdekt', labelEn: 'Discovered', variant: 'accent' as const },
     { icon: Boxes, path: '/models', labelNl: 'Modellen', labelEn: 'Models', variant: 'accent' as const },
   ];
 
