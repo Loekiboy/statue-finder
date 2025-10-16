@@ -190,7 +190,10 @@ const Upload = () => {
 
 
   useEffect(() => {
+    // Only initialize if uploadType requires a map AND we don't have a map yet
     if (!mapContainer.current || map.current) return;
+    if (!uploadType) return;
+    if (uploadType === 'photo' && !manualLocation) return;
 
     // Initialize map at default location (Amsterdam)
     map.current = L.map(mapContainer.current).setView([52.3676, 4.9041], 7);
@@ -223,7 +226,7 @@ const Upload = () => {
       map.current?.remove();
       map.current = null;
     };
-  }, [toast]);
+  }, [uploadType, manualLocation, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

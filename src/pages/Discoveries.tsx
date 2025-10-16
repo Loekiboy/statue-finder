@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Sidebar from '@/components/Sidebar';
 import StandbeeldViewer from '@/components/StandbeeldViewer';
+import PhotoViewer from '@/components/PhotoViewer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Eye, MapPin, Calendar } from 'lucide-react';
@@ -20,6 +21,7 @@ interface DiscoveredModel {
     latitude: number | null;
     longitude: number | null;
     created_at: string;
+    photo_url: string | null;
   };
 }
 
@@ -27,6 +29,7 @@ const Discoveries = () => {
   const { t } = useLanguage();
   const [discoveries, setDiscoveries] = useState<DiscoveredModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<any | null>(null);
+  const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -63,7 +66,8 @@ const Discoveries = () => {
           file_path,
           latitude,
           longitude,
-          created_at
+          created_at,
+          photo_url
         )
       `)
       .eq('user_id', user.id)
@@ -91,34 +95,43 @@ const Discoveries = () => {
 
           {selectedModel ? (
             <div className="space-y-4">
-              <Button onClick={() => setSelectedModel(null)} variant="outline">
+              <Button onClick={() => { setSelectedModel(null); setShowPhotoViewer(false); }} variant="outline">
                 {t('← Terug naar overzicht', '← Back to overview')}
               </Button>
-              <Card>
-                <CardHeader>
-                  <CardTitle>{selectedModel.name}</CardTitle>
-                  {selectedModel.description && (
-                    <CardDescription>{selectedModel.description}</CardDescription>
-                  )}
-                  {selectedModel.latitude && selectedModel.longitude && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      <span>
-                        {selectedModel.latitude.toFixed(4)}°N, {selectedModel.longitude.toFixed(4)}°E
-                      </span>
+              {showPhotoViewer && selectedModel.photo_url ? (
+                <PhotoViewer
+                  photoUrl={selectedModel.photo_url}
+                  name={selectedModel.name}
+                  description={selectedModel.description}
+                  onClose={() => { setSelectedModel(null); setShowPhotoViewer(false); }}
+                />
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{selectedModel.name}</CardTitle>
+                    {selectedModel.description && (
+                      <CardDescription>{selectedModel.description}</CardDescription>
+                    )}
+                    {selectedModel.latitude && selectedModel.longitude && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        <span>
+                          {selectedModel.latitude.toFixed(4)}°N, {selectedModel.longitude.toFixed(4)}°E
+                        </span>
+                      </div>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[600px] w-full rounded-lg overflow-hidden bg-gradient-to-br from-background to-muted relative z-50">
+                      <StandbeeldViewer 
+                        onClose={() => setSelectedModel(null)} 
+                        modelPath={selectedModel.file_path}
+                        autoRotate={true}
+                      />
                     </div>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[600px] w-full rounded-lg overflow-hidden bg-gradient-to-br from-background to-muted relative z-50">
-                    <StandbeeldViewer 
-                      onClose={() => setSelectedModel(null)} 
-                      modelPath={selectedModel.file_path}
-                      autoRotate={true}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -157,7 +170,12 @@ const Discoveries = () => {
                           </span>
                         </div>
                         <Button 
-                          onClick={() => setSelectedModel(discovery.models)}
+                          onClick={() => {
+                            setSelectedModel(discovery.models);
+                            if (discovery.models.photo_url && !discovery.models.file_path) {
+                              setShowPhotoViewer(true);
+                            }
+                          }}
                           size="sm"
                           className="gap-2"
                         >

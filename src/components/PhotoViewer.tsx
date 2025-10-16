@@ -9,12 +9,16 @@ interface PhotoViewerProps {
 }
 
 const PhotoViewer = ({ photoUrl, name, description, onClose }: PhotoViewerProps) => {
+  const handleClose = () => {
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-30 bg-background/95 backdrop-blur-sm flex flex-col">
       <div className="bg-background/98 backdrop-blur-sm border-b border-border p-3 md:p-4 flex-shrink-0">
         <div className="flex items-start gap-3">
           <Button 
-            onClick={onClose} 
+            onClick={handleClose} 
             variant="default"
             size="lg"
             className="shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-glow)] transition-all shrink-0"

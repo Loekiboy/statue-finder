@@ -482,7 +482,10 @@ const MapView = () => {
           <div className="bg-background/98 backdrop-blur-sm border-b border-border p-3 md:p-4 flex-shrink-0 safe-area-top">
             <div className="flex items-start gap-3">
               <Button 
-                onClick={() => setShowViewer(false)} 
+                onClick={() => {
+                  setShowViewer(false);
+                  setSelectedModel(null);
+                }} 
                 variant="default"
                 size="lg"
                 className="shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-glow)] transition-all shrink-0"
