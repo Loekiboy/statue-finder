@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
+import 'leaflet.markercluster';
 import { toast } from 'sonner';
 import Confetti from 'react-confetti';
 import StandbeeldViewer from './StandbeeldViewer';
 import PhotoViewer from './PhotoViewer';
+import QuickUploadDialog from './QuickUploadDialog';
 import { Button } from './ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { isOnWiFi, cacheMapTiles, cacheNearbyModels, clearOldCaches } from '@/lib/cacheManager';
-import { nijmegenStatues } from '@/data/nijmegenStatues';
+import { nijmegenStatues, NijmegenStatue } from '@/data/nijmegenStatues';
 
 interface Model {
   id: string;
@@ -57,12 +59,15 @@ const MapView = () => {
   const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [selectedStatue, setSelectedStatue] = useState<NijmegenStatue | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
   const nijmegenMarkerRef = useRef<L.Marker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const accuracyCircleRef = useRef<L.Circle | null>(null);
+  const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
 
 
   // Get current user
@@ -350,6 +355,39 @@ const MapView = () => {
     // Clear old model markers
     modelMarkersRef.current = [];
 
+    // Create marker cluster group with custom icon
+    if (markerClusterGroupRef.current) {
+      map.current.removeLayer(markerClusterGroupRef.current);
+    }
+    
+    markerClusterGroupRef.current = L.markerClusterGroup({
+      iconCreateFunction: function(cluster) {
+        const count = cluster.getChildCount();
+        return L.divIcon({
+          html: `<div style="
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, hsl(195, 85%, 55%), hsl(190, 75%, 65%));
+            border: 4px solid white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+          ">${count}</div>`,
+          className: 'marker-cluster-custom',
+          iconSize: L.point(60, 60)
+        });
+      },
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      maxClusterRadius: 80,
+    });
+
     // Add markers for uploaded models
     const DISCOVERY_RADIUS = 50; // meters - discovery range
     
@@ -399,7 +437,6 @@ const MapView = () => {
         });
 
         const modelMarker = L.marker([model.latitude, model.longitude], { icon: modelIcon })
-          .addTo(map.current)
           .bindPopup(`<b>${model.name}</b><br>${isDiscovered ? (model.description || t('Klik om 3D model te bekijken', 'Click to view 3D model')) : `🔒 ${t('Kom binnen', 'Come within')} ${Math.round(distance)}m ${t('om te ontdekken', 'to discover')}`}`)
           .on('click', async () => {
             if (isDiscovered) {
@@ -426,6 +463,7 @@ const MapView = () => {
             }
           });
         
+        markerClusterGroupRef.current?.addLayer(modelMarker);
         modelMarkersRef.current.push(modelMarker);
       }
     });
@@ -463,7 +501,6 @@ const MapView = () => {
         });
 
         const nijmegenMarker = L.marker([statue.latitude, statue.longitude], { icon: nijmegenIcon })
-          .addTo(map.current)
           .bindPopup(`
             <div style="min-width: 200px;">
               <b>${statue.name}</b><br/>
@@ -472,19 +509,48 @@ const MapView = () => {
               <div style="margin-top: 10px; padding: 10px; background: hsl(38, 92%, 95%); border-radius: 6px; border-left: 3px solid hsl(38, 92%, 50%);">
                 <p style="margin: 0; font-weight: 600; color: hsl(38, 92%, 40%);">⚠️ ${t('Dit standbeeld heeft nog geen 3D model', 'This statue has no 3D model yet')}</p>
                 <p style="margin: 4px 0 0 0; font-size: 12px; color: #666;">${t('Wees de eerste die hiervoor een model uploadt!', 'Be the first to upload a model for this!')}</p>
+                <button 
+                  id="upload-btn-${statue.id}"
+                  style="
+                    margin-top: 10px;
+                    width: 100%;
+                    padding: 8px 16px;
+                    background: linear-gradient(135deg, hsl(195, 85%, 55%), hsl(190, 75%, 65%));
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 600;
+                    font-size: 14px;
+                  "
+                  onmouseover="this.style.transform='scale(1.02)'"
+                  onmouseout="this.style.transform='scale(1)'"
+                >
+                  📤 ${t('Upload Foto/Model', 'Upload Photo/Model')}
+                </button>
               </div>
             </div>
           `)
-          .on('click', () => {
-            toast.info(
-              `${statue.name}: ${t('Dit standbeeld heeft nog geen 3D model. Upload er een via de Upload pagina!', 'This statue has no 3D model yet. Upload one via the Upload page!')}`,
-              { duration: 5000 }
-            );
+          .on('popupopen', () => {
+            // Add click handler to the button after popup opens
+            const uploadBtn = document.getElementById(`upload-btn-${statue.id}`);
+            if (uploadBtn) {
+              uploadBtn.addEventListener('click', () => {
+                setSelectedStatue(statue);
+                setShowUploadDialog(true);
+              });
+            }
           });
         
+        markerClusterGroupRef.current?.addLayer(nijmegenMarker);
         nijmegenMarkerRef.current.push(nijmegenMarker);
       }
     });
+
+    // Add the cluster group to the map
+    if (markerClusterGroupRef.current) {
+      map.current.addLayer(markerClusterGroupRef.current);
+    }
 
     // Add circle to show accuracy for user location (smaller for mobile)
     accuracyCircleRef.current = L.circle(initialLocation, {
@@ -534,6 +600,16 @@ const MapView = () => {
 
   return (
     <div className="relative h-screen w-full">
+      {selectedStatue && (
+        <QuickUploadDialog
+          open={showUploadDialog}
+          onOpenChange={setShowUploadDialog}
+          statueName={selectedStatue.name}
+          latitude={selectedStatue.latitude}
+          longitude={selectedStatue.longitude}
+        />
+      )}
+      
       {showConfetti && (
         <div className="fixed inset-0 z-50 pointer-events-none">
           <Confetti
