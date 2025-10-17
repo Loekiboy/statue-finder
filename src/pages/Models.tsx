@@ -7,7 +7,7 @@ import StandbeeldViewer from '@/components/StandbeeldViewer';
 import PhotoViewer from '@/components/PhotoViewer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Eye, Trash2, Lock, MapPin } from 'lucide-react';
+import { Eye, Trash2, Lock, MapPin, Upload as UploadIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Model {
@@ -138,12 +138,17 @@ const Models = () => {
   };
 
   const navigateToMap = (lat: number, lon: number) => {
-    localStorage.setItem('mapFocus', JSON.stringify({ lat, lon }));
+    localStorage.setItem('mapFocus', JSON.stringify({ lat, lon, zoom: 18 }));
     navigate('/');
   };
 
+  const navigateToUpload = (lat: number, lon: number, name: string) => {
+    localStorage.setItem('uploadLocation', JSON.stringify({ lat, lon, name }));
+    navigate('/upload');
+  };
+
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Earth's radius in km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = 
@@ -158,30 +163,48 @@ const Models = () => {
     return discoveries.some(d => d.model_id === modelId);
   };
 
-  const sortedModels = [...models].sort((a, b) => {
-    if (!userLocation || !a.latitude || !a.longitude || !b.latitude || !b.longitude) {
-      return 0;
-    }
-    const distA = calculateDistance(userLocation.lat, userLocation.lon, a.latitude, a.longitude);
-    const distB = calculateDistance(userLocation.lat, userLocation.lon, b.latitude, b.longitude);
-    return distA - distB;
-  });
+  // Combine models and OSM statues, then sort by distance
+  const combinedItems = [
+    ...models.map(model => ({
+      type: 'model' as const,
+      data: model,
+      distance: userLocation && model.latitude && model.longitude
+        ? calculateDistance(userLocation.lat, userLocation.lon, model.latitude, model.longitude)
+        : Infinity
+    })),
+    ...osmStatues
+      .filter(statue => {
+        // Filter out OSM statues that already have a model
+        return !models.some(m => 
+          m.latitude && m.longitude &&
+          Math.abs(m.latitude - statue.lat) < 0.0001 && 
+          Math.abs(m.longitude - statue.lon) < 0.0001
+        );
+      })
+      .map(statue => ({
+        type: 'osm' as const,
+        data: statue,
+        distance: userLocation
+          ? calculateDistance(userLocation.lat, userLocation.lon, statue.lat, statue.lon)
+          : Infinity
+      }))
+  ].sort((a, b) => a.distance - b.distance);
 
   const handleDelete = async (modelId: string, filePath: string) => {
     if (!confirm(t('Weet je zeker dat je dit model wilt verwijderen?', 'Are you sure you want to delete this model?'))) return;
 
-    // Delete file from storage
-    const { error: storageError } = await supabase.storage
-      .from('models')
-      .remove([filePath]);
+    if (filePath) {
+      const { error: storageError } = await supabase.storage
+        .from('models')
+        .remove([filePath]);
 
-    if (storageError) {
-      toast.error(t('Fout bij verwijderen bestand', 'Error deleting file'));
-      console.error(storageError);
-      return;
+      if (storageError) {
+        toast.error(t('Fout bij verwijderen bestand', 'Error deleting file'));
+        console.error(storageError);
+        return;
+      }
     }
 
-    // Delete database record
     const { error: dbError } = await supabase
       .from('models')
       .delete()
@@ -193,7 +216,7 @@ const Models = () => {
     } else {
       toast.success(t('Model verwijderd!', 'Model deleted!'));
       fetchModels();
-      if (selectedModel?.id === modelId) {
+      if (selectedModel) {
         setSelectedModel(null);
       }
     }
@@ -241,19 +264,18 @@ const Models = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sortedModels.length === 0 && osmStatues.length === 0 ? (
+              {combinedItems.length === 0 ? (
                 <div className="col-span-full text-center py-16">
                   <p className="text-muted-foreground text-lg">
                     {user ? t('Nog geen modellen gevonden. Upload je eerste model!', 'No models found yet. Upload your first model!') : t('Nog geen modellen gevonden. Log in om modellen te uploaden.', 'No models found yet. Log in to upload models.')}
                   </p>
                 </div>
               ) : (
-                <>
-                  {sortedModels.map((model) => {
+                combinedItems.map((item, index) => {
+                  if (item.type === 'model') {
+                    const model = item.data;
                     const discovered = isModelDiscovered(model.id);
-                    const distance = userLocation && model.latitude && model.longitude
-                      ? calculateDistance(userLocation.lat, userLocation.lon, model.latitude, model.longitude)
-                      : null;
+                    const distance = item.distance !== Infinity ? item.distance : null;
                     
                     return (
                       <Card key={model.id} className={`hover:shadow-[var(--shadow-elevated)] transition-shadow ${!discovered ? 'opacity-60' : ''}`}>
@@ -324,20 +346,10 @@ const Models = () => {
                         </CardContent>
                       </Card>
                     );
-                  })}
-                  
-                  {osmStatues.map((statue) => {
-                    const distance = userLocation
-                      ? calculateDistance(userLocation.lat, userLocation.lon, statue.lat, statue.lon)
-                      : null;
+                  } else {
+                    const statue = item.data;
+                    const distance = item.distance !== Infinity ? item.distance : null;
                     const name = statue.tags.name || t('Onbekend standbeeld', 'Unknown statue');
-                    const hasModel = models.some(m => 
-                      m.latitude && m.longitude &&
-                      Math.abs(m.latitude - statue.lat) < 0.0001 && 
-                      Math.abs(m.longitude - statue.lon) < 0.0001
-                    );
-
-                    if (hasModel) return null;
 
                     return (
                       <Card key={`osm-${statue.id}`} className="hover:shadow-[var(--shadow-elevated)] transition-shadow border-dashed">
@@ -365,21 +377,31 @@ const Models = () => {
                             <p className="text-xs text-muted-foreground">
                               OpenStreetMap
                             </p>
-                            <Button 
-                              onClick={() => navigateToMap(statue.lat, statue.lon)}
-                              size="sm"
-                              variant="outline"
-                              className="gap-2"
-                            >
-                              <Eye className="h-4 w-4" />
-                              {t('Bekijk', 'View')}
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button 
+                                onClick={() => navigateToMap(statue.lat, statue.lon)}
+                                size="sm"
+                                variant="outline"
+                                className="gap-2"
+                              >
+                                <Eye className="h-4 w-4" />
+                                {t('Bekijk', 'View')}
+                              </Button>
+                              <Button 
+                                onClick={() => navigateToUpload(statue.lat, statue.lon, name)}
+                                size="sm"
+                                className="gap-2"
+                              >
+                                <UploadIcon className="h-4 w-4" />
+                                {t('Upload', 'Upload')}
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
                     );
-                  })}
-                </>
+                  }
+                })
               )}
             </div>
           )}

@@ -48,6 +48,23 @@ const Upload = () => {
   const map = useRef<L.Map | null>(null);
   const marker = useRef<L.Marker | null>(null);
 
+  // Check for pre-filled location from OSM statue
+  useEffect(() => {
+    const uploadLocationData = localStorage.getItem('uploadLocation');
+    if (uploadLocationData) {
+      try {
+        const { lat, lon, name: statueName } = JSON.parse(uploadLocationData);
+        setLatitude(lat);
+        setLongitude(lon);
+        setName(statueName || '');
+        setManualLocation(true);
+        localStorage.removeItem('uploadLocation');
+      } catch (e) {
+        console.error('Error parsing uploadLocation:', e);
+      }
+    }
+  }, []);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];

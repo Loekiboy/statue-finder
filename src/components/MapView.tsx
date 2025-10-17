@@ -76,6 +76,22 @@ const MapView = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Check for map focus from localStorage
+  useEffect(() => {
+    const focusData = localStorage.getItem('mapFocus');
+    if (focusData) {
+      try {
+        const { lat, lon, zoom } = JSON.parse(focusData);
+        if (map.current) {
+          map.current.setView([lat, lon], zoom || 18);
+        }
+        localStorage.removeItem('mapFocus');
+      } catch (e) {
+        console.error('Error parsing mapFocus:', e);
+      }
+    }
+  }, [map.current]);
+
   // Fetch discovered models
   useEffect(() => {
     const fetchDiscoveredModels = async () => {
