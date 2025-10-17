@@ -14,15 +14,16 @@ import { z } from 'zod';
 import { ThumbnailGenerator } from '@/components/ThumbnailGenerator';
 import ExifReader from 'exifreader';
 import imageCompression from 'browser-image-compression';
+import type * as L from 'leaflet';
 
 // Lazy load Leaflet only when needed
-let L: typeof import('leaflet') | null = null;
+let LeafletLib: typeof L | null = null;
 const loadLeaflet = async () => {
-  if (!L) {
-    L = await import('leaflet');
+  if (!LeafletLib) {
+    LeafletLib = await import('leaflet');
     await import('leaflet/dist/leaflet.css');
   }
-  return L;
+  return LeafletLib;
 };
 
 const modelSchema = z.object({
@@ -54,8 +55,8 @@ const Upload = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<any>(null);
-  const marker = useRef<any>(null);
+  const map = useRef<L.Map | null>(null);
+  const marker = useRef<L.Marker | null>(null);
 
   // Check for pre-filled location from OSM statue
   useEffect(() => {
@@ -181,7 +182,7 @@ const Upload = () => {
             maxSizeMB: 3,
             maxWidthOrHeight: 1920,
             useWebWorker: true,
-            fileType: selectedFile.type as any,
+            fileType: selectedFile.type,
           };
           
           try {
@@ -250,7 +251,7 @@ const Upload = () => {
       }).addTo(map.current);
 
       // Add click handler to place marker
-      map.current.on('click', (e: any) => {
+      map.current.on('click', (e: L.LeafletMouseEvent) => {
         if (!map.current) return;
 
         // Remove existing marker if any
@@ -381,8 +382,8 @@ const Upload = () => {
         navigate('/');
         setLoading(false);
       }
-    } catch (error: any) {
-      const safeMessage = error.code === '23514' 
+    } catch (error) {
+      const safeMessage = error instanceof Error && 'code' in error && error.code === '23514' 
         ? t('Invoer voldoet niet aan de vereisten', 'Input does not meet requirements')
         : t('Er is een fout opgetreden bij het uploaden', 'An error occurred during upload');
       
@@ -459,8 +460,8 @@ const Upload = () => {
 
       toast({ title: t('Model geüpload!', 'Model uploaded!') });
       navigate('/');
-    } catch (error: any) {
-      const safeMessage = error.code === '23514' 
+    } catch (error) {
+      const safeMessage = error instanceof Error && 'code' in error && error.code === '23514' 
         ? t('Invoer voldoet niet aan de vereisten', 'Input does not meet requirements')
         : t('Er is een fout opgetreden bij het uploaden', 'An error occurred during upload');
       

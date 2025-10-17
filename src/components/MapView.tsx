@@ -58,7 +58,7 @@ const MapView = () => {
   const [models, setModels] = useState<Model[]>([]);
   const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ id: string } | null>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedStatue, setSelectedStatue] = useState<NijmegenStatue | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
