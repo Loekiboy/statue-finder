@@ -8,6 +8,7 @@ import { Button } from './ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { isOnWiFi, cacheMapTiles, cacheNearbyModels, clearOldCaches } from '@/lib/cacheManager';
+import { nijmegenStatues } from '@/data/nijmegenStatues';
 
 interface Model {
   id: string;
@@ -59,6 +60,7 @@ const MapView = () => {
   const userMarkerRef = useRef<L.Marker | null>(null);
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
+  const nijmegenMarkerRef = useRef<L.Marker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const accuracyCircleRef = useRef<L.Circle | null>(null);
 
@@ -425,6 +427,62 @@ const MapView = () => {
           });
         
         modelMarkersRef.current.push(modelMarker);
+      }
+    });
+
+    // Add markers for Nijmegen statues (statues without 3D models yet)
+    nijmegenStatues.forEach((statue) => {
+      if (map.current) {
+        // Create custom icon for Nijmegen statues (orange/amber color to indicate "no model yet")
+        const nijmegenIcon = L.divIcon({
+          className: 'custom-marker-nijmegen',
+          html: `
+            <div style="
+              width: 70px;
+              height: 70px;
+              border-radius: 12px;
+              background-color: white;
+              border: 4px solid hsl(38, 92%, 50%);
+              box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+              overflow: hidden;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              position: relative;
+            ">
+              <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(38, 92%, 50%)" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+              <div style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: hsl(38, 92%, 50%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">!</div>
+            </div>
+          `,
+          iconSize: [70, 70],
+          iconAnchor: [35, 35],
+        });
+
+        const nijmegenMarker = L.marker([statue.latitude, statue.longitude], { icon: nijmegenIcon })
+          .addTo(map.current)
+          .bindPopup(`
+            <div style="min-width: 200px;">
+              <b>${statue.name}</b><br/>
+              <p style="margin: 8px 0; color: #666; font-size: 13px;">${statue.description}</p>
+              ${statue.address ? `<p style="margin: 4px 0; color: #888; font-size: 12px;">📍 ${statue.address}</p>` : ''}
+              <div style="margin-top: 10px; padding: 10px; background: hsl(38, 92%, 95%); border-radius: 6px; border-left: 3px solid hsl(38, 92%, 50%);">
+                <p style="margin: 0; font-weight: 600; color: hsl(38, 92%, 40%);">⚠️ ${t('Dit standbeeld heeft nog geen 3D model', 'This statue has no 3D model yet')}</p>
+                <p style="margin: 4px 0 0 0; font-size: 12px; color: #666;">${t('Wees de eerste die hiervoor een model uploadt!', 'Be the first to upload a model for this!')}</p>
+              </div>
+            </div>
+          `)
+          .on('click', () => {
+            toast.info(
+              `${statue.name}: ${t('Dit standbeeld heeft nog geen 3D model. Upload er een via de Upload pagina!', 'This statue has no 3D model yet. Upload one via the Upload page!')}`,
+              { duration: 5000 }
+            );
+          });
+        
+        nijmegenMarkerRef.current.push(nijmegenMarker);
       }
     });
 
