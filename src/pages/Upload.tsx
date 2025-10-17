@@ -63,6 +63,13 @@ const Upload = () => {
         console.error('Error parsing uploadLocation:', e);
       }
     }
+    
+    // Check for pre-filled upload type
+    const uploadTypeData = localStorage.getItem('uploadType');
+    if (uploadTypeData && (uploadTypeData === 'photo' || uploadTypeData === 'model')) {
+      setUploadType(uploadTypeData);
+      localStorage.removeItem('uploadType');
+    }
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

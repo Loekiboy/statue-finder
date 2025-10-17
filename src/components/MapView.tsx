@@ -5,11 +5,12 @@ import { toast } from 'sonner';
 import Confetti from 'react-confetti';
 import StandbeeldViewer from './StandbeeldViewer';
 import PhotoViewer from './PhotoViewer';
+import QuickUploadDialog from './QuickUploadDialog';
 import { Button } from './ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { isOnWiFi, cacheMapTiles, cacheNearbyModels, clearOldCaches } from '@/lib/cacheManager';
-import { nijmegenStatues } from '@/data/nijmegenStatues';
+import { nijmegenStatues, NijmegenStatue } from '@/data/nijmegenStatues';
 
 interface Model {
   id: string;
@@ -58,6 +59,8 @@ const MapView = () => {
   const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [selectedStatue, setSelectedStatue] = useState<NijmegenStatue | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
@@ -506,14 +509,37 @@ const MapView = () => {
               <div style="margin-top: 10px; padding: 10px; background: hsl(38, 92%, 95%); border-radius: 6px; border-left: 3px solid hsl(38, 92%, 50%);">
                 <p style="margin: 0; font-weight: 600; color: hsl(38, 92%, 40%);">⚠️ ${t('Dit standbeeld heeft nog geen 3D model', 'This statue has no 3D model yet')}</p>
                 <p style="margin: 4px 0 0 0; font-size: 12px; color: #666;">${t('Wees de eerste die hiervoor een model uploadt!', 'Be the first to upload a model for this!')}</p>
+                <button 
+                  id="upload-btn-${statue.id}"
+                  style="
+                    margin-top: 10px;
+                    width: 100%;
+                    padding: 8px 16px;
+                    background: linear-gradient(135deg, hsl(195, 85%, 55%), hsl(190, 75%, 65%));
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 600;
+                    font-size: 14px;
+                  "
+                  onmouseover="this.style.transform='scale(1.02)'"
+                  onmouseout="this.style.transform='scale(1)'"
+                >
+                  📤 ${t('Upload Foto/Model', 'Upload Photo/Model')}
+                </button>
               </div>
             </div>
           `)
-          .on('click', () => {
-            toast.info(
-              `${statue.name}: ${t('Dit standbeeld heeft nog geen 3D model. Upload er een via de Upload pagina!', 'This statue has no 3D model yet. Upload one via the Upload page!')}`,
-              { duration: 5000 }
-            );
+          .on('popupopen', () => {
+            // Add click handler to the button after popup opens
+            const uploadBtn = document.getElementById(`upload-btn-${statue.id}`);
+            if (uploadBtn) {
+              uploadBtn.addEventListener('click', () => {
+                setSelectedStatue(statue);
+                setShowUploadDialog(true);
+              });
+            }
           });
         
         markerClusterGroupRef.current?.addLayer(nijmegenMarker);
@@ -574,6 +600,16 @@ const MapView = () => {
 
   return (
     <div className="relative h-screen w-full">
+      {selectedStatue && (
+        <QuickUploadDialog
+          open={showUploadDialog}
+          onOpenChange={setShowUploadDialog}
+          statueName={selectedStatue.name}
+          latitude={selectedStatue.latitude}
+          longitude={selectedStatue.longitude}
+        />
+      )}
+      
       {showConfetti && (
         <div className="fixed inset-0 z-50 pointer-events-none">
           <Confetti
