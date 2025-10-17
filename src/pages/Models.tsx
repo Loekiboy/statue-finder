@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '@/components/Sidebar';
 import StandbeeldViewer from '@/components/StandbeeldViewer';
 import PhotoViewer from '@/components/PhotoViewer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Eye, Trash2, Lock } from 'lucide-react';
+import { Eye, Trash2, Lock, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Model {
@@ -25,9 +26,23 @@ interface DiscoveredModel {
   model_id: string;
 }
 
+interface OSMStatue {
+  id: number;
+  lat: number;
+  lon: number;
+  tags: {
+    name?: string;
+    historic?: string;
+    tourism?: string;
+    artwork_type?: string;
+  };
+}
+
 const Models = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [models, setModels] = useState<Model[]>([]);
+  const [osmStatues, setOsmStatues] = useState<OSMStatue[]>([]);
   const [selectedModel, setSelectedModel] = useState<Model | null>(null);
   const [user, setUser] = useState<any>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
@@ -60,6 +75,7 @@ const Models = () => {
             lat: position.coords.latitude,
             lon: position.coords.longitude,
           });
+          fetchOSMStatues(position.coords.latitude, position.coords.longitude);
         },
         (error) => {
           console.log('Location access denied or error:', error);
@@ -95,6 +111,35 @@ const Models = () => {
     } else {
       setDiscoveries(data || []);
     }
+  };
+
+  const fetchOSMStatues = async (lat: number, lon: number) => {
+    const radius = 5000; // 5km radius
+    const query = `
+      [out:json];
+      (
+        node["historic"="memorial"](around:${radius},${lat},${lon});
+        node["historic"="monument"](around:${radius},${lat},${lon});
+        node["tourism"="artwork"]["artwork_type"="statue"](around:${radius},${lat},${lon});
+      );
+      out body;
+    `;
+
+    try {
+      const response = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: query,
+      });
+      const data = await response.json();
+      setOsmStatues(data.elements || []);
+    } catch (error) {
+      console.error('Error fetching OSM statues:', error);
+    }
+  };
+
+  const navigateToMap = (lat: number, lon: number) => {
+    localStorage.setItem('mapFocus', JSON.stringify({ lat, lon }));
+    navigate('/');
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -196,89 +241,145 @@ const Models = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sortedModels.length === 0 ? (
+              {sortedModels.length === 0 && osmStatues.length === 0 ? (
                 <div className="col-span-full text-center py-16">
                   <p className="text-muted-foreground text-lg">
                     {user ? t('Nog geen modellen gevonden. Upload je eerste model!', 'No models found yet. Upload your first model!') : t('Nog geen modellen gevonden. Log in om modellen te uploaden.', 'No models found yet. Log in to upload models.')}
                   </p>
                 </div>
               ) : (
-                sortedModels.map((model) => {
-                  const discovered = isModelDiscovered(model.id);
-                  const distance = userLocation && model.latitude && model.longitude
-                    ? calculateDistance(userLocation.lat, userLocation.lon, model.latitude, model.longitude)
-                    : null;
-                  
-                  return (
-                    <Card key={model.id} className={`hover:shadow-[var(--shadow-elevated)] transition-shadow ${!discovered ? 'opacity-60' : ''}`}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            {distance !== null && (
-                              <p className="text-xs text-muted-foreground mb-1">
-                                {distance < 1 
-                                  ? `${Math.round(distance * 1000)} m`
-                                  : `${distance.toFixed(1)} km`
-                                }
-                              </p>
-                            )}
-                            <CardTitle className="text-lg">{model.name}</CardTitle>
+                <>
+                  {sortedModels.map((model) => {
+                    const discovered = isModelDiscovered(model.id);
+                    const distance = userLocation && model.latitude && model.longitude
+                      ? calculateDistance(userLocation.lat, userLocation.lon, model.latitude, model.longitude)
+                      : null;
+                    
+                    return (
+                      <Card key={model.id} className={`hover:shadow-[var(--shadow-elevated)] transition-shadow ${!discovered ? 'opacity-60' : ''}`}>
+                        <CardHeader>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              {distance !== null && (
+                                <p className="text-xs text-muted-foreground mb-1">
+                                  {distance < 1 
+                                    ? `${Math.round(distance * 1000)} m`
+                                    : `${distance.toFixed(1)} km`
+                                  }
+                                </p>
+                              )}
+                              <CardTitle className="text-lg">{model.name}</CardTitle>
+                            </div>
+                            {!discovered && <Lock className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
                           </div>
-                          {!discovered && <Lock className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
-                        </div>
-                        {model.description && (
-                          <CardDescription className="line-clamp-2">{model.description}</CardDescription>
-                        )}
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(model.created_at).toLocaleDateString('nl-NL')}
-                          </p>
-                          <div className="flex gap-2">
-                            {discovered ? (
-                              <>
-                                <Button 
-                                  onClick={() => {
-                                    setSelectedModel(model);
-                                    if (model.photo_url && !model.file_path) {
-                                      setShowPhotoViewer(true);
-                                    }
-                                  }}
-                                  size="sm"
-                                  className="gap-2"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  {t('Bekijk', 'View')}
-                                </Button>
-                                {user?.id === model.user_id && (
+                          {model.description && (
+                            <CardDescription className="line-clamp-2">{model.description}</CardDescription>
+                          )}
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(model.created_at).toLocaleDateString('nl-NL')}
+                            </p>
+                            <div className="flex gap-2">
+                              {discovered ? (
+                                <>
                                   <Button 
-                                    onClick={() => handleDelete(model.id, model.file_path)}
+                                    onClick={() => {
+                                      setSelectedModel(model);
+                                      if (model.photo_url && !model.file_path) {
+                                        setShowPhotoViewer(true);
+                                      }
+                                    }}
                                     size="sm"
-                                    variant="destructive"
                                     className="gap-2"
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Eye className="h-4 w-4" />
+                                    {t('Bekijk', 'View')}
                                   </Button>
-                                )}
-                              </>
-                            ) : (
-                              <Button 
-                                size="sm"
-                                variant="outline"
-                                disabled
-                                className="gap-2"
-                              >
-                                <Lock className="h-4 w-4" />
-                                {t('Vergrendeld', 'Locked')}
-                              </Button>
-                            )}
+                                  {user?.id === model.user_id && (
+                                    <Button 
+                                      onClick={() => handleDelete(model.id, model.file_path)}
+                                      size="sm"
+                                      variant="destructive"
+                                      className="gap-2"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </>
+                              ) : (
+                                <Button 
+                                  size="sm"
+                                  variant="outline"
+                                  disabled
+                                  className="gap-2"
+                                >
+                                  <Lock className="h-4 w-4" />
+                                  {t('Vergrendeld', 'Locked')}
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                  
+                  {osmStatues.map((statue) => {
+                    const distance = userLocation
+                      ? calculateDistance(userLocation.lat, userLocation.lon, statue.lat, statue.lon)
+                      : null;
+                    const name = statue.tags.name || t('Onbekend standbeeld', 'Unknown statue');
+                    const hasModel = models.some(m => 
+                      m.latitude && m.longitude &&
+                      Math.abs(m.latitude - statue.lat) < 0.0001 && 
+                      Math.abs(m.longitude - statue.lon) < 0.0001
+                    );
+
+                    if (hasModel) return null;
+
+                    return (
+                      <Card key={`osm-${statue.id}`} className="hover:shadow-[var(--shadow-elevated)] transition-shadow border-dashed">
+                        <CardHeader>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              {distance !== null && (
+                                <p className="text-xs text-muted-foreground mb-1">
+                                  {distance < 1 
+                                    ? `${Math.round(distance * 1000)} m`
+                                    : `${distance.toFixed(1)} km`
+                                  }
+                                </p>
+                              )}
+                              <CardTitle className="text-lg">{name}</CardTitle>
+                            </div>
+                            <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          </div>
+                          <CardDescription className="line-clamp-2">
+                            {t('Nog geen 3D model beschikbaar', 'No 3D model available yet')}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs text-muted-foreground">
+                              OpenStreetMap
+                            </p>
+                            <Button 
+                              onClick={() => navigateToMap(statue.lat, statue.lon)}
+                              size="sm"
+                              variant="outline"
+                              className="gap-2"
+                            >
+                              <Eye className="h-4 w-4" />
+                              {t('Bekijk', 'View')}
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </>
               )}
             </div>
           )}
