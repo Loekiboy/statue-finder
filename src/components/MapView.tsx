@@ -76,22 +76,6 @@ const MapView = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Check for map focus from localStorage
-  useEffect(() => {
-    const focusData = localStorage.getItem('mapFocus');
-    if (focusData) {
-      try {
-        const { lat, lon, zoom } = JSON.parse(focusData);
-        if (map.current) {
-          map.current.setView([lat, lon], zoom || 18);
-        }
-        localStorage.removeItem('mapFocus');
-      } catch (e) {
-        console.error('Error parsing mapFocus:', e);
-      }
-    }
-  }, [map.current]);
-
   // Fetch discovered models
   useEffect(() => {
     const fetchDiscoveredModels = async () => {
@@ -260,8 +244,24 @@ const MapView = () => {
       map.current = null;
     }
 
+    // Check for map focus from localStorage before initializing
+    const focusData = localStorage.getItem('mapFocus');
+    let mapCenter: [number, number] = initialLocation;
+    let mapZoom = 18;
+    
+    if (focusData) {
+      try {
+        const { lat, lon, zoom } = JSON.parse(focusData);
+        mapCenter = [lat, lon];
+        mapZoom = zoom || 18;
+        localStorage.removeItem('mapFocus');
+      } catch (e) {
+        console.error('Error parsing mapFocus:', e);
+      }
+    }
+
     // Initialize map with high zoom for Pokémon Go style
-    map.current = L.map(mapContainer.current).setView(initialLocation, 18);
+    map.current = L.map(mapContainer.current).setView(mapCenter, mapZoom);
 
     // Add OpenStreetMap tile layer met cache ondersteuning
     tileLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
