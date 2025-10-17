@@ -7,7 +7,8 @@ import StandbeeldViewer from '@/components/StandbeeldViewer';
 import PhotoViewer from '@/components/PhotoViewer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Eye, Trash2, Lock, MapPin, Upload as UploadIcon } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Eye, Trash2, Lock, MapPin, Upload as UploadIcon, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Model {
@@ -48,6 +49,8 @@ const Models = () => {
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [discoveries, setDiscoveries] = useState<DiscoveredModel[]>([]);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
+  const [loadingModels, setLoadingModels] = useState(true);
+  const [loadingOSM, setLoadingOSM] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -85,6 +88,7 @@ const Models = () => {
   }, [user]);
 
   const fetchModels = async () => {
+    setLoadingModels(true);
     const { data, error } = await supabase
       .from('models')
       .select('*')
@@ -96,6 +100,7 @@ const Models = () => {
     } else {
       setModels(data || []);
     }
+    setLoadingModels(false);
   };
 
   const fetchDiscoveries = async () => {
@@ -114,6 +119,7 @@ const Models = () => {
   };
 
   const fetchOSMStatues = async (lat: number, lon: number) => {
+    setLoadingOSM(true);
     const radius = 5000; // 5km radius
     const query = `
       [out:json];
@@ -130,10 +136,18 @@ const Models = () => {
         method: 'POST',
         body: query,
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       setOsmStatues(data.elements || []);
     } catch (error) {
       console.error('Error fetching OSM statues:', error);
+      toast.error(t('Fout bij ophalen standbeelden van OpenStreetMap', 'Error fetching statues from OpenStreetMap'));
+    } finally {
+      setLoadingOSM(false);
     }
   };
 
@@ -263,8 +277,29 @@ const Models = () => {
               </Card>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {combinedItems.length === 0 ? (
+            <div className="space-y-6">
+              {/* Loading state for models */}
+              {loadingModels && (
+                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">
+                    {t('Modellen aan het ophalen...', 'Fetching models...')}
+                  </p>
+                </div>
+              )}
+
+              {/* Loading state for OSM statues */}
+              {loadingOSM && (
+                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">
+                    {t('Standbeelden van OpenStreetMap aan het ophalen...', 'Fetching statues from OpenStreetMap...')}
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {!loadingModels && !loadingOSM && combinedItems.length === 0 ? (
                 <div className="col-span-full text-center py-16">
                   <p className="text-muted-foreground text-lg">
                     {user ? t('Nog geen modellen gevonden. Upload je eerste model!', 'No models found yet. Upload your first model!') : t('Nog geen modellen gevonden. Log in om modellen te uploaden.', 'No models found yet. Log in to upload models.')}
@@ -373,16 +408,16 @@ const Models = () => {
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <div className="flex items-center justify-between gap-2">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                             <p className="text-xs text-muted-foreground">
                               OpenStreetMap
                             </p>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 w-full sm:w-auto">
                               <Button 
                                 onClick={() => navigateToMap(statue.lat, statue.lon)}
                                 size="sm"
                                 variant="outline"
-                                className="gap-2"
+                                className="gap-2 flex-1 sm:flex-initial"
                               >
                                 <Eye className="h-4 w-4" />
                                 {t('Bekijk', 'View')}
@@ -390,7 +425,7 @@ const Models = () => {
                               <Button 
                                 onClick={() => navigateToUpload(statue.lat, statue.lon, name)}
                                 size="sm"
-                                className="gap-2"
+                                className="gap-2 flex-1 sm:flex-initial"
                               >
                                 <UploadIcon className="h-4 w-4" />
                                 {t('Upload', 'Upload')}
@@ -403,6 +438,7 @@ const Models = () => {
                   }
                 })
               )}
+            </div>
             </div>
           )}
         </div>

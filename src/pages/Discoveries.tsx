@@ -6,7 +6,7 @@ import StandbeeldViewer from '@/components/StandbeeldViewer';
 import PhotoViewer from '@/components/PhotoViewer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Eye, MapPin, Calendar } from 'lucide-react';
+import { Eye, MapPin, Calendar, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DiscoveredModel {
@@ -31,6 +31,7 @@ const Discoveries = () => {
   const [selectedModel, setSelectedModel] = useState<any | null>(null);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -53,6 +54,7 @@ const Discoveries = () => {
   const fetchDiscoveries = async () => {
     if (!user) return;
 
+    setLoading(true);
     const { data, error } = await supabase
       .from('discovered_models')
       .select(`
@@ -79,6 +81,7 @@ const Discoveries = () => {
     } else {
       setDiscoveries(data || []);
     }
+    setLoading(false);
   };
 
 
@@ -134,7 +137,18 @@ const Discoveries = () => {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <>
+              {loading && (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">
+                    {t('Gevonden standbeelden aan het ophalen...', 'Fetching discovered statues...')}
+                  </p>
+                </div>
+              )}
+
+              {!loading && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {discoveries.length === 0 ? (
                 <div className="col-span-full text-center py-16">
                   <p className="text-muted-foreground text-lg">
@@ -188,6 +202,8 @@ const Discoveries = () => {
                 ))
               )}
             </div>
+              )}
+            </>
           )}
         </div>
       </main>
