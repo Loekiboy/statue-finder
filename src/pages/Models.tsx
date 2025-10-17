@@ -69,7 +69,10 @@ const Models = () => {
     if (user) {
       fetchDiscoveries();
     }
-    
+  }, [user]);
+
+  // Separate effect for geolocation and OSM statues that runs on mount
+  useEffect(() => {
     // Get user location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -85,7 +88,7 @@ const Models = () => {
         }
       );
     }
-  }, [user]);
+  }, []); // Run only on mount
 
   const fetchModels = async () => {
     setLoadingModels(true);
@@ -425,10 +428,9 @@ const Models = () => {
                               <Button 
                                 onClick={() => navigateToUpload(statue.lat, statue.lon, name)}
                                 size="sm"
-                                className="gap-2 flex-1 sm:flex-initial"
+                                className="flex-1 sm:flex-initial"
                               >
                                 <UploadIcon className="h-4 w-4" />
-                                {t('Upload', 'Upload')}
                               </Button>
                             </div>
                           </div>
