@@ -248,7 +248,8 @@ const Upload = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!photo) {
+    // Photo is required for photo-only uploads, but optional for 3D model uploads
+    if (uploadType === 'photo' && !photo) {
       toast({ title: t('Selecteer een foto', 'Select a photo'), variant: 'destructive' });
       return;
     }
@@ -291,15 +292,19 @@ const Upload = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error(t('Niet ingelogd', 'Not logged in'));
 
-      // Upload photo
-      const photoExt = photo.name.split('.').pop();
-      const photoFileName = `${user.id}/${Date.now()}_photo.${photoExt}`;
-      
-      const { error: photoUploadError } = await supabase.storage
-        .from('model-thumbnails')
-        .upload(photoFileName, photo);
+      let photoFileName: string | null = null;
 
-      if (photoUploadError) throw photoUploadError;
+      // Upload photo if provided
+      if (photo) {
+        const photoExt = photo.name.split('.').pop();
+        photoFileName = `${user.id}/${Date.now()}_photo.${photoExt}`;
+        
+        const { error: photoUploadError } = await supabase.storage
+          .from('model-thumbnails')
+          .upload(photoFileName, photo);
+
+        if (photoUploadError) throw photoUploadError;
+      }
 
       if (uploadType === 'model') {
         // Upload 3D model file
@@ -320,7 +325,7 @@ const Upload = () => {
         // Photo only upload - save directly to database
         const { data: { publicUrl: photoUrl } } = supabase.storage
           .from('model-thumbnails')
-          .getPublicUrl(photoFileName);
+          .getPublicUrl(photoFileName!);
 
         const { error: dbError } = await supabase
           .from('models')
@@ -361,7 +366,7 @@ const Upload = () => {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user || !uploadedFilePath || !uploadedPhotoPath) throw new Error(t('Niet ingelogd', 'Not logged in'));
+      if (!user || !uploadedFilePath) throw new Error(t('Niet ingelogd', 'Not logged in'));
 
       // Convert data URL to blob
       const response = await fetch(dataUrl);
@@ -380,9 +385,14 @@ const Upload = () => {
         .from('model-thumbnails')
         .getPublicUrl(thumbnailFileName);
       
-      const { data: { publicUrl: photoUrl } } = supabase.storage
-        .from('model-thumbnails')
-        .getPublicUrl(uploadedPhotoPath);
+      // Get photo URL if photo was uploaded
+      let photoUrl: string | null = null;
+      if (uploadedPhotoPath) {
+        const { data: { publicUrl } } = supabase.storage
+          .from('model-thumbnails')
+          .getPublicUrl(uploadedPhotoPath);
+        photoUrl = publicUrl;
+      }
 
       // Validate input data again for DB insert
       const validationResult = modelSchema.safeParse({
@@ -550,14 +560,17 @@ const Upload = () => {
               <div className="space-y-2">
                 <Label htmlFor="photo" className="flex items-center gap-2">
                   <ImageIcon className="h-4 w-4" />
-                  {t('Foto van het standbeeld', 'Photo of the statue')} *
+                  {uploadType === 'photo' 
+                    ? t('Foto van het standbeeld', 'Photo of the statue') + ' *'
+                    : t('Foto van het standbeeld (optioneel)', 'Photo of the statue (optional)')
+                  }
                 </Label>
                 <Input
                   id="photo"
                   type="file"
                   accept="image/*"
                   onChange={handlePhotoChange}
-                  required
+                  required={uploadType === 'photo'}
                 />
                 {photoPreview && (
                   <div className="mt-2">
