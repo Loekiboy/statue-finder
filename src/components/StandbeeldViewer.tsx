@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface StandbeeldViewerProps {
@@ -14,6 +14,8 @@ interface StandbeeldViewerProps {
 const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.stl', autoRotate = false }: StandbeeldViewerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [modelUrl, setModelUrl] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   // Get the correct URL for the model
   useEffect(() => {
@@ -84,6 +86,8 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
     
     // Load STL model
     const loader = new STLLoader();
+    setLoading(true);
+    setLoadingProgress(0);
     loader.load(
       modelUrl,
       (geometry) => {
@@ -114,13 +118,19 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
         
         scene.add(mesh);
         
+        setLoading(false);
         console.log('STL model geladen!');
       },
       (progress) => {
-        console.log('Laden:', (progress.loaded / progress.total * 100).toFixed(0) + '%');
+        const percentComplete = progress.total > 0 
+          ? (progress.loaded / progress.total * 100) 
+          : 0;
+        setLoadingProgress(percentComplete);
+        console.log('Laden:', percentComplete.toFixed(0) + '%');
       },
       (error) => {
         console.error('Fout bij laden STL:', error);
+        setLoading(false);
         // Fallback: toon kubus bij fout
         const geometry = new THREE.BoxGeometry(2, 2, 2);
         const material = new THREE.MeshPhongMaterial({ color: 0x2ca87f });
@@ -160,7 +170,18 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
   }, [modelUrl]);
 
   return (
-    <div ref={containerRef} className="h-full w-full bg-gradient-to-br from-background to-muted" />
+    <div className="relative h-full w-full">
+      <div ref={containerRef} className="h-full w-full bg-gradient-to-br from-background to-muted" />
+      {loading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+          <p className="text-sm text-muted-foreground mb-2">3D model aan het laden...</p>
+          {loadingProgress > 0 && (
+            <p className="text-xs text-muted-foreground">{loadingProgress.toFixed(0)}%</p>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 
