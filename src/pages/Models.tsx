@@ -269,11 +269,17 @@ const Models = () => {
                         onClose={() => { setSelectedModel(null); setShowPhotoViewer(false); }} 
                         photoUrl={selectedModel.photo_url}
                       />
-                    ) : (
+                    ) : selectedModel.file_path && selectedModel.file_path !== '' ? (
                       <StandbeeldViewer 
                         onClose={() => setSelectedModel(null)} 
                         modelPath={selectedModel.file_path}
                       />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-muted-foreground">
+                          {t('Geen 3D model of foto beschikbaar', 'No 3D model or photo available')}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -347,8 +353,11 @@ const Models = () => {
                                   <Button 
                                     onClick={() => {
                                       setSelectedModel(model);
-                                      if (model.photo_url && !model.file_path) {
+                                      // Show photo viewer if there's no 3D model file or if there's a photo but no 3D file
+                                      if (model.photo_url && (!model.file_path || model.file_path === '')) {
                                         setShowPhotoViewer(true);
+                                      } else {
+                                        setShowPhotoViewer(false);
                                       }
                                     }}
                                     size="sm"
