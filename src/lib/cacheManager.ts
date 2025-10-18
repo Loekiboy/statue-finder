@@ -3,12 +3,35 @@ const CACHE_VERSION = 'v1';
 const CACHE_NAME = `app-cache-${CACHE_VERSION}`;
 const MAP_CACHE_NAME = `map-tiles-${CACHE_VERSION}`;
 const MODEL_CACHE_NAME = `models-${CACHE_VERSION}`;
+const OSM_CACHE_KEY = 'osm-statues-cache';
+const OSM_CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface CacheStats {
   isOnWifi: boolean;
   lastCacheUpdate: number;
   cachedModels: string[];
   cachedTiles: number;
+}
+
+export interface OSMStatue {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  tags: {
+    historic?: string;
+    tourism?: string;
+    artwork_type?: string;
+    name?: string;
+    'name:nl'?: string;
+  };
+  distance?: number;
+}
+
+interface OSMCacheData {
+  statues: OSMStatue[];
+  timestamp: number;
+  userLocation: [number, number];
 }
 
 // Detecteer of gebruiker op WiFi zit
@@ -159,4 +182,65 @@ export const getCacheStats = async (): Promise<CacheStats> => {
     cachedModels: modelKeys.map(req => req.url),
     cachedTiles: 0
   };
+};
+
+// Cache OSM statues in localStorage
+export const cacheOSMStatues = (statues: OSMStatue[], userLocation: [number, number]) => {
+  try {
+    const cacheData: OSMCacheData = {
+      statues,
+      timestamp: Date.now(),
+      userLocation
+    };
+    localStorage.setItem(OSM_CACHE_KEY, JSON.stringify(cacheData));
+    console.log(`Cached ${statues.length} OSM statues`);
+  } catch (error) {
+    console.error('Error caching OSM statues:', error);
+  }
+};
+
+// Get cached OSM statues from localStorage
+export const getCachedOSMStatues = (
+  currentLocation: [number, number],
+  maxDistanceKm: number = 10
+): OSMStatue[] | null => {
+  try {
+    const cached = localStorage.getItem(OSM_CACHE_KEY);
+    if (!cached) return null;
+
+    const cacheData: OSMCacheData = JSON.parse(cached);
+    
+    // Check if cache has expired
+    const age = Date.now() - cacheData.timestamp;
+    if (age > OSM_CACHE_EXPIRY_MS) {
+      console.log('OSM cache expired, will fetch fresh data');
+      return null;
+    }
+
+    // Check if user has moved too far from cached location
+    const dx = (cacheData.userLocation[1] - currentLocation[1]) * 111;
+    const dy = (cacheData.userLocation[0] - currentLocation[0]) * 111;
+    const distanceKm = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distanceKm > maxDistanceKm) {
+      console.log(`User moved ${distanceKm.toFixed(1)}km from cached location, will fetch fresh data`);
+      return null;
+    }
+
+    console.log(`Using cached OSM statues (${cacheData.statues.length} statues, age: ${Math.round(age / 1000 / 60)} minutes)`);
+    return cacheData.statues;
+  } catch (error) {
+    console.error('Error reading cached OSM statues:', error);
+    return null;
+  }
+};
+
+// Clear OSM cache
+export const clearOSMCache = () => {
+  try {
+    localStorage.removeItem(OSM_CACHE_KEY);
+    console.log('OSM cache cleared');
+  } catch (error) {
+    console.error('Error clearing OSM cache:', error);
+  }
 };

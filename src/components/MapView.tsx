@@ -9,7 +9,15 @@ import QuickUploadDialog from './QuickUploadDialog';
 import { Button } from './ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { isOnWiFi, cacheMapTiles, cacheNearbyModels, clearOldCaches } from '@/lib/cacheManager';
+import { 
+  isOnWiFi, 
+  cacheMapTiles, 
+  cacheNearbyModels, 
+  clearOldCaches,
+  cacheOSMStatues,
+  getCachedOSMStatues,
+  OSMStatue as CachedOSMStatue
+} from '@/lib/cacheManager';
 import { nijmegenStatues, NijmegenStatue } from '@/data/nijmegenStatues';
 
 interface Model {
@@ -181,6 +189,20 @@ const MapView = () => {
         return Math.sqrt(dx * dx + dy * dy);
       };
       
+      // Try to get cached data first
+      const cachedStatues = getCachedOSMStatues(userLocation);
+      if (cachedStatues) {
+        // Update distances and use cached data
+        const statuesWithDistance = cachedStatues.map(statue => ({
+          ...statue,
+          distance: calculateDistance(lat, lon, statue.lat, statue.lon)
+        })).sort((a, b) => (a.distance || 0) - (b.distance || 0));
+        
+        setOsmStatues(statuesWithDistance);
+        console.log('Using cached OSM statues, skipping API calls');
+        return;
+      }
+      
       // Progressive loading: start with closest, then expand radius
       const radii = [2000, 5000, 15000, 50000]; // 2km, 5km, 15km, 50km
       let allStatues: OSMStatue[] = [];
@@ -231,6 +253,11 @@ const MapView = () => {
           console.error(`Error fetching OSM statues at ${radius}m radius:`, error);
           // Continue with next radius even if one fails
         }
+      }
+      
+      // Cache the final results
+      if (allStatues.length > 0) {
+        cacheOSMStatues(allStatues, userLocation);
       }
     };
 
