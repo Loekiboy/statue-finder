@@ -23,6 +23,18 @@ interface Model {
   photo_url: string | null;
 }
 
+interface OSMStatue {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  tags: {
+    historic?: string;
+    tourism?: string;
+    artwork_type?: string;
+  };
+}
+
 interface SelectedModelInfo {
   name: string;
   description: string | null;
@@ -56,6 +68,7 @@ const MapView = () => {
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModelInfo | null>(null);
   const [models, setModels] = useState<Model[]>([]);
+  const [osmStatues, setOsmStatues] = useState<OSMStatue[]>([]);
   const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const [user, setUser] = useState<{ id: string } | null>(null);
@@ -64,6 +77,7 @@ const MapView = () => {
   const userMarkerRef = useRef<L.Marker | null>(null);
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
+  const osmMarkerRef = useRef<L.Marker[]>([]);
   const nijmegenMarkerRef = useRef<L.Marker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const accuracyCircleRef = useRef<L.Circle | null>(null);
@@ -121,6 +135,48 @@ const MapView = () => {
     fetchModels();
     clearOldCaches(); // Ruim oude caches op bij opstarten
   }, []);
+
+  // Fetch OSM statues when user location is available
+  useEffect(() => {
+    if (!userLocation) return;
+
+    const fetchOSMStatues = async () => {
+      const [lat, lon] = userLocation;
+      const radius = 5000; // 5km radius
+      
+      const query = `
+        [out:json][timeout:25];
+        (
+          node["historic"="memorial"](around:${radius},${lat},${lon});
+          node["historic"="monument"](around:${radius},${lat},${lon});
+          node["tourism"="artwork"]["artwork_type"="statue"](around:${radius},${lat},${lon});
+        );
+        out body;
+      `;
+      
+      try {
+        const response = await fetch('https://overpass-api.de/api/interpreter', {
+          method: 'POST',
+          body: query,
+        });
+        
+        const data = await response.json();
+        const statues: OSMStatue[] = data.elements.map((element: any) => ({
+          id: `osm-${element.id}`,
+          name: element.tags?.name || element.tags?.['name:nl'] || 'Onbekend standbeeld',
+          lat: element.lat,
+          lon: element.lon,
+          tags: element.tags,
+        }));
+        
+        setOsmStatues(statues);
+      } catch (error) {
+        console.error('Error fetching OSM statues:', error);
+      }
+    };
+
+    fetchOSMStatues();
+  }, [userLocation]);
 
   // Auto-cache wanneer op WiFi
   useEffect(() => {
@@ -506,6 +562,65 @@ const MapView = () => {
         
         markerClusterGroupRef.current?.addLayer(modelMarker);
         modelMarkersRef.current.push(modelMarker);
+      }
+    });
+
+    // Add markers for OSM statues (statues without 3D models from OpenStreetMap)
+    osmStatues.forEach((statue) => {
+      if (map.current) {
+        // Check if a model already exists at this location
+        const hasModel = models.some(model => {
+          if (!model.latitude || !model.longitude) return false;
+          const dx = Math.abs(model.latitude - statue.lat);
+          const dy = Math.abs(model.longitude - statue.lon);
+          return dx < 0.0001 && dy < 0.0001; // ~10m tolerance
+        });
+
+        if (hasModel) return; // Skip if model already exists
+
+        // Create custom icon for OSM statues (orange/amber color to indicate "no model yet")
+        const osmIcon = L.divIcon({
+          className: 'custom-marker-osm',
+          html: `
+            <div style="
+              width: 70px;
+              height: 70px;
+              border-radius: 12px;
+              background-color: white;
+              border: 4px solid hsl(38, 92%, 50%);
+              box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+              overflow: hidden;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              position: relative;
+            ">
+              <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(38, 92%, 50%)" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+              <div style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: hsl(38, 92%, 50%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">!</div>
+            </div>
+          `,
+          iconSize: [70, 70],
+          iconAnchor: [35, 35],
+        });
+
+        const osmMarker = L.marker([statue.lat, statue.lon], { icon: osmIcon })
+          .bindPopup(`<b>${statue.name}</b><br>${t('Nog geen 3D model beschikbaar', 'No 3D model available yet')}`)
+          .on('click', () => {
+            setSelectedStatue({
+              name: statue.name,
+              description: t('Standbeeld uit OpenStreetMap', 'Statue from OpenStreetMap'),
+              latitude: statue.lat,
+              longitude: statue.lon,
+            } as NijmegenStatue);
+            setShowUploadDialog(true);
+          });
+
+        markerClusterGroupRef.current?.addLayer(osmMarker);
+        osmMarkerRef.current.push(osmMarker);
       }
     });
 
