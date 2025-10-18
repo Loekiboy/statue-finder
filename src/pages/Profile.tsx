@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Eye, Trash2, LogOut, Settings, Moon, Sun } from 'lucide-react';
+import { Eye, Trash2, LogOut, Settings, Moon, Sun, MapPin } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { User } from '@supabase/supabase-js';
 
@@ -26,6 +27,7 @@ interface Profile {
   user_id: string;
   theme: 'light' | 'dark';
   language: 'nl' | 'en';
+  show_osm_statues: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -110,7 +112,7 @@ const Profile = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .insert({ user_id: user.id, theme: 'light', language })
+        .insert({ user_id: user.id, theme: 'light', language, show_osm_statues: true })
         .select()
         .single();
 
@@ -124,7 +126,7 @@ const Profile = () => {
       // Fallback to English if location detection fails
       const { data } = await supabase
         .from('profiles')
-        .insert({ user_id: user.id, theme: 'light', language: 'en' })
+        .insert({ user_id: user.id, theme: 'light', language: 'en', show_osm_statues: true })
         .select()
         .single();
       
@@ -237,6 +239,8 @@ const Profile = () => {
     english: 'Engels',
     showSettings: 'Toon instellingen',
     hideSettings: 'Verberg instellingen',
+    showOsmStatues: 'Toon standbeelden zonder model',
+    showOsmStatuesDesc: 'Toon standbeelden van OpenStreetMap op de kaart die nog geen 3D model hebben',
   } : {
     myProfile: 'My Profile',
     settings: 'Settings',
@@ -254,6 +258,8 @@ const Profile = () => {
     english: 'English',
     showSettings: 'Show settings',
     hideSettings: 'Hide settings',
+    showOsmStatues: 'Show statues without model',
+    showOsmStatuesDesc: 'Show OpenStreetMap statues on the map that don\'t have a 3D model yet',
   };
 
   return (
@@ -331,6 +337,27 @@ const Profile = () => {
                       <SelectItem value="en">{t.english}</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="show-osm" className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        {t.showOsmStatues}
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t.showOsmStatuesDesc}
+                      </p>
+                    </div>
+                    <Switch
+                      id="show-osm"
+                      checked={profile.show_osm_statues ?? true}
+                      onCheckedChange={(checked) => updateProfile({ show_osm_statues: checked })}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
