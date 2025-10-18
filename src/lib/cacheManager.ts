@@ -185,6 +185,9 @@ export const getCacheStats = async (): Promise<CacheStats> => {
 };
 
 // Cache OSM statues in localStorage
+// Note: userLocation is stored for cache invalidation purposes only.
+// This is consistent with the app's existing local storage of user location data
+// and is covered by the app's privacy policy stating "Gebruikerslocaties worden alleen lokaal gebruikt"
 export const cacheOSMStatues = (statues: OSMStatue[], userLocation: [number, number]) => {
   try {
     const cacheData: OSMCacheData = {
