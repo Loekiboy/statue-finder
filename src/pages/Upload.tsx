@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -10,12 +10,21 @@ import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescript
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ArrowLeft, Upload as UploadIcon, MapPin, Image as ImageIcon } from 'lucide-react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { z } from 'zod';
 import { ThumbnailGenerator } from '@/components/ThumbnailGenerator';
 import ExifReader from 'exifreader';
 import imageCompression from 'browser-image-compression';
+import type * as L from 'leaflet';
+
+// Lazy load Leaflet only when needed
+let LeafletLib: typeof L | null = null;
+const loadLeaflet = async () => {
+  if (!LeafletLib) {
+    LeafletLib = await import('leaflet');
+    await import('leaflet/dist/leaflet.css');
+  }
+  return LeafletLib;
+};
 
 const modelSchema = z.object({
   name: z.string().trim().min(1, 'Naam is verplicht').max(100, 'Naam mag maximaal 100 tekens zijn'),
@@ -42,6 +51,7 @@ const Upload = () => {
   const [uploadedPhotoPath, setUploadedPhotoPath] = useState<string | null>(null);
   const [showSizeWarning, setShowSizeWarning] = useState(false);
   const [largeFileSize, setLargeFileSize] = useState<number>(0);
+  const [mapReady, setMapReady] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -127,13 +137,20 @@ const Upload = () => {
               setLongitude(lon);
               setManualLocation(false);
               
-              // Update map marker
-              if (map.current) {
-                if (marker.current) {
-                  marker.current.remove();
+              // Update map marker if map is ready
+              const updateMapMarker = async () => {
+                const leaflet = await loadLeaflet();
+                if (map.current) {
+                  if (marker.current) {
+                    marker.current.remove();
+                  }
+                  marker.current = leaflet.marker([lat, lon]).addTo(map.current);
+                  map.current.setView([lat, lon], 15);
                 }
-                marker.current = L.marker([lat, lon]).addTo(map.current);
-                map.current.setView([lat, lon], 15);
+              };
+              
+              if (mapReady) {
+                updateMapMarker();
               }
               
               toast({ 
@@ -165,7 +182,7 @@ const Upload = () => {
             maxSizeMB: 3,
             maxWidthOrHeight: 1920,
             useWebWorker: true,
-            fileType: selectedFile.type as any,
+            fileType: selectedFile.type,
           };
           
           try {
@@ -219,36 +236,48 @@ const Upload = () => {
     if (!uploadType) return;
     if (uploadType === 'photo' && !manualLocation) return;
 
-    // Initialize map at default location (Amsterdam)
-    map.current = L.map(mapContainer.current).setView([52.3676, 4.9041], 7);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19,
-    }).addTo(map.current);
-
-    // Add click handler to place marker
-    map.current.on('click', (e: L.LeafletMouseEvent) => {
-      if (!map.current) return;
-
-      // Remove existing marker if any
-      if (marker.current) {
-        marker.current.remove();
-      }
-
-      // Add new marker
-      marker.current = L.marker(e.latlng).addTo(map.current);
+    // Load Leaflet lazily and initialize map
+    const initMap = async () => {
+      const leaflet = await loadLeaflet();
       
-      // Update coordinates
-      setLatitude(e.latlng.lat);
-      setLongitude(e.latlng.lng);
+      if (!mapContainer.current || map.current) return;
       
-      toast({ title: 'Locatie geselecteerd!' });
-    });
+      // Initialize map at default location (Amsterdam)
+      map.current = leaflet.map(mapContainer.current).setView([52.3676, 4.9041], 7);
+
+      leaflet.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(map.current);
+
+      // Add click handler to place marker
+      map.current.on('click', (e: L.LeafletMouseEvent) => {
+        if (!map.current) return;
+
+        // Remove existing marker if any
+        if (marker.current) {
+          marker.current.remove();
+        }
+
+        // Add new marker
+        marker.current = leaflet.marker(e.latlng).addTo(map.current);
+        
+        // Update coordinates
+        setLatitude(e.latlng.lat);
+        setLongitude(e.latlng.lng);
+        
+        toast({ title: 'Locatie geselecteerd!' });
+      });
+      
+      setMapReady(true);
+    };
+
+    initMap();
 
     return () => {
       map.current?.remove();
       map.current = null;
+      setMapReady(false);
     };
   }, [uploadType, manualLocation, toast]);
 
@@ -353,8 +382,8 @@ const Upload = () => {
         navigate('/');
         setLoading(false);
       }
-    } catch (error: any) {
-      const safeMessage = error.code === '23514' 
+    } catch (error) {
+      const safeMessage = error instanceof Error && 'code' in error && error.code === '23514' 
         ? t('Invoer voldoet niet aan de vereisten', 'Input does not meet requirements')
         : t('Er is een fout opgetreden bij het uploaden', 'An error occurred during upload');
       
@@ -431,8 +460,8 @@ const Upload = () => {
 
       toast({ title: t('Model geüpload!', 'Model uploaded!') });
       navigate('/');
-    } catch (error: any) {
-      const safeMessage = error.code === '23514' 
+    } catch (error) {
+      const safeMessage = error instanceof Error && 'code' in error && error.code === '23514' 
         ? t('Invoer voldoet niet aan de vereisten', 'Input does not meet requirements')
         : t('Er is een fout opgetreden bij het uploaden', 'An error occurred during upload');
       
@@ -619,8 +648,14 @@ const Upload = () => {
                   </Label>
                   <div 
                     ref={mapContainer} 
-                    className="h-64 w-full rounded-md border"
-                  />
+                    className="h-64 w-full rounded-md border relative"
+                  >
+                    {!mapReady && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-muted animate-pulse">
+                        <p className="text-sm text-muted-foreground">Kaart laden...</p>
+                      </div>
+                    )}
+                  </div>
                   {latitude !== null && longitude !== null && (
                     <p className="text-sm text-muted-foreground">
                       {t('Geselecteerd:', 'Selected:')} {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
@@ -642,8 +677,14 @@ const Upload = () => {
                       </p>
                       <div 
                         ref={mapContainer} 
-                        className="h-64 w-full rounded-md border"
-                      />
+                        className="h-64 w-full rounded-md border relative"
+                      >
+                        {!mapReady && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-muted animate-pulse">
+                            <p className="text-sm text-muted-foreground">Kaart laden...</p>
+                          </div>
+                        )}
+                      </div>
                       {latitude !== null && longitude !== null && (
                         <p className="text-sm text-muted-foreground">
                           {t('Geselecteerd:', 'Selected:')} {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E

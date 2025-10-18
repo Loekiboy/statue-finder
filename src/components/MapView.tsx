@@ -3,7 +3,7 @@ import L from 'leaflet';
 import 'leaflet.markercluster';
 import { toast } from 'sonner';
 import Confetti from 'react-confetti';
-import StandbeeldViewer from './StandbeeldViewer';
+import StandbeeldViewer, { preloadModels } from './StandbeeldViewer';
 import PhotoViewer from './PhotoViewer';
 import QuickUploadDialog from './QuickUploadDialog';
 import { Button } from './ui/button';
@@ -58,7 +58,7 @@ const MapView = () => {
   const [models, setModels] = useState<Model[]>([]);
   const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ id: string } | null>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedStatue, setSelectedStatue] = useState<NijmegenStatue | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
@@ -142,6 +142,47 @@ const MapView = () => {
     
     // Cache na 2 seconden om niet te interfereren met app loading
     const timer = setTimeout(autoCacheData, 2000);
+    
+    return () => clearTimeout(timer);
+  }, [userLocation, models]);
+
+  // Preload nearby 3D models in the background for better performance
+  useEffect(() => {
+    if (!userLocation || models.length === 0) return;
+    
+    const preloadNearbyModels = async () => {
+      // Get models within 1km that have 3D files
+      const nearbyModelsWithFiles = models.filter(model => {
+        if (!model.latitude || !model.longitude || !model.file_path) return false;
+        
+        const dx = (model.longitude - userLocation[1]) * 111000 * Math.cos(userLocation[0] * Math.PI / 180);
+        const dy = (model.latitude - userLocation[0]) * 111000;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        return distance <= 1000; // 1km radius
+      });
+      
+      if (nearbyModelsWithFiles.length === 0) return;
+      
+      console.log(`Preloading ${nearbyModelsWithFiles.length} nearby 3D models...`);
+      
+      // Get public URLs for the models
+      const modelUrls = nearbyModelsWithFiles.map(model => {
+        if (model.file_path.startsWith('/')) {
+          return model.file_path;
+        }
+        const { data } = supabase.storage.from('models').getPublicUrl(model.file_path);
+        return data.publicUrl;
+      });
+      
+      // Preload models in background (fire and forget)
+      preloadModels(modelUrls).catch(err => {
+        console.log('Some models failed to preload, but continuing:', err);
+      });
+    };
+    
+    // Start preloading after a short delay to not block initial render
+    const timer = setTimeout(preloadNearbyModels, 3000);
     
     return () => clearTimeout(timer);
   }, [userLocation, models]);
