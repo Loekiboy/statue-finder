@@ -33,10 +33,12 @@ interface OSMStatue {
     tourism?: string;
     artwork_type?: string;
   };
+  distance?: number;
 }
 
 interface Profile {
   show_osm_statues: boolean;
+  show_nijmegen_statues: boolean;
 }
 
 interface SelectedModelInfo {
@@ -79,6 +81,7 @@ const MapView = () => {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedStatue, setSelectedStatue] = useState<NijmegenStatue | null>(null);
   const [showOsmStatues, setShowOsmStatues] = useState(true);
+  const [showNijmegenStatues, setShowNijmegenStatues] = useState(true);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const standbeeldMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
@@ -148,19 +151,20 @@ const MapView = () => {
       if (user) {
         const { data } = await supabase
           .from('profiles')
-          .select('show_osm_statues')
+          .select('show_osm_statues, show_nijmegen_statues')
           .eq('user_id', user.id)
           .single();
         
         if (data) {
           setShowOsmStatues(data.show_osm_statues ?? true);
+          setShowNijmegenStatues(data.show_nijmegen_statues ?? true);
         }
       }
     };
     fetchProfile();
   }, []);
 
-  // Fetch OSM statues when user location is available
+  // Fetch OSM statues when user location is available - progressively load closest first
   useEffect(() => {
     if (!userLocation || !showOsmStatues) {
       setOsmStatues([]);
@@ -169,35 +173,64 @@ const MapView = () => {
 
     const fetchOSMStatues = async () => {
       const [lat, lon] = userLocation;
-      const radius = 50000; // 50km radius to get all statues
       
-      const query = `
-        [out:json][timeout:25];
-        (
-          node["historic"="memorial"]["memorial"="statue"](around:${radius},${lat},${lon});
-          node["tourism"="artwork"]["artwork_type"="statue"](around:${radius},${lat},${lon});
-        );
-        out body;
-      `;
+      // Calculate distance between two points in meters
+      const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+        const dx = (lon2 - lon1) * 111000 * Math.cos(lat1 * Math.PI / 180);
+        const dy = (lat2 - lat1) * 111000;
+        return Math.sqrt(dx * dx + dy * dy);
+      };
       
-      try {
-        const response = await fetch('https://overpass-api.de/api/interpreter', {
-          method: 'POST',
-          body: query,
-        });
+      // Progressive loading: start with closest, then expand radius
+      const radii = [2000, 5000, 15000, 50000]; // 2km, 5km, 15km, 50km
+      let allStatues: OSMStatue[] = [];
+      
+      for (const radius of radii) {
+        const query = `
+          [out:json][timeout:25];
+          (
+            node["historic"="memorial"]["memorial"="statue"](around:${radius},${lat},${lon});
+            node["tourism"="artwork"]["artwork_type"="statue"](around:${radius},${lat},${lon});
+          );
+          out body;
+        `;
         
-        const data = await response.json();
-        const statues: OSMStatue[] = data.elements.map((element: any) => ({
-          id: `osm-${element.id}`,
-          name: element.tags?.name || element.tags?.['name:nl'] || 'Onbekend standbeeld',
-          lat: element.lat,
-          lon: element.lon,
-          tags: element.tags,
-        }));
-        
-        setOsmStatues(statues);
-      } catch (error) {
-        console.error('Error fetching OSM statues:', error);
+        try {
+          const response = await fetch('https://overpass-api.de/api/interpreter', {
+            method: 'POST',
+            body: query,
+          });
+          
+          const data = await response.json();
+          const newStatues: OSMStatue[] = data.elements.map((element: { id: number; lat: number; lon: number; tags?: { name?: string; 'name:nl'?: string } }) => ({
+            id: `osm-${element.id}`,
+            name: element.tags?.name || element.tags?.['name:nl'] || 'Onbekend standbeeld',
+            lat: element.lat,
+            lon: element.lon,
+            tags: element.tags,
+            distance: calculateDistance(lat, lon, element.lat, element.lon),
+          }));
+          
+          // Filter out duplicates and sort by distance
+          const uniqueStatues = newStatues.filter(
+            newStatue => !allStatues.some(existing => existing.id === newStatue.id)
+          );
+          
+          allStatues = [...allStatues, ...uniqueStatues].sort((a, b) => 
+            (a.distance || 0) - (b.distance || 0)
+          );
+          
+          // Update map with current batch (progressive rendering)
+          setOsmStatues([...allStatues]);
+          
+          // Short delay between batches to not overload the API
+          if (radius !== radii[radii.length - 1]) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        } catch (error) {
+          console.error(`Error fetching OSM statues at ${radius}m radius:`, error);
+          // Continue with next radius even if one fails
+        }
       }
     };
 
@@ -669,7 +702,8 @@ const MapView = () => {
     }
 
     // Add markers for Nijmegen statues (statues without 3D models yet)
-    nijmegenStatues.forEach((statue) => {
+    if (showNijmegenStatues) {
+      nijmegenStatues.forEach((statue) => {
       if (map.current) {
         // Create custom icon for Nijmegen statues (orange/amber color to indicate "no model yet")
         const nijmegenIcon = L.divIcon({
@@ -746,6 +780,7 @@ const MapView = () => {
         nijmegenMarkerRef.current.push(nijmegenMarker);
       }
     });
+    }
 
     // Add the cluster group to the map
     if (markerClusterGroupRef.current) {
@@ -783,7 +818,7 @@ const MapView = () => {
         map.current = null;
       }
     };
-  }, [initialLocation, models, showViewer, discoveredModels, user]);
+  }, [initialLocation, models, showViewer, discoveredModels, user, showNijmegenStatues]);
 
   // Update user marker position when location changes
   useEffect(() => {

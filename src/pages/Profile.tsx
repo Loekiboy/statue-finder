@@ -28,6 +28,7 @@ interface Profile {
   theme: 'light' | 'dark';
   language: 'nl' | 'en';
   show_osm_statues: boolean;
+  show_nijmegen_statues: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -112,7 +113,7 @@ const Profile = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .insert({ user_id: user.id, theme: 'light', language, show_osm_statues: true })
+        .insert({ user_id: user.id, theme: 'light', language, show_osm_statues: true, show_nijmegen_statues: true })
         .select()
         .single();
 
@@ -126,7 +127,7 @@ const Profile = () => {
       // Fallback to English if location detection fails
       const { data } = await supabase
         .from('profiles')
-        .insert({ user_id: user.id, theme: 'light', language: 'en', show_osm_statues: true })
+        .insert({ user_id: user.id, theme: 'light', language: 'en', show_osm_statues: true, show_nijmegen_statues: true })
         .select()
         .single();
       
@@ -241,6 +242,8 @@ const Profile = () => {
     hideSettings: 'Verberg instellingen',
     showOsmStatues: 'Toon standbeelden zonder model',
     showOsmStatuesDesc: 'Toon standbeelden van OpenStreetMap op de kaart die nog geen 3D model hebben',
+    showNijmegenStatues: 'Toon Nijmegen standbeelden',
+    showNijmegenStatuesDesc: 'Toon standbeelden van Nijmegen op de kaart',
   } : {
     myProfile: 'My Profile',
     settings: 'Settings',
@@ -260,6 +263,8 @@ const Profile = () => {
     hideSettings: 'Hide settings',
     showOsmStatues: 'Show statues without model',
     showOsmStatuesDesc: 'Show OpenStreetMap statues on the map that don\'t have a 3D model yet',
+    showNijmegenStatues: 'Show Nijmegen statues',
+    showNijmegenStatuesDesc: 'Show Nijmegen statues on the map',
   };
 
   return (
@@ -356,6 +361,27 @@ const Profile = () => {
                       id="show-osm"
                       checked={profile.show_osm_statues ?? true}
                       onCheckedChange={(checked) => updateProfile({ show_osm_statues: checked })}
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="show-nijmegen" className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        {t.showNijmegenStatues}
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t.showNijmegenStatuesDesc}
+                      </p>
+                    </div>
+                    <Switch
+                      id="show-nijmegen"
+                      checked={profile.show_nijmegen_statues ?? true}
+                      onCheckedChange={(checked) => updateProfile({ show_nijmegen_statues: checked })}
                     />
                   </div>
                 </div>
