@@ -1,6 +1,7 @@
 # Statue Finder - 3D Standbeeld Ontdek App
 
 Een interactieve web applicatie waarmee gebruikers standbeelden in Nederland kunnen ontdekken, bekijken in 3D, en hun eigen modellen en foto's kunnen uploaden.
+Gemaakt om mensen meer te weten laten komen over openbare kunst.
 
 ## 🎯 Over het Project
 
@@ -218,9 +219,10 @@ Het project gebruikt:
 
 ## 🐛 Bekende Issues
 
-- Grote STL bestanden (>20MB) kunnen traag laden
-- iOS Safari vereist specifieke locatie-instellingen
+- Grote STL bestanden kunnen traag laden
+- iOS Safari doet soms moeilijk over je locatie daarom moet je instellingen aanpassen of doet hij het helemaal niet
 - Sommige 3D modellen kunnen extra rotatie/schaling nodig hebben
+- De locatie van de standbeelden(https://kos.nijmegen.nl/overzicht-kunstwerken) kloppen nog niet helemaal, als iemand weet hoe je deze standbeelden goed erin kan krijgen laat het me weten
 
 ## 🔐 Privacy & Security
 
@@ -231,7 +233,7 @@ Het project gebruikt:
 
 ## 📄 Licentie
 
-Dit project is gemaakt als onderdeel van een educatief/prototype project.
+Dit project is gemaakt als een educatief project.
 
 ## 📧 Contact
 
@@ -243,6 +245,7 @@ Voor vragen of suggesties, open een issue op GitHub.
 - Supabase voor backend infrastructuur
 - shadcn/ui voor component library
 - Three.js community voor 3D rendering
+- Lovable voor het maken van de site
 
 ---
 
