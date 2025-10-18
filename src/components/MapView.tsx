@@ -202,7 +202,7 @@ const MapView = () => {
           });
           
           const data = await response.json();
-          const newStatues: OSMStatue[] = data.elements.map((element: any) => ({
+          const newStatues: OSMStatue[] = data.elements.map((element: { id: number; lat: number; lon: number; tags?: { name?: string; 'name:nl'?: string } }) => ({
             id: `osm-${element.id}`,
             name: element.tags?.name || element.tags?.['name:nl'] || 'Onbekend standbeeld',
             lat: element.lat,
@@ -818,7 +818,7 @@ const MapView = () => {
         map.current = null;
       }
     };
-  }, [initialLocation, models, showViewer, discoveredModels, user]);
+  }, [initialLocation, models, showViewer, discoveredModels, user, showNijmegenStatues]);
 
   // Update user marker position when location changes
   useEffect(() => {
