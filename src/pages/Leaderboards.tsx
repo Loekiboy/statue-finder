@@ -12,6 +12,7 @@ interface LeaderboardEntry {
   user_id: string;
   count: number;
   rank: number;
+  username?: string;
 }
 
 type TimeFilter = 'day' | 'week' | 'month' | 'year' | 'all';
@@ -96,12 +97,25 @@ const Leaderboards = () => {
 
       // Sort and rank
       const leaderboard = Object.entries(userCounts)
-        .map(([user_id, count]) => ({ user_id, count: count as number, rank: 0 }))
+        .map(([user_id, count]) => ({ user_id, count: count as number, rank: 0, username: undefined }))
         .sort((a, b) => b.count - a.count)
         .map((entry, index) => ({ ...entry, rank: index + 1 }))
         .slice(0, 10);
 
-      setDiscoveriesLeaderboard(leaderboard);
+      // Fetch usernames for top users
+      const userIds = leaderboard.map(entry => entry.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, username')
+        .in('user_id', userIds);
+
+      // Merge usernames into leaderboard
+      const leaderboardWithNames = leaderboard.map(entry => ({
+        ...entry,
+        username: profiles?.find(p => p.user_id === entry.user_id)?.username
+      }));
+
+      setDiscoveriesLeaderboard(leaderboardWithNames);
     };
 
     const fetchUploadsLeaderboard = async () => {
@@ -130,12 +144,25 @@ const Leaderboards = () => {
 
       // Sort and rank
       const leaderboard = Object.entries(userCounts)
-        .map(([user_id, count]) => ({ user_id, count: count as number, rank: 0 }))
+        .map(([user_id, count]) => ({ user_id, count: count as number, rank: 0, username: undefined }))
         .sort((a, b) => b.count - a.count)
         .map((entry, index) => ({ ...entry, rank: index + 1 }))
         .slice(0, 10);
 
-      setUploadsLeaderboard(leaderboard);
+      // Fetch usernames for top users
+      const userIds = leaderboard.map(entry => entry.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, username')
+        .in('user_id', userIds);
+
+      // Merge usernames into leaderboard
+      const leaderboardWithNames = leaderboard.map(entry => ({
+        ...entry,
+        username: profiles?.find(p => p.user_id === entry.user_id)?.username
+      }));
+
+      setUploadsLeaderboard(leaderboardWithNames);
     };
 
     fetchDiscoveriesLeaderboard();
@@ -183,7 +210,7 @@ const Leaderboards = () => {
               </div>
               <div>
                 <p className="font-medium">
-                  {entry.user_id === user?.id ? 'Jij' : `Gebruiker ${entry.user_id.slice(0, 8)}`}
+                  {entry.user_id === user?.id ? 'Jij' : (entry.username || `Gebruiker ${entry.user_id.slice(0, 8)}`)}
                 </p>
               </div>
             </div>

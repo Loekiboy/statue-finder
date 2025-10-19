@@ -102,6 +102,7 @@ export type Database = {
           theme: string
           updated_at: string
           user_id: string
+          username: string | null
         }
         Insert: {
           created_at?: string
@@ -112,6 +113,7 @@ export type Database = {
           theme?: string
           updated_at?: string
           user_id: string
+          username?: string | null
         }
         Update: {
           created_at?: string
@@ -122,6 +124,7 @@ export type Database = {
           theme?: string
           updated_at?: string
           user_id?: string
+          username?: string | null
         }
         Relationships: []
       }

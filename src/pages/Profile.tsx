@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Eye, Trash2, LogOut, Settings, Moon, Sun, MapPin } from 'lucide-react';
+import { Eye, Trash2, LogOut, Settings, Moon, Sun, MapPin, User as UserIcon } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { User } from '@supabase/supabase-js';
@@ -29,6 +30,7 @@ interface Profile {
   language: 'nl' | 'en';
   show_osm_statues: boolean;
   show_nijmegen_statues: boolean;
+  username?: string;
   created_at: string;
   updated_at: string;
 }
@@ -244,6 +246,9 @@ const Profile = () => {
     showOsmStatuesDesc: 'Toon standbeelden van OpenStreetMap op de kaart die nog geen 3D model hebben',
     showNijmegenStatues: 'Toon Nijmegen standbeelden',
     showNijmegenStatuesDesc: 'Toon standbeelden van Nijmegen op de kaart',
+    username: 'Gebruikersnaam',
+    usernameDesc: 'Deze naam wordt getoond in de leaderboards',
+    usernamePlaceholder: 'Voer je gebruikersnaam in',
   } : {
     myProfile: 'My Profile',
     settings: 'Settings',
@@ -265,6 +270,9 @@ const Profile = () => {
     showOsmStatuesDesc: 'Show OpenStreetMap statues on the map that don\'t have a 3D model yet',
     showNijmegenStatues: 'Show Nijmegen statues',
     showNijmegenStatuesDesc: 'Show Nijmegen statues on the map',
+    username: 'Username',
+    usernameDesc: 'This name will be shown in the leaderboards',
+    usernamePlaceholder: 'Enter your username',
   };
 
   return (
@@ -307,6 +315,26 @@ const Profile = () => {
                 <CardTitle>{t.settings}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="username" className="flex items-center gap-2">
+                    <UserIcon className="h-4 w-4" />
+                    {t.username}
+                  </Label>
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder={t.usernamePlaceholder}
+                    value={profile.username || ''}
+                    onChange={(e) => updateProfile({ username: e.target.value })}
+                    maxLength={20}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    {t.usernameDesc}
+                  </p>
+                </div>
+
+                <Separator />
+
                 <div className="space-y-2">
                   <Label htmlFor="theme" className="flex items-center gap-2">
                     {profile.theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
