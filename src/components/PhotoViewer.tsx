@@ -14,7 +14,7 @@ const PhotoViewer = ({ photoUrl, name, description, onClose }: PhotoViewerProps)
   };
 
   return (
-    <div className="fixed inset-0 z-30 bg-background/95 backdrop-blur-sm flex flex-col">
+    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col">
       <div className="bg-background/98 backdrop-blur-sm border-b border-border p-3 md:p-4 flex-shrink-0">
         <div className="flex items-start gap-3">
           <Button 

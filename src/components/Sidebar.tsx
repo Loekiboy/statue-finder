@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Upload, LogIn, User as UserIcon, Boxes, Map, Compass } from 'lucide-react';
+import { Home, Upload, LogIn, User as UserIcon, Boxes, Map, Compass, Trophy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -31,6 +31,7 @@ const Sidebar = () => {
   const navItems = [
     { icon: Map, path: '/', labelNl: 'Kaart', labelEn: 'Map', variant: 'primary' as const },
     { icon: Compass, path: '/discoveries', labelNl: 'Ontdekt', labelEn: 'Discovered', variant: 'accent' as const },
+    { icon: Trophy, path: '/leaderboards', labelNl: 'Leaderboards', labelEn: 'Leaderboards', variant: 'accent' as const },
     { icon: Boxes, path: '/models', labelNl: 'Modellen', labelEn: 'Models', variant: 'accent' as const },
   ];
 
