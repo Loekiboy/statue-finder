@@ -200,10 +200,10 @@ const Leaderboards = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="relative min-h-screen bg-background">
       <Sidebar />
-      <div className="flex-1 overflow-y-auto">
-        <div className="container mx-auto p-4 md:p-8 max-w-6xl">
+      <main className="min-h-screen md:pl-20 lg:pl-24 p-6 md:p-12 pb-24 md:pb-12">
+        <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-2">Leaderboards</h1>
             <p className="text-muted-foreground">
@@ -267,7 +267,7 @@ const Leaderboards = () => {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
