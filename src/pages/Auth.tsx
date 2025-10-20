@@ -61,9 +61,10 @@ const Auth = () => {
         if (error) throw error;
         
         toast({ 
-          title: t('Verificatie email verzonden!', 'Verification email sent!'), 
-          description: t('Klik op de link in je email om je account te activeren', 'Click the link in your email to activate your account') 
+          title: t('Account aangemaakt!', 'Account created!'), 
+          description: t('Welkom bij de app!', 'Welcome to the app!') 
         });
+        navigate('/');
       }
     } catch (error: any) {
       const safeMessage = error.code === 'invalid_credentials'
