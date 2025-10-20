@@ -777,22 +777,6 @@ const MapView = () => {
       radius: 50,
     }).addTo(map.current);
 
-    // Add right-click handler to update user location (beta test feature)
-    map.current.on('contextmenu', (e: L.LeafletMouseEvent) => {
-      if (!map.current || !userMarkerRef.current) return;
-      
-      // Update user location
-      const newLocation: [number, number] = [e.latlng.lat, e.latlng.lng];
-      setUserLocation(newLocation);
-      
-      // Update marker position
-      userMarkerRef.current.setLatLng(e.latlng);
-      
-      // Center map on new location
-      map.current.setView(e.latlng, map.current.getZoom());
-      
-      toast.success(t('Locatie bijgewerkt!', 'Location updated!'));
-    });
 
     return () => {
       if (map.current) {
