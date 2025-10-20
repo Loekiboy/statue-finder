@@ -64,7 +64,7 @@ const UsernameSetupDialog = ({ open, onClose, userId }: UsernameSetupDialogProps
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent>
+      <DialogContent className="z-[9999]">
         <DialogHeader>
           <DialogTitle>{t('Stel je gebruikersnaam in', 'Set your username')}</DialogTitle>
           <DialogDescription>
