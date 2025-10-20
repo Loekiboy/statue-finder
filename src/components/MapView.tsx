@@ -18,7 +18,6 @@ import {
   getCachedOSMStatues,
   OSMStatue as CachedOSMStatue
 } from '@/lib/cacheManager';
-import { nijmegenStatues, NijmegenStatue } from '@/data/nijmegenStatues';
 
 interface Model {
   id: string;
@@ -46,7 +45,6 @@ interface OSMStatue {
 
 interface Profile {
   show_osm_statues: boolean;
-  show_nijmegen_statues: boolean;
 }
 
 interface SelectedModelInfo {
@@ -85,13 +83,10 @@ const MapView = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
-  const [selectedStatue, setSelectedStatue] = useState<NijmegenStatue | null>(null);
   const [showOsmStatues, setShowOsmStatues] = useState(true);
-  const [showNijmegenStatues, setShowNijmegenStatues] = useState(true);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
   const osmMarkerRef = useRef<L.Marker[]>([]);
-  const nijmegenMarkerRef = useRef<L.Marker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const accuracyCircleRef = useRef<L.Circle | null>(null);
   const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -156,13 +151,12 @@ const MapView = () => {
       if (user) {
         const { data } = await supabase
           .from('profiles')
-          .select('show_osm_statues, show_nijmegen_statues')
+          .select('show_osm_statues')
           .eq('user_id', user.id)
           .single();
         
         if (data) {
           setShowOsmStatues(data.show_osm_statues ?? true);
-          setShowNijmegenStatues(data.show_nijmegen_statues ?? true);
         }
       }
     };
@@ -683,87 +677,6 @@ const MapView = () => {
       });
     }
 
-    // Add markers for Nijmegen statues (statues without 3D models yet)
-    if (showNijmegenStatues) {
-      nijmegenStatues.forEach((statue) => {
-      if (map.current) {
-        // Create custom icon for Nijmegen statues (orange/amber color to indicate "no model yet")
-        const nijmegenIcon = L.divIcon({
-          className: 'custom-marker-nijmegen',
-          html: `
-            <div style="
-              width: 70px;
-              height: 70px;
-              border-radius: 12px;
-              background-color: white;
-              border: 4px solid hsl(38, 92%, 50%);
-              box-shadow: 0 4px 14px rgba(0,0,0,0.4);
-              overflow: hidden;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              position: relative;
-            ">
-              <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(38, 92%, 50%)" stroke-width="2">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                <line x1="12" y1="22.08" x2="12" y2="12"/>
-              </svg>
-              <div style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: hsl(38, 92%, 50%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">!</div>
-            </div>
-          `,
-          iconSize: [70, 70],
-          iconAnchor: [35, 35],
-        });
-
-        const nijmegenMarker = L.marker([statue.latitude, statue.longitude], { icon: nijmegenIcon })
-          .bindPopup(`
-            <div style="min-width: 200px;">
-              <b>${statue.name}</b><br/>
-              <p style="margin: 8px 0; color: #666; font-size: 13px;">${statue.description}</p>
-              ${statue.address ? `<p style="margin: 4px 0; color: #888; font-size: 12px;">📍 ${statue.address}</p>` : ''}
-              <div style="margin-top: 10px; padding: 10px; background: hsl(38, 92%, 95%); border-radius: 6px; border-left: 3px solid hsl(38, 92%, 50%);">
-                <p style="margin: 0; font-weight: 600; color: hsl(38, 92%, 40%);">⚠️ ${t('Dit standbeeld heeft nog geen 3D model', 'This statue has no 3D model yet')}</p>
-                <p style="margin: 4px 0 0 0; font-size: 12px; color: #666;">${t('Wees de eerste die hiervoor een model uploadt!', 'Be the first to upload a model for this!')}</p>
-                <button 
-                  id="upload-btn-${statue.id}"
-                  style="
-                    margin-top: 10px;
-                    width: 100%;
-                    padding: 8px 16px;
-                    background: linear-gradient(135deg, hsl(195, 85%, 55%), hsl(190, 75%, 65%));
-                    color: white;
-                    border: none;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-weight: 600;
-                    font-size: 14px;
-                  "
-                  onmouseover="this.style.transform='scale(1.02)'"
-                  onmouseout="this.style.transform='scale(1)'"
-                >
-                  📤 ${t('Upload Foto/Model', 'Upload Photo/Model')}
-                </button>
-              </div>
-            </div>
-          `)
-          .on('popupopen', () => {
-            // Add click handler to the button after popup opens
-            const uploadBtn = document.getElementById(`upload-btn-${statue.id}`);
-            if (uploadBtn) {
-              uploadBtn.addEventListener('click', () => {
-                setSelectedStatue(statue);
-                setShowUploadDialog(true);
-              });
-            }
-          });
-        
-        markerClusterGroupRef.current?.addLayer(nijmegenMarker);
-        nijmegenMarkerRef.current.push(nijmegenMarker);
-      }
-    });
-    }
-
     // Add the cluster group to the map
     if (markerClusterGroupRef.current) {
       map.current.addLayer(markerClusterGroupRef.current);
@@ -784,7 +697,7 @@ const MapView = () => {
         map.current = null;
       }
     };
-  }, [initialLocation, models, showViewer, discoveredModels, user, showNijmegenStatues]);
+  }, [initialLocation, models, showViewer, discoveredModels, user]);
 
   // Update user marker position when location changes
   useEffect(() => {
@@ -813,15 +726,6 @@ const MapView = () => {
 
   return (
     <div className="relative h-screen w-full">
-      {selectedStatue && (
-        <QuickUploadDialog
-          open={showUploadDialog}
-          onOpenChange={setShowUploadDialog}
-          statueName={selectedStatue.name}
-          latitude={selectedStatue.latitude}
-          longitude={selectedStatue.longitude}
-        />
-      )}
       
       {showConfetti && (
         <div className="fixed inset-0 z-50 pointer-events-none">

@@ -97,7 +97,6 @@ export type Database = {
           created_at: string
           id: string
           language: string
-          show_nijmegen_statues: boolean
           show_osm_statues: boolean
           theme: string
           updated_at: string
@@ -108,7 +107,6 @@ export type Database = {
           created_at?: string
           id?: string
           language?: string
-          show_nijmegen_statues?: boolean
           show_osm_statues?: boolean
           theme?: string
           updated_at?: string
@@ -119,7 +117,6 @@ export type Database = {
           created_at?: string
           id?: string
           language?: string
-          show_nijmegen_statues?: boolean
           show_osm_statues?: boolean
           theme?: string
           updated_at?: string
