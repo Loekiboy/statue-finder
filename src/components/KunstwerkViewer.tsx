@@ -1,22 +1,47 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 import { NijmegenKunstwerk } from '@/data/nijmegenKunstwerken';
+import { UtrechtKunstwerk } from '@/data/utrechtKunstwerken';
+import { useState } from 'react';
 
 interface KunstwerkViewerProps {
-  kunstwerk: NijmegenKunstwerk | null;
+  kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | null;
+  city: 'nijmegen' | 'utrecht';
   onClose: () => void;
 }
 
-const KunstwerkViewer = ({ kunstwerk, onClose }: KunstwerkViewerProps) => {
+const KunstwerkViewer = ({ kunstwerk, city, onClose }: KunstwerkViewerProps) => {
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  
   if (!kunstwerk) return null;
 
-  const getPhotoUrl = (photoId: string | null) => {
-    if (!photoId) return null;
-    return `https://www.nijmegen.nl/kos/fotos/${photoId}.jpg`;
-  };
+  const photos: string[] = [];
+  
+  if (city === 'nijmegen') {
+    const nijmegenKunstwerk = kunstwerk as NijmegenKunstwerk;
+    if (nijmegenKunstwerk.photoId) {
+      photos.push(`https://www.nijmegen.nl/kos/fotos/${nijmegenKunstwerk.photoId}.jpg`);
+    }
+  } else {
+    const utrechtKunstwerk = kunstwerk as UtrechtKunstwerk;
+    photos.push(...utrechtKunstwerk.photos);
+  }
 
-  const photoUrl = getPhotoUrl(kunstwerk.photoId);
+  const hasPhotos = photos.length > 0;
+  const currentPhoto = hasPhotos ? photos[currentPhotoIndex] : null;
+  
+  const nextPhoto = () => {
+    setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
+  };
+  
+  const prevPhoto = () => {
+    setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
+  };
+  
+  const description = city === 'utrecht' ? (kunstwerk as UtrechtKunstwerk).description : '';
+  const websiteUrl = city === 'nijmegen' ? (kunstwerk as NijmegenKunstwerk).websiteUrl : null;
+  const credits = city === 'nijmegen' ? (kunstwerk as NijmegenKunstwerk).credits : null;
 
   return (
     <Dialog open={!!kunstwerk} onOpenChange={onClose}>
@@ -26,16 +51,35 @@ const KunstwerkViewer = ({ kunstwerk, onClose }: KunstwerkViewerProps) => {
         </DialogHeader>
         
         <div className="space-y-4">
-          {photoUrl && (
-            <div className="w-full aspect-video bg-muted rounded-lg overflow-hidden">
+          {hasPhotos && currentPhoto && (
+            <div className="relative w-full aspect-video bg-muted rounded-lg overflow-hidden">
               <img 
-                src={photoUrl} 
+                src={currentPhoto} 
                 alt={kunstwerk.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
               />
+              {photos.length > 1 && (
+                <>
+                  <button
+                    onClick={prevPhoto}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </button>
+                  <button
+                    onClick={nextPhoto}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </button>
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+                    {currentPhotoIndex + 1} / {photos.length}
+                  </div>
+                </>
+              )}
             </div>
           )}
           
@@ -50,19 +94,29 @@ const KunstwerkViewer = ({ kunstwerk, onClose }: KunstwerkViewerProps) => {
               <p className="text-base">{kunstwerk.location}</p>
             </div>
             
-            {kunstwerk.credits && (
+            {description && (
               <div>
-                <h3 className="font-semibold text-sm text-muted-foreground">Eigendom van</h3>
-                <p className="text-base">{kunstwerk.credits}</p>
+                <h3 className="font-semibold text-sm text-muted-foreground">Beschrijving</h3>
+                <div 
+                  className="text-sm leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: description }}
+                />
               </div>
             )}
             
-            {kunstwerk.websiteUrl && (
+            {credits && (
+              <div>
+                <h3 className="font-semibold text-sm text-muted-foreground">Eigendom van</h3>
+                <p className="text-base">{credits}</p>
+              </div>
+            )}
+            
+            {websiteUrl && (
               <div className="pt-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => window.open(kunstwerk.websiteUrl!, '_blank')}
+                  onClick={() => window.open(websiteUrl!, '_blank')}
                   className="gap-2"
                 >
                   <ExternalLink className="w-4 h-4" />

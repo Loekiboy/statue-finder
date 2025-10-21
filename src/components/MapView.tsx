@@ -20,6 +20,7 @@ import {
   OSMStatue as CachedOSMStatue
 } from '@/lib/cacheManager';
 import { nijmegenKunstwerken, NijmegenKunstwerk } from '@/data/nijmegenKunstwerken';
+import { utrechtKunstwerken, UtrechtKunstwerk } from '@/data/utrechtKunstwerken';
 
 interface Model {
   id: string;
@@ -86,7 +87,7 @@ const MapView = () => {
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showOsmStatues, setShowOsmStatues] = useState(true);
-  const [selectedKunstwerk, setSelectedKunstwerk] = useState<NijmegenKunstwerk | null>(null);
+  const [selectedKunstwerk, setSelectedKunstwerk] = useState<{ kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk, city: 'nijmegen' | 'utrecht' } | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
   const osmMarkerRef = useRef<L.Marker[]>([]);
@@ -729,7 +730,7 @@ const MapView = () => {
               <p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">📍 ${kunstwerk.location}</p>
               ${hasUserModel ? `<p style="margin: 8px 0; color: hsl(140, 75%, 45%); font-weight: 500;">✓ ${t('Er is een 3D model beschikbaar', 'A 3D model is available')}</p>` : ''}
               <button 
-                onclick="window.openKunstwerk('${kunstwerk.id}')"
+                onclick="window.openKunstwerk('${kunstwerk.id}', 'nijmegen')"
                 style="
                   background: linear-gradient(135deg, hsl(270, 75%, 60%) 0%, hsl(270, 65%, 50%) 100%);
                   color: white;
@@ -744,6 +745,82 @@ const MapView = () => {
                 "
                 onmouseover="this.style.background='linear-gradient(135deg, hsl(270, 65%, 50%) 0%, hsl(270, 55%, 40%) 100%)'"
                 onmouseout="this.style.background='linear-gradient(135deg, hsl(270, 75%, 60%) 0%, hsl(270, 65%, 50%) 100%)'"
+              >
+                🎨 ${t('Bekijk Details', 'View Details')}
+              </button>
+            </div>
+          `, {
+            maxWidth: 250,
+            className: 'kunstwerk-popup'
+          });
+
+        markerClusterGroupRef.current?.addLayer(kunstwerkMarker);
+        kunstwerkMarkersRef.current.push(kunstwerkMarker);
+      }
+    });
+
+    // Add Utrecht kunstwerken markers with orange color
+    utrechtKunstwerken.forEach((kunstwerk) => {
+      if (kunstwerk.lat && kunstwerk.lon) {
+        const hasUserModel = models.some(
+          (model) =>
+            model.latitude &&
+            model.longitude &&
+            Math.abs(model.latitude - kunstwerk.lat) < 0.0001 &&
+            Math.abs(model.longitude - kunstwerk.lon) < 0.0001
+        );
+
+        const kunstwerkIcon = L.divIcon({
+          html: `
+            <div style="
+              width: 70px;
+              height: 70px;
+              border-radius: 12px;
+              background-color: white;
+              border: 4px solid hsl(25, 95%, 53%);
+              box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+              overflow: hidden;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              position: relative;
+            ">
+              <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(25, 95%, 53%)" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              ${hasUserModel ? '<div style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: hsl(140, 75%, 45%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">✓</div>' : ''}
+            </div>
+          `,
+          iconSize: [70, 70],
+          iconAnchor: [35, 35],
+        });
+
+        const kunstwerkMarker = L.marker([kunstwerk.lat, kunstwerk.lon], { icon: kunstwerkIcon })
+          .bindPopup(`
+            <div style="text-align: center; min-width: 200px;">
+              <h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 16px;">${kunstwerk.name}</h3>
+              <p style="margin: 4px 0; font-size: 13px; color: #6b7280;">${kunstwerk.artist}</p>
+              <p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">📍 ${kunstwerk.location}</p>
+              ${kunstwerk.year ? `<p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">🗓️ ${kunstwerk.year}</p>` : ''}
+              ${hasUserModel ? `<p style="margin: 8px 0; color: hsl(140, 75%, 45%); font-weight: 500;">✓ ${t('Er is een 3D model beschikbaar', 'A 3D model is available')}</p>` : ''}
+              <button 
+                onclick="window.openKunstwerk('${kunstwerk.id}', 'utrecht')"
+                style="
+                  background: linear-gradient(135deg, hsl(25, 95%, 53%) 0%, hsl(25, 85%, 43%) 100%);
+                  color: white;
+                  border: none;
+                  padding: 10px 20px;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-weight: 600;
+                  width: 100%;
+                  margin-top: 8px;
+                  box-shadow: 0 2px 8px rgba(255, 107, 0, 0.3);
+                "
+                onmouseover="this.style.background='linear-gradient(135deg, hsl(25, 85%, 43%) 0%, hsl(25, 75%, 33%) 100%)'"
+                onmouseout="this.style.background='linear-gradient(135deg, hsl(25, 95%, 53%) 0%, hsl(25, 85%, 43%) 100%)'"
               >
                 🎨 ${t('Bekijk Details', 'View Details')}
               </button>
@@ -800,10 +877,17 @@ const MapView = () => {
       window.location.href = '/upload';
     };
     
-    (window as any).openKunstwerk = (id: string) => {
-      const kunstwerk = nijmegenKunstwerken.find(k => k.id === id);
+    (window as any).openKunstwerk = (id: string, city: 'nijmegen' | 'utrecht') => {
+      let kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | undefined;
+      
+      if (city === 'nijmegen') {
+        kunstwerk = nijmegenKunstwerken.find(k => k.id === id);
+      } else {
+        kunstwerk = utrechtKunstwerken.find(k => k.id === id);
+      }
+      
       if (kunstwerk) {
-        setSelectedKunstwerk(kunstwerk);
+        setSelectedKunstwerk({ kunstwerk, city });
         // Close any open popups
         if (map.current) {
           map.current.closePopup();
@@ -820,7 +904,8 @@ const MapView = () => {
   return (
     <div className="relative h-screen w-full">
       <KunstwerkViewer 
-        kunstwerk={selectedKunstwerk} 
+        kunstwerk={selectedKunstwerk?.kunstwerk ?? null}
+        city={selectedKunstwerk?.city ?? 'nijmegen'}
         onClose={() => setSelectedKunstwerk(null)} 
       />
       
