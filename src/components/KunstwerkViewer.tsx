@@ -20,7 +20,7 @@ const KunstwerkViewer = ({ kunstwerk, onClose }: KunstwerkViewerProps) => {
 
   return (
     <Dialog open={!!kunstwerk} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto z-[9999]">
         <DialogHeader>
           <DialogTitle className="text-2xl">{kunstwerk.name}</DialogTitle>
         </DialogHeader>

@@ -728,10 +728,29 @@ const MapView = () => {
               <p style="margin: 4px 0; font-size: 13px; color: #6b7280;">${kunstwerk.artist}</p>
               <p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">📍 ${kunstwerk.location}</p>
               ${hasUserModel ? `<p style="margin: 8px 0; color: hsl(140, 75%, 45%); font-weight: 500;">✓ ${t('Er is een 3D model beschikbaar', 'A 3D model is available')}</p>` : ''}
+              <button 
+                onclick="window.openKunstwerk('${kunstwerk.id}')"
+                style="
+                  background: linear-gradient(135deg, hsl(270, 75%, 60%) 0%, hsl(270, 65%, 50%) 100%);
+                  color: white;
+                  border: none;
+                  padding: 10px 20px;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-weight: 600;
+                  width: 100%;
+                  margin-top: 8px;
+                  box-shadow: 0 2px 8px rgba(147, 51, 234, 0.3);
+                "
+                onmouseover="this.style.background='linear-gradient(135deg, hsl(270, 65%, 50%) 0%, hsl(270, 55%, 40%) 100%)'"
+                onmouseout="this.style.background='linear-gradient(135deg, hsl(270, 75%, 60%) 0%, hsl(270, 65%, 50%) 100%)'"
+              >
+                🎨 ${t('Bekijk Details', 'View Details')}
+              </button>
             </div>
-          `)
-          .on('click', () => {
-            setSelectedKunstwerk(kunstwerk);
+          `, {
+            maxWidth: 250,
+            className: 'kunstwerk-popup'
           });
 
         markerClusterGroupRef.current?.addLayer(kunstwerkMarker);
@@ -774,15 +793,27 @@ const MapView = () => {
     }
   }, [userLocation]);
 
-  // Add global function for upload button in popup
+  // Add global functions for buttons in popups
   useEffect(() => {
     (window as any).uploadStatue = (lat: number, lon: number, name: string) => {
       localStorage.setItem('uploadLocation', JSON.stringify({ lat, lon, name }));
       window.location.href = '/upload';
     };
     
+    (window as any).openKunstwerk = (id: string) => {
+      const kunstwerk = nijmegenKunstwerken.find(k => k.id === id);
+      if (kunstwerk) {
+        setSelectedKunstwerk(kunstwerk);
+        // Close any open popups
+        if (map.current) {
+          map.current.closePopup();
+        }
+      }
+    };
+    
     return () => {
       delete (window as any).uploadStatue;
+      delete (window as any).openKunstwerk;
     };
   }, []);
 

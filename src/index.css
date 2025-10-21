@@ -94,3 +94,22 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Leaflet popup styling with high z-index */
+.leaflet-popup {
+  z-index: 1000 !important;
+}
+
+.leaflet-popup-pane {
+  z-index: 1000 !important;
+}
+
+.kunstwerk-popup .leaflet-popup-content-wrapper {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.kunstwerk-popup .leaflet-popup-tip {
+  background: white;
+}
