@@ -6,6 +6,7 @@ import Confetti from 'react-confetti';
 import StandbeeldViewer, { preloadModels } from './StandbeeldViewer';
 import PhotoViewer from './PhotoViewer';
 import QuickUploadDialog from './QuickUploadDialog';
+import KunstwerkViewer from './KunstwerkViewer';
 import { Button } from './ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -18,6 +19,7 @@ import {
   getCachedOSMStatues,
   OSMStatue as CachedOSMStatue
 } from '@/lib/cacheManager';
+import { nijmegenKunstwerken, NijmegenKunstwerk } from '@/data/nijmegenKunstwerken';
 
 interface Model {
   id: string;
@@ -84,9 +86,11 @@ const MapView = () => {
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showOsmStatues, setShowOsmStatues] = useState(true);
+  const [selectedKunstwerk, setSelectedKunstwerk] = useState<NijmegenKunstwerk | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
   const osmMarkerRef = useRef<L.Marker[]>([]);
+  const kunstwerkMarkersRef = useRef<L.Marker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const accuracyCircleRef = useRef<L.Circle | null>(null);
   const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -677,6 +681,64 @@ const MapView = () => {
       });
     }
 
+    // Add markers for Nijmegen kunstwerken
+    nijmegenKunstwerken.forEach((kunstwerk) => {
+      if (map.current) {
+        // Check if a user model already exists at this location
+        const hasUserModel = models.some(model => {
+          if (!model.latitude || !model.longitude) return false;
+          const dx = Math.abs(model.latitude - kunstwerk.lat);
+          const dy = Math.abs(model.longitude - kunstwerk.lon);
+          return dx < 0.0001 && dy < 0.0001; // ~10m tolerance
+        });
+
+        // Create custom icon for kunstwerken (purple/violet color)
+        const kunstwerkIcon = L.divIcon({
+          className: 'custom-marker-kunstwerk',
+          html: `
+            <div style="
+              width: 70px;
+              height: 70px;
+              border-radius: 12px;
+              background-color: white;
+              border: 4px solid hsl(270, 75%, 60%);
+              box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+              overflow: hidden;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              position: relative;
+            ">
+              <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(270, 75%, 60%)" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              ${hasUserModel ? '<div style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: hsl(140, 75%, 45%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">✓</div>' : ''}
+            </div>
+          `,
+          iconSize: [70, 70],
+          iconAnchor: [35, 35],
+        });
+
+        const kunstwerkMarker = L.marker([kunstwerk.lat, kunstwerk.lon], { icon: kunstwerkIcon })
+          .bindPopup(`
+            <div style="text-align: center; min-width: 200px;">
+              <h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 16px;">${kunstwerk.name}</h3>
+              <p style="margin: 4px 0; font-size: 13px; color: #6b7280;">${kunstwerk.artist}</p>
+              <p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">📍 ${kunstwerk.location}</p>
+              ${hasUserModel ? `<p style="margin: 8px 0; color: hsl(140, 75%, 45%); font-weight: 500;">✓ ${t('Er is een 3D model beschikbaar', 'A 3D model is available')}</p>` : ''}
+            </div>
+          `)
+          .on('click', () => {
+            setSelectedKunstwerk(kunstwerk);
+          });
+
+        markerClusterGroupRef.current?.addLayer(kunstwerkMarker);
+        kunstwerkMarkersRef.current.push(kunstwerkMarker);
+      }
+    });
+
     // Add the cluster group to the map
     if (markerClusterGroupRef.current) {
       map.current.addLayer(markerClusterGroupRef.current);
@@ -726,6 +788,10 @@ const MapView = () => {
 
   return (
     <div className="relative h-screen w-full">
+      <KunstwerkViewer 
+        kunstwerk={selectedKunstwerk} 
+        onClose={() => setSelectedKunstwerk(null)} 
+      />
       
       {showConfetti && (
         <div className="fixed inset-0 z-50 pointer-events-none">
