@@ -35,7 +35,9 @@ const KunstwerkViewer = ({ kunstwerk, city, onClose }: KunstwerkViewerProps) => 
     setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
   };
   
-  const description = city === 'utrecht' ? (kunstwerk as UtrechtKunstwerk).description : '';
+  const description = city === 'utrecht' 
+    ? (kunstwerk as UtrechtKunstwerk).description 
+    : (kunstwerk as NijmegenKunstwerk).description || '';
   const websiteUrl = city === 'nijmegen' ? (kunstwerk as NijmegenKunstwerk).websiteUrl : null;
   const credits = city === 'nijmegen' ? (kunstwerk as NijmegenKunstwerk).credits : null;
 

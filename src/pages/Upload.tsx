@@ -15,6 +15,9 @@ import { ThumbnailGenerator } from '@/components/ThumbnailGenerator';
 import ExifReader from 'exifreader';
 import imageCompression from 'browser-image-compression';
 import type * as L from 'leaflet';
+import { nijmegenKunstwerken } from '@/data/nijmegenKunstwerken';
+import { utrechtKunstwerken } from '@/data/utrechtKunstwerken';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Lazy load Leaflet only when needed
 let LeafletLib: typeof L | null = null;
@@ -52,6 +55,7 @@ const Upload = () => {
   const [showSizeWarning, setShowSizeWarning] = useState(false);
   const [largeFileSize, setLargeFileSize] = useState<number>(0);
   const [mapReady, setMapReady] = useState(false);
+  const [selectedKunstwerk, setSelectedKunstwerk] = useState<{id: string, city: 'nijmegen' | 'utrecht'} | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -571,6 +575,69 @@ const Upload = () => {
             </CardHeader>
             <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="kunstwerk">{t('Koppel aan bestaand kunstwerk (optioneel)', 'Link to existing artwork (optional)')}</Label>
+                <Select 
+                  value={selectedKunstwerk ? `${selectedKunstwerk.city}-${selectedKunstwerk.id}` : undefined}
+                  onValueChange={(value) => {
+                    if (value === 'none') {
+                      setSelectedKunstwerk(null);
+                      setName('');
+                      setDescription('');
+                      setLatitude(null);
+                      setLongitude(null);
+                      return;
+                    }
+                    const [city, id] = value.split('-');
+                    const cityType = city as 'nijmegen' | 'utrecht';
+                    setSelectedKunstwerk({ id, city: cityType });
+                    
+                    // Pre-fill data based on selected kunstwerk
+                    if (cityType === 'nijmegen') {
+                      const kunstwerk = nijmegenKunstwerken.find(k => k.id === id);
+                      if (kunstwerk) {
+                        setName(kunstwerk.name);
+                        setDescription(kunstwerk.description || '');
+                        setLatitude(kunstwerk.lat);
+                        setLongitude(kunstwerk.lon);
+                        setManualLocation(true);
+                      }
+                    } else {
+                      const kunstwerk = utrechtKunstwerken.find(k => k.id === id);
+                      if (kunstwerk) {
+                        setName(kunstwerk.name);
+                        setDescription(kunstwerk.description || '');
+                        setLatitude(kunstwerk.lat);
+                        setLongitude(kunstwerk.lon);
+                        setManualLocation(true);
+                      }
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('Selecteer een kunstwerk...', 'Select an artwork...')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t('Geen - nieuwe locatie', 'None - new location')}</SelectItem>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Nijmegen</div>
+                    {nijmegenKunstwerken.slice(0, 50).map(kunstwerk => (
+                      <SelectItem key={`nijmegen-${kunstwerk.id}`} value={`nijmegen-${kunstwerk.id}`}>
+                        {kunstwerk.name} - {kunstwerk.artist}
+                      </SelectItem>
+                    ))}
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Utrecht</div>
+                    {utrechtKunstwerken.slice(0, 50).map(kunstwerk => (
+                      <SelectItem key={`utrecht-${kunstwerk.id}`} value={`utrecht-${kunstwerk.id}`}>
+                        {kunstwerk.name} - {kunstwerk.artist}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {t('Upload een foto of model voor een bestaand kunstwerk uit Nijmegen of Utrecht', 'Upload a photo or model for an existing artwork from Nijmegen or Utrecht')}
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="name">{t('Naam', 'Name')}</Label>
                 <Input

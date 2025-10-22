@@ -805,6 +805,8 @@ const MapView = () => {
             Math.abs(model.longitude - kunstwerk.lon) < 0.0001
         );
 
+        const firstPhoto = kunstwerk.photos && kunstwerk.photos.length > 0 ? kunstwerk.photos[0] : null;
+        
         const kunstwerkIcon = L.divIcon({
           html: `
             <div style="
@@ -820,11 +822,14 @@ const MapView = () => {
               justify-content: center;
               position: relative;
             ">
-              <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(25, 95%, 53%)" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
-              </svg>
+              ${firstPhoto 
+                ? `<img src="${firstPhoto}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML='<svg width=\\'35\\' height=\\'35\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'hsl(25, 95%, 53%)\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\' ry=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg>'"/>`
+                : `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(25, 95%, 53%)" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>`
+              }
               ${hasUserModel ? '<div style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: hsl(140, 75%, 45%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">✓</div>' : ''}
             </div>
           `,
