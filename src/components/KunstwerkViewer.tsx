@@ -18,12 +18,8 @@ const KunstwerkViewer = ({ kunstwerk, city, onClose }: KunstwerkViewerProps) => 
 
   const photos: string[] = [];
   
-  if (city === 'nijmegen') {
-    const nijmegenKunstwerk = kunstwerk as NijmegenKunstwerk;
-    if (nijmegenKunstwerk.photoId) {
-      photos.push(`https://www.nijmegen.nl/kos/fotos/${nijmegenKunstwerk.photoId}.jpg`);
-    }
-  } else {
+  // Only show photos for Utrecht (Nijmegen photos don't work)
+  if (city === 'utrecht') {
     const utrechtKunstwerk = kunstwerk as UtrechtKunstwerk;
     photos.push(...utrechtKunstwerk.photos);
   }
@@ -52,11 +48,11 @@ const KunstwerkViewer = ({ kunstwerk, city, onClose }: KunstwerkViewerProps) => 
         
         <div className="space-y-4">
           {hasPhotos && currentPhoto && (
-            <div className="relative w-full aspect-video bg-muted rounded-lg overflow-hidden">
+            <div className="relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center" style={{ minHeight: '300px' }}>
               <img 
                 src={currentPhoto} 
                 alt={kunstwerk.name}
-                className="w-full h-full object-cover"
+                className="max-w-full max-h-[500px] object-contain"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}

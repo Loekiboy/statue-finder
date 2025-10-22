@@ -185,17 +185,48 @@ const MapView = () => {
         return Math.sqrt(dx * dx + dy * dy);
       };
       
+      // Check if OSM statue is too close to existing models or kunstwerken
+      const isTooCloseToExisting = (statueLat: number, statueLon: number) => {
+        // Check distance to all uploaded models
+        const tooCloseToModel = models.some(model => {
+          if (!model.latitude || !model.longitude) return false;
+          const distance = calculateDistance(statueLat, statueLon, model.latitude, model.longitude);
+          return distance < 7;
+        });
+        
+        if (tooCloseToModel) return true;
+        
+        // Check distance to Nijmegen kunstwerken
+        const tooCloseToNijmegen = nijmegenKunstwerken.some(kunstwerk => {
+          const distance = calculateDistance(statueLat, statueLon, kunstwerk.lat, kunstwerk.lon);
+          return distance < 7;
+        });
+        
+        if (tooCloseToNijmegen) return true;
+        
+        // Check distance to Utrecht kunstwerken
+        const tooCloseToUtrecht = utrechtKunstwerken.some(kunstwerk => {
+          const distance = calculateDistance(statueLat, statueLon, kunstwerk.lat, kunstwerk.lon);
+          return distance < 7;
+        });
+        
+        return tooCloseToUtrecht;
+      };
+      
       // Try to get cached data first
       const cachedStatues = getCachedOSMStatues(userLocation);
       if (cachedStatues) {
-        // Update distances and use cached data
-        const statuesWithDistance = cachedStatues.map(statue => ({
-          ...statue,
-          distance: calculateDistance(lat, lon, statue.lat, statue.lon)
-        })).sort((a, b) => (a.distance || 0) - (b.distance || 0));
+        // Update distances, filter out duplicates, and use cached data
+        const filteredStatues = cachedStatues
+          .filter(statue => !isTooCloseToExisting(statue.lat, statue.lon))
+          .map(statue => ({
+            ...statue,
+            distance: calculateDistance(lat, lon, statue.lat, statue.lon)
+          }))
+          .sort((a, b) => (a.distance || 0) - (b.distance || 0));
         
-        setOsmStatues(statuesWithDistance);
-        console.log('Using cached OSM statues, skipping API calls');
+        setOsmStatues(filteredStatues);
+        console.log(`Using ${filteredStatues.length} cached OSM statues (filtered from ${cachedStatues.length})`);
         return;
       }
       
@@ -220,14 +251,18 @@ const MapView = () => {
           });
           
           const data = await response.json();
-          const newStatues: OSMStatue[] = data.elements.map((element: { id: number; lat: number; lon: number; tags?: { name?: string; 'name:nl'?: string } }) => ({
-            id: `osm-${element.id}`,
-            name: element.tags?.name || element.tags?.['name:nl'] || 'Onbekend standbeeld',
-            lat: element.lat,
-            lon: element.lon,
-            tags: element.tags,
-            distance: calculateDistance(lat, lon, element.lat, element.lon),
-          }));
+          const newStatues: OSMStatue[] = data.elements
+            .filter((element: { lat: number; lon: number }) => 
+              !isTooCloseToExisting(element.lat, element.lon)
+            )
+            .map((element: { id: number; lat: number; lon: number; tags?: { name?: string; 'name:nl'?: string } }) => ({
+              id: `osm-${element.id}`,
+              name: element.tags?.name || element.tags?.['name:nl'] || 'Onbekend standbeeld',
+              lat: element.lat,
+              lon: element.lon,
+              tags: element.tags,
+              distance: calculateDistance(lat, lon, element.lat, element.lon),
+            }));
           
           // Filter out duplicates and sort by distance
           const uniqueStatues = newStatues.filter(
@@ -258,7 +293,7 @@ const MapView = () => {
     };
 
     fetchOSMStatues();
-  }, [userLocation, showOsmStatues]);
+  }, [userLocation, showOsmStatues, models]);
 
   // Auto-cache wanneer op WiFi
   useEffect(() => {
