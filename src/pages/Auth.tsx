@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { z } from 'zod';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import QRCode from 'qrcode';
 
 const authSchema = z.object({
   email: z.string().trim().email('Ongeldig e-mailadres').max(255),
@@ -22,11 +21,9 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [show2FA, setShow2FA] = useState(false);
-  const [qrCode, setQrCode] = useState('');
-  const [totpCode, setTotpCode] = useState('');
-  const [factorId, setFactorId] = useState('');
-  const [challengeId, setChallengeId] = useState('');
+  const [showEmailOTP, setShowEmailOTP] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -50,51 +47,57 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        // First verify password
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email: validationResult.data.email,
           password: validationResult.data.password,
         });
-        if (error) throw error;
+
+        if (signInError) throw signInError;
+
+        // Sign out and send OTP
+        await supabase.auth.signOut();
         
-        // Check if user has 2FA enabled
-        const { data: factors } = await supabase.auth.mfa.listFactors();
-        if (factors && factors.totp && factors.totp.length > 0) {
-          // Create challenge for 2FA
-          const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-            factorId: factors.totp[0].id
-          });
-          
-          if (challengeError) throw challengeError;
-          
-          setShow2FA(true);
-          setFactorId(factors.totp[0].id);
-          setChallengeId(challengeData.id);
-        } else {
-          toast({ title: t('Welkom terug!', 'Welcome back!') });
-          navigate('/');
-        }
+        const { error: otpError } = await supabase.auth.signInWithOtp({
+          email: validationResult.data.email,
+          options: {
+            shouldCreateUser: false,
+          },
+        });
+
+        if (otpError) throw otpError;
+
+        setUserEmail(validationResult.data.email);
+        setShowEmailOTP(true);
+        toast({
+          title: t('Verificatiecode verzonden', 'Verification code sent'),
+          description: t('Check je e-mail voor de 6-cijferige code', 'Check your email for the 6-digit code'),
+        });
       } else {
-        const { data, error } = await supabase.auth.signUp({
+        // For signup, create account
+        const { error: signUpError } = await supabase.auth.signUp({
           email: validationResult.data.email,
           password: validationResult.data.password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
           },
         });
-        if (error) throw error;
-        
-        // Start 2FA enrollment after signup
-        const { data: enrollData, error: enrollError } = await supabase.auth.mfa.enroll({
-          factorType: 'totp',
+
+        if (signUpError) throw signUpError;
+
+        // Send OTP for verification
+        const { error: otpError } = await supabase.auth.signInWithOtp({
+          email: validationResult.data.email,
         });
-        
-        if (enrollError) throw enrollError;
-        
-        // Generate QR code
-        const qrCodeDataUrl = await QRCode.toDataURL(enrollData.totp.qr_code);
-        setQrCode(qrCodeDataUrl);
-        setFactorId(enrollData.id);
-        setShow2FA(true);
+
+        if (otpError) throw otpError;
+
+        setUserEmail(validationResult.data.email);
+        setShowEmailOTP(true);
+        toast({
+          title: t('Account aangemaakt!', 'Account created!'),
+          description: t('Check je e-mail voor de 6-cijferige verificatiecode', 'Check your email for the 6-digit verification code'),
+        });
       }
     } catch (error: any) {
       const safeMessage = error.code === 'invalid_credentials'
@@ -106,19 +109,16 @@ const Auth = () => {
         description: safeMessage,
         variant: 'destructive',
       });
-      setLoading(false);
     } finally {
-      if (!show2FA) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
 
-  const handleVerify2FA = async () => {
-    if (totpCode.length !== 6) {
+  const handleVerifyOTP = async () => {
+    if (otpCode.length !== 6) {
       toast({
         title: 'Fout',
-        description: 'Voer een geldige 6-cijferige code in',
+        description: t('Voer een geldige 6-cijferige code in', 'Enter a valid 6-digit code'),
         variant: 'destructive',
       });
       return;
@@ -127,44 +127,23 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      if (isLogin) {
-        // Verify for login
-        const { error } = await supabase.auth.mfa.verify({
-          factorId,
-          challengeId,
-          code: totpCode,
-        });
-        
-        if (error) throw error;
-        
-        toast({ title: t('Welkom terug!', 'Welcome back!') });
-        navigate('/');
-      } else {
-        // Verify for enrollment - create challenge first for enrollment verification
-        const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-          factorId
-        });
-        
-        if (challengeError) throw challengeError;
-        
-        const { error } = await supabase.auth.mfa.verify({
-          factorId,
-          challengeId: challengeData.id,
-          code: totpCode,
-        });
-        
-        if (error) throw error;
-        
-        toast({ 
-          title: t('2FA ingeschakeld!', '2FA enabled!'), 
-          description: t('Je account is nu beveiligd', 'Your account is now secured') 
-        });
-        navigate('/');
-      }
+      const { error } = await supabase.auth.verifyOtp({
+        email: userEmail,
+        token: otpCode,
+        type: 'email',
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: t('Succes!', 'Success!'),
+        description: t('Je bent geverifieerd en ingelogd', 'You are verified and logged in'),
+      });
+      navigate('/');
     } catch (error: any) {
       toast({
         title: 'Fout',
-        description: 'Ongeldige code',
+        description: t('Ongeldige code', 'Invalid code'),
         variant: 'destructive',
       });
     } finally {
@@ -172,35 +151,28 @@ const Auth = () => {
     }
   };
 
-  if (show2FA) {
+  if (showEmailOTP) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-muted p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>{t('Twee-factor authenticatie', 'Two-Factor Authentication')}</CardTitle>
+            <CardTitle>{t('E-mail verificatie', 'Email Verification')}</CardTitle>
             <CardDescription>
-              {isLogin 
-                ? t('Voer de code uit je authenticator app in', 'Enter the code from your authenticator app')
-                : t('Scan de QR code met je authenticator app', 'Scan the QR code with your authenticator app')}
+              {t('Voer de 6-cijferige code in die naar je e-mail is gestuurd', 'Enter the 6-digit code sent to your email')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {!isLogin && qrCode && (
-              <div className="flex flex-col items-center gap-4">
-                <img src={qrCode} alt="QR Code" className="w-48 h-48" />
-                <p className="text-sm text-muted-foreground text-center">
-                  {t('Scan deze QR code met Google Authenticator, Authy, of een andere authenticator app', 'Scan this QR code with Google Authenticator, Authy, or another authenticator app')}
-                </p>
-              </div>
-            )}
+            <p className="text-sm text-muted-foreground text-center">
+              {t('Code verzonden naar', 'Code sent to')} <strong>{userEmail}</strong>
+            </p>
             
             <div className="space-y-4">
-              <Label htmlFor="totp">{t('Verificatiecode', 'Verification code')}</Label>
+              <Label htmlFor="otp">{t('Verificatiecode', 'Verification code')}</Label>
               <div className="flex justify-center">
                 <InputOTP
                   maxLength={6}
-                  value={totpCode}
-                  onChange={(value) => setTotpCode(value)}
+                  value={otpCode}
+                  onChange={(value) => setOtpCode(value)}
                 >
                   <InputOTPGroup>
                     <InputOTPSlot index={0} />
@@ -215,9 +187,9 @@ const Auth = () => {
             </div>
 
             <Button 
-              onClick={handleVerify2FA} 
+              onClick={handleVerifyOTP} 
               className="w-full" 
-              disabled={loading || totpCode.length !== 6}
+              disabled={loading || otpCode.length !== 6}
             >
               {t(loading ? 'Bezig...' : 'Verifiëren', loading ? 'Loading...' : 'Verify')}
             </Button>
@@ -227,9 +199,8 @@ const Auth = () => {
               variant="ghost"
               className="w-full"
               onClick={() => {
-                setShow2FA(false);
-                setTotpCode('');
-                setQrCode('');
+                setShowEmailOTP(false);
+                setOtpCode('');
                 setLoading(false);
               }}
             >
