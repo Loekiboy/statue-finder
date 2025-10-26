@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { z } from 'zod';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import QRCode from 'qrcode';
 
 const authSchema = z.object({
   email: z.string().trim().email('Ongeldig e-mailadres').max(255),
@@ -20,6 +22,11 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [show2FA, setShow2FA] = useState(false);
+  const [qrCode, setQrCode] = useState('');
+  const [totpCode, setTotpCode] = useState('');
+  const [factorId, setFactorId] = useState('');
+  const [challengeId, setChallengeId] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -43,15 +50,31 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email: validationResult.data.email,
           password: validationResult.data.password,
         });
         if (error) throw error;
-        toast({ title: t('Welkom terug!', 'Welcome back!') });
-        navigate('/');
+        
+        // Check if user has 2FA enabled
+        const { data: factors } = await supabase.auth.mfa.listFactors();
+        if (factors && factors.totp && factors.totp.length > 0) {
+          // Create challenge for 2FA
+          const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+            factorId: factors.totp[0].id
+          });
+          
+          if (challengeError) throw challengeError;
+          
+          setShow2FA(true);
+          setFactorId(factors.totp[0].id);
+          setChallengeId(challengeData.id);
+        } else {
+          toast({ title: t('Welkom terug!', 'Welcome back!') });
+          navigate('/');
+        }
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email: validationResult.data.email,
           password: validationResult.data.password,
           options: {
@@ -60,26 +83,163 @@ const Auth = () => {
         });
         if (error) throw error;
         
-        toast({ 
-          title: t('Account aangemaakt!', 'Account created!'), 
-          description: t('Welkom bij de app!', 'Welcome to the app!') 
+        // Start 2FA enrollment after signup
+        const { data: enrollData, error: enrollError } = await supabase.auth.mfa.enroll({
+          factorType: 'totp',
         });
-        navigate('/');
+        
+        if (enrollError) throw enrollError;
+        
+        // Generate QR code
+        const qrCodeDataUrl = await QRCode.toDataURL(enrollData.totp.qr_code);
+        setQrCode(qrCodeDataUrl);
+        setFactorId(enrollData.id);
+        setShow2FA(true);
       }
     } catch (error: any) {
       const safeMessage = error.code === 'invalid_credentials'
         ? 'Onjuiste inloggegevens'
-        : 'Er is een fout opgetreden';
+        : error.message || 'Er is een fout opgetreden';
       
       toast({
         title: 'Fout',
         description: safeMessage,
         variant: 'destructive',
       });
+      setLoading(false);
+    } finally {
+      if (!show2FA) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleVerify2FA = async () => {
+    if (totpCode.length !== 6) {
+      toast({
+        title: 'Fout',
+        description: 'Voer een geldige 6-cijferige code in',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        // Verify for login
+        const { error } = await supabase.auth.mfa.verify({
+          factorId,
+          challengeId,
+          code: totpCode,
+        });
+        
+        if (error) throw error;
+        
+        toast({ title: t('Welkom terug!', 'Welcome back!') });
+        navigate('/');
+      } else {
+        // Verify for enrollment - create challenge first for enrollment verification
+        const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+          factorId
+        });
+        
+        if (challengeError) throw challengeError;
+        
+        const { error } = await supabase.auth.mfa.verify({
+          factorId,
+          challengeId: challengeData.id,
+          code: totpCode,
+        });
+        
+        if (error) throw error;
+        
+        toast({ 
+          title: t('2FA ingeschakeld!', '2FA enabled!'), 
+          description: t('Je account is nu beveiligd', 'Your account is now secured') 
+        });
+        navigate('/');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Fout',
+        description: 'Ongeldige code',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
+
+  if (show2FA) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-muted p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>{t('Twee-factor authenticatie', 'Two-Factor Authentication')}</CardTitle>
+            <CardDescription>
+              {isLogin 
+                ? t('Voer de code uit je authenticator app in', 'Enter the code from your authenticator app')
+                : t('Scan de QR code met je authenticator app', 'Scan the QR code with your authenticator app')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {!isLogin && qrCode && (
+              <div className="flex flex-col items-center gap-4">
+                <img src={qrCode} alt="QR Code" className="w-48 h-48" />
+                <p className="text-sm text-muted-foreground text-center">
+                  {t('Scan deze QR code met Google Authenticator, Authy, of een andere authenticator app', 'Scan this QR code with Google Authenticator, Authy, or another authenticator app')}
+                </p>
+              </div>
+            )}
+            
+            <div className="space-y-4">
+              <Label htmlFor="totp">{t('Verificatiecode', 'Verification code')}</Label>
+              <div className="flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  value={totpCode}
+                  onChange={(value) => setTotpCode(value)}
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+            </div>
+
+            <Button 
+              onClick={handleVerify2FA} 
+              className="w-full" 
+              disabled={loading || totpCode.length !== 6}
+            >
+              {t(loading ? 'Bezig...' : 'Verifiëren', loading ? 'Loading...' : 'Verify')}
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              onClick={() => {
+                setShow2FA(false);
+                setTotpCode('');
+                setQrCode('');
+                setLoading(false);
+              }}
+            >
+              {t('Terug', 'Back')}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-muted p-4">
