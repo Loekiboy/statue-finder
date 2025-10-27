@@ -231,10 +231,10 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
   }, [modelUrl, autoRotate]);
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full overflow-hidden">
       <div ref={containerRef} className="h-full w-full bg-gradient-to-br from-background to-muted" />
       {loading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10">
           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
           <p className="text-sm text-muted-foreground mb-2">3D model aan het laden...</p>
           {loadingProgress > 0 && (
@@ -242,6 +242,13 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
           )}
         </div>
       )}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 z-20 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
+        aria-label="Sluiten"
+      >
+        <X className="h-5 w-5 text-foreground" />
+      </button>
     </div>
   );
 };

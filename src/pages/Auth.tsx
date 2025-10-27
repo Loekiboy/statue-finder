@@ -47,7 +47,7 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        // First verify password
+        // Verify password first
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: validationResult.data.email,
           password: validationResult.data.password,
@@ -55,27 +55,15 @@ const Auth = () => {
 
         if (signInError) throw signInError;
 
-        // Sign out and send OTP
-        await supabase.auth.signOut();
-        
-        const { error: otpError } = await supabase.auth.signInWithOtp({
-          email: validationResult.data.email,
-          options: {
-            shouldCreateUser: false,
-          },
-        });
-
-        if (otpError) throw otpError;
-
-        setUserEmail(validationResult.data.email);
-        setShowEmailOTP(true);
+        // Successfully logged in
         toast({
-          title: t('Verificatiecode verzonden', 'Verification code sent'),
-          description: t('Check je e-mail voor de 6-cijferige code', 'Check your email for the 6-digit code'),
+          title: t('Succesvol ingelogd!', 'Successfully logged in!'),
+          description: t('Welkom terug', 'Welcome back'),
         });
+        navigate('/');
       } else {
-        // For signup, create account
-        const { error: signUpError } = await supabase.auth.signUp({
+        // For signup, create account with auto-confirm enabled
+        const { error: signUpError, data } = await supabase.auth.signUp({
           email: validationResult.data.email,
           password: validationResult.data.password,
           options: {
@@ -85,19 +73,23 @@ const Auth = () => {
 
         if (signUpError) throw signUpError;
 
-        // Send OTP for verification
-        const { error: otpError } = await supabase.auth.signInWithOtp({
-          email: validationResult.data.email,
-        });
-
-        if (otpError) throw otpError;
-
-        setUserEmail(validationResult.data.email);
-        setShowEmailOTP(true);
-        toast({
-          title: t('Account aangemaakt!', 'Account created!'),
-          description: t('Check je e-mail voor de 6-cijferige verificatiecode', 'Check your email for the 6-digit verification code'),
-        });
+        // Check if email confirmation is required
+        if (data.user && !data.session) {
+          // Email confirmation required
+          setUserEmail(validationResult.data.email);
+          setShowEmailOTP(true);
+          toast({
+            title: t('Account aangemaakt!', 'Account created!'),
+            description: t('Check je e-mail voor de 6-cijferige verificatiecode', 'Check your email for the 6-digit verification code'),
+          });
+        } else {
+          // Auto-confirmed, redirect to home
+          toast({
+            title: t('Account aangemaakt!', 'Account created!'),
+            description: t('Je bent nu ingelogd', 'You are now logged in'),
+          });
+          navigate('/');
+        }
       }
     } catch (error: any) {
       const safeMessage = error.code === 'invalid_credentials'
