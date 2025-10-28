@@ -1,9 +1,11 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
 import { NijmegenKunstwerk } from '@/data/nijmegenKunstwerken';
 import { UtrechtKunstwerk } from '@/data/utrechtKunstwerken';
 import { useState } from 'react';
+import QuickUploadDialog from './QuickUploadDialog';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface KunstwerkViewerProps {
   kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | null;
@@ -12,7 +14,9 @@ interface KunstwerkViewerProps {
 }
 
 const KunstwerkViewer = ({ kunstwerk, city, onClose }: KunstwerkViewerProps) => {
+  const { t } = useLanguage();
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
   
   if (!kunstwerk) return null;
 
@@ -122,9 +126,29 @@ const KunstwerkViewer = ({ kunstwerk, city, onClose }: KunstwerkViewerProps) => 
                 </Button>
               </div>
             )}
+            
+            <div className="pt-2 flex gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setShowUploadDialog(true)}
+                className="gap-2 flex-1"
+              >
+                <Upload className="w-4 h-4" />
+                {t('Upload foto/model', 'Upload photo/model')}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
+      
+      <QuickUploadDialog
+        open={showUploadDialog}
+        onOpenChange={setShowUploadDialog}
+        statueName={kunstwerk.name}
+        latitude={kunstwerk.lat}
+        longitude={kunstwerk.lon}
+      />
     </Dialog>
   );
 };
