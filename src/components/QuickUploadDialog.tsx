@@ -38,7 +38,7 @@ const QuickUploadDialog = ({ open, onOpenChange, statueName, latitude, longitude
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md z-[10000]">
         <DialogHeader>
           <DialogTitle>{t('Uploaderen voor', 'Upload for')} {statueName}</DialogTitle>
           <DialogDescription>
