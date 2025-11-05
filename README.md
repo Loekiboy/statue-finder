@@ -3,13 +3,20 @@
 Een interactieve web applicatie waarmee gebruikers standbeelden in Nederland kunnen ontdekken, bekijken in 3D, en hun eigen modellen en foto's kunnen uploaden.
 Gemaakt om mensen meer te weten laten komen over openbare kunst.
 
+**Nieuw: Nu met native iOS app inclusief volledige Augmented Reality (AR) ondersteuning!** 🎉
+
 ## 🎯 Over het Project
 
 Statue Finder is een Pokémon GO-achtige applicatie voor het ontdekken van standbeelden. Gebruikers kunnen:
 - **Standbeelden ontdekken** op een interactieve kaart
 - **3D modellen bekijken** van standbeelden in augmented reality style
+- **AR Mode (iOS)**: Plaats 3D standbeelden in je eigen omgeving met ARKit ✨
 - **Foto's en 3D modellen uploaden** van standbeelden
 - **Ontdekkingen verzamelen** wanneer ze fysiek bij een standbeeld zijn
+
+Het project bestaat uit:
+- **Web App**: Moderne React/TypeScript web applicatie met 3D viewer
+- **iOS App**: Native Swift app met volledige ARKit integratie
 
 Het project gebruikt moderne web technologieën en biedt een responsive, mobiele-first ervaring.
 
@@ -23,6 +30,7 @@ Het project gebruikt moderne web technologieën en biedt een responsive, mobiele
 
 ### Standbeeld Database
 - Nijmegen standbeelden database geïntegreerd
+- Utrecht standbeelden database geïntegreerd
 - OpenStreetMap integratie voor standbeelden zonder 3D model
 - Mogelijkheid om als eerste een model te uploaden voor een standbeeld
 
@@ -81,6 +89,24 @@ npm run dev
 ```
 
 De applicatie is nu beschikbaar op `http://localhost:5173`
+
+## 📱 iOS App (met AR!)
+
+Voor gebruikers die de volledige AR ervaring willen, is er een native iOS app beschikbaar. 
+
+**Zie de [iOS App README](./swift/README.md) voor gedetailleerde installatie-instructies.**
+
+Snelle start:
+```bash
+cd swift
+open StatueFinder.xcodeproj  # Of gebruik Xcode om te openen
+```
+
+De iOS app bevat:
+- ✨ **Volledige ARKit integratie** - Plaats 3D standbeelden in je eigen omgeving
+- 📍 Real-time GPS tracking
+- 🎨 Liquid Glass bottom bar design
+- 🔄 Alle web app functionaliteit in native Swift
 
 ## 🏗️ Build voor Productie
 
