@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, View } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from './ui/button';
+import '@google/model-viewer';
 
 interface StandbeeldViewerProps {
   onClose: () => void;
@@ -20,6 +23,16 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
   const [modelUrl, setModelUrl] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [glbUrl, setGlbUrl] = useState<string | null>(null);
+  const [showAR, setShowAR] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const meshRef = useRef<THREE.Mesh | null>(null);
+
+  // Check if iOS device
+  useEffect(() => {
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    setIsIOS(ios);
+  }, []);
 
   // Get the correct URL for the model
   useEffect(() => {
@@ -176,6 +189,7 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
         
         // Create mesh
         const mesh = new THREE.Mesh(geometry, material);
+        meshRef.current = mesh;
         
         // Rotate to upright position
         mesh.rotation.x = -Math.PI / 2;
@@ -185,6 +199,22 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
         mesh.scale.set(scale, scale, scale);
         
         scene.add(mesh);
+        
+        // Export to GLB for AR viewing on iOS
+        const exporter = new GLTFExporter();
+        exporter.parse(
+          mesh,
+          (gltf) => {
+            const blob = new Blob([gltf as ArrayBuffer], { type: 'model/gltf-binary' });
+            const url = URL.createObjectURL(blob);
+            setGlbUrl(url);
+          },
+          (error) => {
+            console.error('Error exporting GLB:', error);
+          },
+          { binary: true }
+        );
+        
         setLoading(false);
         console.log('STL model geladen!');
       } catch (error) {
@@ -227,12 +257,31 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
         container.removeChild(renderer.domElement);
       }
       renderer.dispose();
+      
+      // Cleanup GLB URL
+      if (glbUrl) {
+        URL.revokeObjectURL(glbUrl);
+      }
     };
   }, [modelUrl, autoRotate]);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      <div ref={containerRef} className="h-full w-full bg-gradient-to-br from-background to-muted" />
+      {showAR && glbUrl ? (
+        <div className="h-full w-full">
+          <model-viewer
+            src={glbUrl}
+            ar
+            ar-modes="scene-viewer quick-look"
+            camera-controls
+            auto-rotate
+            style={{ width: '100%', height: '100%' }}
+          />
+        </div>
+      ) : (
+        <div ref={containerRef} className="h-full w-full bg-gradient-to-br from-background to-muted" />
+      )}
+      
       {loading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10">
           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -242,13 +291,26 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
           )}
         </div>
       )}
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-20 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
-        aria-label="Sluiten"
-      >
-        <X className="h-5 w-5 text-foreground" />
-      </button>
+      
+      <div className="absolute top-4 right-4 z-20 flex gap-2">
+        {isIOS && glbUrl && !loading && (
+          <Button
+            onClick={() => setShowAR(!showAR)}
+            variant="default"
+            size="icon"
+            className="bg-background/80 backdrop-blur-sm hover:bg-background"
+          >
+            <View className="h-5 w-5" />
+          </Button>
+        )}
+        <button
+          onClick={onClose}
+          className="p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
+          aria-label="Sluiten"
+        >
+          <X className="h-5 w-5 text-foreground" />
+        </button>
+      </div>
     </div>
   );
 };
