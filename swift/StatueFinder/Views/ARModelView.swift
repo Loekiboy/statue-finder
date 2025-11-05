@@ -107,6 +107,10 @@ struct ARModelView: View {
                                 .fill(.ultraThinMaterial)
                         )
                         .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
+                        
+                        Text("Werkt op horizontale en verticale oppervlakken")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
                     }
                     .padding()
                 }
@@ -199,10 +203,9 @@ struct ARViewContainer: UIViewRepresentable {
         
         // ARSCNViewDelegate method - called when AR detects a plane
         func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
-            // Only place model once and only for horizontal planes
+            // Only place model once for horizontal or vertical planes
             guard !hasPlacedModel,
-                  let planeAnchor = anchor as? ARPlaneAnchor,
-                  planeAnchor.alignment == .horizontal else {
+                  let planeAnchor = anchor as? ARPlaneAnchor else {
                 return
             }
             
@@ -217,7 +220,7 @@ struct ARViewContainer: UIViewRepresentable {
         
         private func placeModel(on node: SCNNode, planeAnchor: ARPlaneAnchor) {
             // Parse STL data and create geometry
-            guard let geometry = parseSTLData(modelData) else {
+            guard let geometry = STLParser.parseSTL(data: modelData) ?? createPlaceholderGeometry() else {
                 print("Failed to parse STL model")
                 return
             }
@@ -275,11 +278,6 @@ struct ARViewContainer: UIViewRepresentable {
             // Add haptic feedback
             let generator = UIImpactFeedbackGenerator(style: .medium)
             generator.impactOccurred()
-        }
-        
-        private func parseSTLData(_ data: Data) -> SCNGeometry? {
-            // Use the STLParser utility
-            return STLParser.parseSTL(data: data) ?? createPlaceholderGeometry()
         }
         
         private func createPlaceholderGeometry() -> SCNGeometry {

@@ -35,9 +35,8 @@ class STLParser {
             // If file is very small, it's likely ASCII
             if data.count < 1000 { return false }
             
-            // Check for triangle count at byte 80-84
-            let triangleCountBytes = data.subdata(in: 80..<84)
-            let triangleCount = triangleCountBytes.withUnsafeBytes { $0.load(as: UInt32.self) }
+            // Check triangle count and expected file size
+            guard let triangleCount = readTriangleCount(from: data) else { return false }
             
             // Binary STL should have: 80 (header) + 4 (count) + (count * 50) bytes
             let expectedSize = 84 + Int(triangleCount) * 50
@@ -52,8 +51,7 @@ class STLParser {
         guard data.count > 84 else { return nil }
         
         // Read triangle count
-        let triangleCountBytes = data.subdata(in: 80..<84)
-        let triangleCount = triangleCountBytes.withUnsafeBytes { $0.load(as: UInt32.self) }
+        guard let triangleCount = readTriangleCount(from: data) else { return nil }
         
         var vertices: [SCNVector3] = []
         var normals: [SCNVector3] = []
@@ -65,26 +63,14 @@ class STLParser {
             
             // Read normal vector (3 floats)
             let normalData = data.subdata(in: offset..<offset+12)
-            let normal = normalData.withUnsafeBytes { ptr in
-                SCNVector3(
-                    x: ptr.load(fromByteOffset: 0, as: Float.self),
-                    y: ptr.load(fromByteOffset: 4, as: Float.self),
-                    z: ptr.load(fromByteOffset: 8, as: Float.self)
-                )
-            }
+            let normal = readVector3(from: normalData)
             
             offset += 12
             
             // Read 3 vertices (each 3 floats)
             for _ in 0..<3 {
                 let vertexData = data.subdata(in: offset..<offset+12)
-                let vertex = vertexData.withUnsafeBytes { ptr in
-                    SCNVector3(
-                        x: ptr.load(fromByteOffset: 0, as: Float.self),
-                        y: ptr.load(fromByteOffset: 4, as: Float.self),
-                        z: ptr.load(fromByteOffset: 8, as: Float.self)
-                    )
-                }
+                let vertex = readVector3(from: vertexData)
                 
                 vertices.append(vertex)
                 normals.append(normal)
@@ -101,6 +87,24 @@ class STLParser {
         }
         
         return createGeometry(vertices: vertices, normals: normals, indices: indices)
+    }
+    
+    /// Helper: Read triangle count from binary STL data
+    private static func readTriangleCount(from data: Data) -> UInt32? {
+        guard data.count > 84 else { return nil }
+        let triangleCountBytes = data.subdata(in: 80..<84)
+        return triangleCountBytes.withUnsafeBytes { $0.load(as: UInt32.self) }
+    }
+    
+    /// Helper: Read a vector from data
+    private static func readVector3(from data: Data) -> SCNVector3 {
+        return data.withUnsafeBytes { ptr in
+            SCNVector3(
+                x: ptr.load(fromByteOffset: 0, as: Float.self),
+                y: ptr.load(fromByteOffset: 4, as: Float.self),
+                z: ptr.load(fromByteOffset: 8, as: Float.self)
+            )
+        }
     }
     
     /// Parse ASCII STL format
