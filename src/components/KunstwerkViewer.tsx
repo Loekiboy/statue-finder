@@ -3,13 +3,14 @@ import { Button } from './ui/button';
 import { ExternalLink, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
 import { NijmegenKunstwerk } from '@/data/nijmegenKunstwerken';
 import { UtrechtKunstwerk } from '@/data/utrechtKunstwerken';
+import { AmsterdamKunstwerk } from '@/data/amsterdamKunstwerken';
 import { useState } from 'react';
 import QuickUploadDialog from './QuickUploadDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface KunstwerkViewerProps {
-  kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | null;
-  city: 'nijmegen' | 'utrecht';
+  kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AmsterdamKunstwerk | null;
+  city: 'nijmegen' | 'utrecht' | 'amsterdam';
   onClose: () => void;
 }
 
@@ -22,10 +23,15 @@ const KunstwerkViewer = ({ kunstwerk, city, onClose }: KunstwerkViewerProps) => 
 
   const photos: string[] = [];
   
-  // Only show photos for Utrecht (Nijmegen photos don't work)
+  // Show photos for Utrecht and Amsterdam
   if (city === 'utrecht') {
     const utrechtKunstwerk = kunstwerk as UtrechtKunstwerk;
     photos.push(...utrechtKunstwerk.photos);
+  } else if (city === 'amsterdam') {
+    const amsterdamKunstwerk = kunstwerk as AmsterdamKunstwerk;
+    if (amsterdamKunstwerk.photoUrl) {
+      photos.push(amsterdamKunstwerk.photoUrl);
+    }
   }
 
   const hasPhotos = photos.length > 0;
@@ -41,9 +47,18 @@ const KunstwerkViewer = ({ kunstwerk, city, onClose }: KunstwerkViewerProps) => 
   
   const description = city === 'utrecht' 
     ? (kunstwerk as UtrechtKunstwerk).description 
+    : city === 'amsterdam'
+    ? (kunstwerk as AmsterdamKunstwerk).description || ''
     : (kunstwerk as NijmegenKunstwerk).description || '';
-  const websiteUrl = city === 'nijmegen' ? (kunstwerk as NijmegenKunstwerk).websiteUrl : null;
+  
+  const websiteUrl = city === 'nijmegen' 
+    ? (kunstwerk as NijmegenKunstwerk).websiteUrl 
+    : city === 'amsterdam'
+    ? (kunstwerk as AmsterdamKunstwerk).websiteUrl
+    : null;
+    
   const credits = city === 'nijmegen' ? (kunstwerk as NijmegenKunstwerk).credits : null;
+  const year = city === 'amsterdam' ? (kunstwerk as AmsterdamKunstwerk).year : null;
 
   return (
     <Dialog open={!!kunstwerk} onOpenChange={onClose}>
@@ -110,6 +125,13 @@ const KunstwerkViewer = ({ kunstwerk, city, onClose }: KunstwerkViewerProps) => 
               <div>
                 <h3 className="font-semibold text-sm text-muted-foreground">Eigendom van</h3>
                 <p className="text-base">{credits}</p>
+              </div>
+            )}
+            
+            {year && (
+              <div>
+                <h3 className="font-semibold text-sm text-muted-foreground">Jaar</h3>
+                <p className="text-base">{year}</p>
               </div>
             )}
             

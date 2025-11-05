@@ -17,6 +17,7 @@ import imageCompression from 'browser-image-compression';
 import type * as L from 'leaflet';
 import { nijmegenKunstwerken } from '@/data/nijmegenKunstwerken';
 import { utrechtKunstwerken } from '@/data/utrechtKunstwerken';
+import { amsterdamKunstwerken } from '@/data/amsterdamKunstwerken';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Lazy load Leaflet only when needed
@@ -55,7 +56,7 @@ const Upload = () => {
   const [showSizeWarning, setShowSizeWarning] = useState(false);
   const [largeFileSize, setLargeFileSize] = useState<number>(0);
   const [mapReady, setMapReady] = useState(false);
-  const [selectedKunstwerk, setSelectedKunstwerk] = useState<{id: string, city: 'nijmegen' | 'utrecht'} | null>(null);
+  const [selectedKunstwerk, setSelectedKunstwerk] = useState<{id: string, city: 'nijmegen' | 'utrecht' | 'amsterdam'} | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -347,7 +348,39 @@ const Upload = () => {
       }
 
       if (uploadType === 'model') {
-        // Upload 3D model file
+        // Check if we're updating an existing kunstwerk
+        if (selectedKunstwerk) {
+          // Find matching model in database based on location
+          const { data: existingModels } = await supabase
+            .from('models')
+            .select('*')
+            .eq('latitude', validationResult.data.latitude)
+            .eq('longitude', validationResult.data.longitude);
+          
+          if (existingModels && existingModels.length > 0) {
+            // Update existing model instead of creating new one
+            const existingModel = existingModels[0];
+            
+            // Upload 3D model file
+            const fileExt = file!.name.split('.').pop();
+            const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage
+              .from('models')
+              .upload(fileName, file!);
+
+            if (uploadError) throw uploadError;
+
+            // Set the uploaded file paths and trigger thumbnail generation
+            // We'll update instead of insert
+            setUploadedFilePath(fileName);
+            setUploadedPhotoPath(photoFileName);
+            setGenerateThumbnail(true);
+            return; // handleThumbnailGenerated will handle the update
+          }
+        }
+        
+        // New model upload
         const fileExt = file!.name.split('.').pop();
         const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
@@ -357,16 +390,44 @@ const Upload = () => {
 
         if (uploadError) throw uploadError;
 
-        // Set the uploaded file paths and trigger thumbnail generation
         setUploadedFilePath(fileName);
         setUploadedPhotoPath(photoFileName);
         setGenerateThumbnail(true);
       } else {
-        // Photo only upload - save directly to database
+        // Photo only upload
         const { data: { publicUrl: photoUrl } } = supabase.storage
           .from('model-thumbnails')
           .getPublicUrl(photoFileName!);
 
+        // Check if we're updating an existing kunstwerk
+        if (selectedKunstwerk) {
+          const { data: existingModels } = await supabase
+            .from('models')
+            .select('*')
+            .eq('latitude', validationResult.data.latitude)
+            .eq('longitude', validationResult.data.longitude);
+          
+          if (existingModels && existingModels.length > 0) {
+            // Update existing model
+            const { error: updateError } = await supabase
+              .from('models')
+              .update({
+                photo_url: photoUrl,
+                thumbnail_url: photoUrl,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingModels[0].id);
+
+            if (updateError) throw updateError;
+
+            toast({ title: t('Foto toegevoegd aan bestaand kunstwerk!', 'Photo added to existing artwork!') });
+            navigate('/');
+            setLoading(false);
+            return;
+          }
+        }
+
+        // New photo upload
         const { error: dbError } = await supabase
           .from('models')
           .insert({
@@ -446,7 +507,36 @@ const Upload = () => {
         throw new Error(t('Validatiefout', 'Validation error'));
       }
 
-      // Insert model with thumbnail and photo URLs
+      // Check if updating existing kunstwerk
+      if (selectedKunstwerk) {
+        const { data: existingModels } = await supabase
+          .from('models')
+          .select('*')
+          .eq('latitude', validationResult.data.latitude)
+          .eq('longitude', validationResult.data.longitude);
+        
+        if (existingModels && existingModels.length > 0) {
+          // Update existing model
+          const { error: updateError } = await supabase
+            .from('models')
+            .update({
+              file_path: uploadedFilePath,
+              thumbnail_url: thumbnailUrl,
+              photo_url: photoUrl || existingModels[0].photo_url,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingModels[0].id);
+
+          if (updateError) throw updateError;
+
+          toast({ title: t('3D model toegevoegd aan bestaand kunstwerk!', '3D model added to existing artwork!') });
+          navigate('/');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Insert new model with thumbnail and photo URLs
       const { error: dbError } = await supabase
         .from('models')
         .insert({
@@ -589,7 +679,7 @@ const Upload = () => {
                       return;
                     }
                     const [city, id] = value.split('-');
-                    const cityType = city as 'nijmegen' | 'utrecht';
+                    const cityType = city as 'nijmegen' | 'utrecht' | 'amsterdam';
                     setSelectedKunstwerk({ id, city: cityType });
                     
                     // Pre-fill data based on selected kunstwerk
@@ -602,8 +692,17 @@ const Upload = () => {
                         setLongitude(kunstwerk.lon);
                         setManualLocation(true);
                       }
-                    } else {
+                    } else if (cityType === 'utrecht') {
                       const kunstwerk = utrechtKunstwerken.find(k => k.id === id);
+                      if (kunstwerk) {
+                        setName(kunstwerk.name);
+                        setDescription(kunstwerk.description || '');
+                        setLatitude(kunstwerk.lat);
+                        setLongitude(kunstwerk.lon);
+                        setManualLocation(true);
+                      }
+                    } else {
+                      const kunstwerk = amsterdamKunstwerken.find(k => k.id === id);
                       if (kunstwerk) {
                         setName(kunstwerk.name);
                         setDescription(kunstwerk.description || '');
@@ -619,6 +718,12 @@ const Upload = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">{t('Geen - nieuwe locatie', 'None - new location')}</SelectItem>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Amsterdam</div>
+                    {amsterdamKunstwerken.map(kunstwerk => (
+                      <SelectItem key={`amsterdam-${kunstwerk.id}`} value={`amsterdam-${kunstwerk.id}`}>
+                        {kunstwerk.name} - {kunstwerk.artist}
+                      </SelectItem>
+                    ))}
                     <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Nijmegen</div>
                     {nijmegenKunstwerken.slice(0, 50).map(kunstwerk => (
                       <SelectItem key={`nijmegen-${kunstwerk.id}`} value={`nijmegen-${kunstwerk.id}`}>
@@ -634,7 +739,7 @@ const Upload = () => {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  {t('Upload een foto of model voor een bestaand kunstwerk uit Nijmegen of Utrecht', 'Upload a photo or model for an existing artwork from Nijmegen or Utrecht')}
+                  {t('Upload een foto of model voor een bestaand kunstwerk uit Amsterdam, Nijmegen of Utrecht', 'Upload a photo or model for an existing artwork from Amsterdam, Nijmegen or Utrecht')}
                 </p>
               </div>
 

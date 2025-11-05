@@ -272,16 +272,13 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
           <model-viewer
             src={glbUrl}
             ar
-            ar-modes="scene-viewer quick-look"
+            ar-modes="quick-look scene-viewer webxr"
             camera-controls
             auto-rotate
             shadow-intensity="1"
+            ios-src={glbUrl}
             style={{ width: '100%', height: '100%' }}
-          >
-            <button slot="ar-button" className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium">
-              Open in AR
-            </button>
-          </model-viewer>
+          />
         </div>
       ) : (
         <div ref={containerRef} className="h-full w-full bg-gradient-to-br from-background to-muted" />
