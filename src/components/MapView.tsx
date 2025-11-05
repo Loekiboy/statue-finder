@@ -360,6 +360,30 @@ const MapView = () => {
     return () => clearTimeout(timer);
   }, [userLocation, models]);
 
+  // Load last known location from profile
+  useEffect(() => {
+    const loadLastKnownLocation = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('last_known_latitude, last_known_longitude')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (data?.last_known_latitude && data?.last_known_longitude) {
+          const lastKnownLocation: [number, number] = [data.last_known_latitude, data.last_known_longitude];
+          setUserLocation(lastKnownLocation);
+          if (!initialLocation) {
+            setInitialLocation(lastKnownLocation);
+          }
+        }
+      }
+    };
+    
+    loadLastKnownLocation();
+  }, []);
+
   useEffect(() => {
     // Watch user's location continuously
     if (!navigator.geolocation) {
@@ -375,7 +399,7 @@ const MapView = () => {
 
     // First try to get current position (works better in Safari)
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const coords: [number, number] = [
           position.coords.latitude,
           position.coords.longitude,
@@ -387,14 +411,40 @@ const MapView = () => {
         toast.success(t('Locatie gevonden!', 'Location found!'));
         hasShownSuccess = true;
 
+        // Save location to user profile
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase
+            .from('profiles')
+            .update({
+              last_known_latitude: coords[0],
+              last_known_longitude: coords[1],
+              last_location_updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id);
+        }
+
         // After successful initial position, start watching for updates
         watchId = navigator.geolocation.watchPosition(
-          (position) => {
+          async (position) => {
             const coords: [number, number] = [
               position.coords.latitude,
               position.coords.longitude,
             ];
             setUserLocation(coords);
+            
+            // Update location in profile
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              await supabase
+                .from('profiles')
+                .update({
+                  last_known_latitude: coords[0],
+                  last_known_longitude: coords[1],
+                  last_location_updated_at: new Date().toISOString()
+                })
+                .eq('user_id', user.id);
+            }
           },
           (error) => {
             console.error('Watch position error:', error.code, error.message);
@@ -411,7 +461,7 @@ const MapView = () => {
         let errorMessage = t('Kon locatie niet vinden.', 'Could not find location.');
         
         if (error.code === 1) {
-          errorMessage = t('Locatie toegang geweigerd. Sta locatie toe in Safari instellingen.', 'Location access denied. Allow location in Safari settings.');
+          errorMessage = t('Locatie toegang geweigerd. Gebruik laatste bekende locatie.', 'Location access denied. Using last known location.');
         } else if (error.code === 2) {
           errorMessage = t('Locatie niet beschikbaar.', 'Location unavailable.');
         } else if (error.code === 3) {
@@ -419,10 +469,14 @@ const MapView = () => {
         }
         
         toast.error(errorMessage);
-        const fallback: [number, number] = [52.3676, 4.9041];
-        setUserLocation(fallback);
-        if (!initialLocation) {
-          setInitialLocation(fallback);
+        
+        // Don't set fallback if we already have last known location from profile
+        if (!userLocation) {
+          const fallback: [number, number] = [52.3676, 4.9041];
+          setUserLocation(fallback);
+          if (!initialLocation) {
+            setInitialLocation(fallback);
+          }
         }
       },
       {

@@ -97,6 +97,9 @@ export type Database = {
           created_at: string
           id: string
           language: string
+          last_known_latitude: number | null
+          last_known_longitude: number | null
+          last_location_updated_at: string | null
           show_osm_statues: boolean
           theme: string
           updated_at: string
@@ -107,6 +110,9 @@ export type Database = {
           created_at?: string
           id?: string
           language?: string
+          last_known_latitude?: number | null
+          last_known_longitude?: number | null
+          last_location_updated_at?: string | null
           show_osm_statues?: boolean
           theme?: string
           updated_at?: string
@@ -117,6 +123,9 @@ export type Database = {
           created_at?: string
           id?: string
           language?: string
+          last_known_latitude?: number | null
+          last_known_longitude?: number | null
+          last_location_updated_at?: string | null
           show_osm_statues?: boolean
           theme?: string
           updated_at?: string
