@@ -17,7 +17,6 @@ import imageCompression from 'browser-image-compression';
 import type * as L from 'leaflet';
 import { nijmegenKunstwerken } from '@/data/nijmegenKunstwerken';
 import { utrechtKunstwerken } from '@/data/utrechtKunstwerken';
-import { amsterdamKunstwerken } from '@/data/amsterdamKunstwerken';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Lazy load Leaflet only when needed
@@ -56,7 +55,7 @@ const Upload = () => {
   const [showSizeWarning, setShowSizeWarning] = useState(false);
   const [largeFileSize, setLargeFileSize] = useState<number>(0);
   const [mapReady, setMapReady] = useState(false);
-  const [selectedKunstwerk, setSelectedKunstwerk] = useState<{id: string, city: 'nijmegen' | 'utrecht' | 'amsterdam'} | null>(null);
+  const [selectedKunstwerk, setSelectedKunstwerk] = useState<{id: string, city: 'nijmegen' | 'utrecht'} | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -679,7 +678,7 @@ const Upload = () => {
                       return;
                     }
                     const [city, id] = value.split('-');
-                    const cityType = city as 'nijmegen' | 'utrecht' | 'amsterdam';
+                    const cityType = city as 'nijmegen' | 'utrecht';
                     setSelectedKunstwerk({ id, city: cityType });
                     
                     // Pre-fill data based on selected kunstwerk
@@ -701,15 +700,6 @@ const Upload = () => {
                         setLongitude(kunstwerk.lon);
                         setManualLocation(true);
                       }
-                    } else {
-                      const kunstwerk = amsterdamKunstwerken.find(k => k.id === id);
-                      if (kunstwerk) {
-                        setName(kunstwerk.name);
-                        setDescription(kunstwerk.description || '');
-                        setLatitude(kunstwerk.lat);
-                        setLongitude(kunstwerk.lon);
-                        setManualLocation(true);
-                      }
                     }
                   }}
                 >
@@ -718,12 +708,6 @@ const Upload = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">{t('Geen - nieuwe locatie', 'None - new location')}</SelectItem>
-                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Amsterdam</div>
-                    {amsterdamKunstwerken.map(kunstwerk => (
-                      <SelectItem key={`amsterdam-${kunstwerk.id}`} value={`amsterdam-${kunstwerk.id}`}>
-                        {kunstwerk.name} - {kunstwerk.artist}
-                      </SelectItem>
-                    ))}
                     <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Nijmegen</div>
                     {nijmegenKunstwerken.slice(0, 50).map(kunstwerk => (
                       <SelectItem key={`nijmegen-${kunstwerk.id}`} value={`nijmegen-${kunstwerk.id}`}>

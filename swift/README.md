@@ -10,6 +10,7 @@ Dit is een iOS versie van de Statue Finder web applicatie. De app biedt dezelfde
 
 - **Kaart & Ontdekking**: Interactieve kaart met real-time GPS tracking
 - **3D Viewer**: Bekijk standbeelden in 3D met SceneKit
+- **AR Viewer**: Bekijk standbeelden in Augmented Reality (ARKit) - plaats 3D modellen in je eigen omgeving! ✨
 - **Upload**: Upload foto's en 3D modellen van standbeelden
 - **Profiel**: Beheer je ontdekkingen en uploads
 - **Leaderboards**: Zie wie de meeste standbeelden heeft ontdekt
@@ -19,6 +20,7 @@ Dit is een iOS versie van de Statue Finder web applicatie. De app biedt dezelfde
 - **Xcode** 15.0 of hoger
 - **iOS** 16.0 of hoger
 - **Swift** 5.9 of hoger
+- **ARKit** compatibel apparaat (iPhone 6s of nieuwer)
 - GPS/locatie services voor volledige functionaliteit
 
 ## 📦 Installatie
@@ -69,22 +71,23 @@ swift/
 │   │   ├── ContentView.swift           # Hoofd view met tab bar
 │   │   ├── MapView.swift               # Kaart weergave
 │   │   ├── ModelViewer.swift           # 3D model viewer
+│   │   ├── ARModelView.swift           # AR viewer (ARKit) ✨ NIEUW
 │   │   ├── UploadView.swift            # Upload interface
 │   │   ├── ProfileView.swift           # Profiel pagina
+│   │   ├── LeaderboardView.swift       # Leaderboard
 │   │   └── DiscoveriesView.swift       # Ontdekkingen overzicht
 │   ├── Components/
-│   │   ├── LiquidGlassTabBar.swift     # Liquid glass bottom bar
-│   │   ├── StatueAnnotation.swift      # Kaart annotaties
-│   │   └── StatueCard.swift            # Standbeeld kaart component
+│   │   └── LiquidGlassTabBar.swift     # Liquid glass bottom bar
 │   ├── Services/
 │   │   ├── SupabaseService.swift       # Supabase integratie
 │   │   ├── LocationService.swift       # Locatie services
 │   │   └── CacheService.swift          # Cache management
 │   └── Utilities/
 │       ├── Extensions.swift            # Swift extensies
-│       └── Constants.swift             # Constanten
+│       ├── Constants.swift             # Constanten
+│       └── STLParser.swift             # STL 3D model parser ✨ NIEUW
 ├── Assets.xcassets/                    # App icons & afbeeldingen
-├── Info.plist                          # App configuratie
+├── Info.plist                          # App configuratie + AR permissies
 └── Package.swift                       # Swift Package Manager
 ```
 
@@ -93,7 +96,8 @@ swift/
 ### iOS Framework
 - **SwiftUI** - Modern declarative UI framework
 - **MapKit** - Kaart weergave en annotaties
-- **SceneKit** - 3D model rendering
+- **ARKit** - Augmented Reality functionaliteit voor het plaatsen van 3D modellen in de echte wereld
+- **SceneKit** - 3D model rendering (voor zowel normale 3D view als AR)
 - **CoreLocation** - GPS en locatie services
 - **AVFoundation** - Camera en media handling
 
@@ -110,6 +114,15 @@ swift/
 
 ## 🎨 UI Features
 
+### AR Viewer 🌟
+De app bevat een volledig functionele AR viewer:
+- **Automatische vlakdetectie**: ARKit detecteert automatisch horizontale vlakken (zoals vloeren en tafels)
+- **Intelligente schaling**: 3D modellen worden automatisch geschaald naar een realistische grootte (ongeveer 30cm)
+- **STL parser**: Ingebouwde parser voor het laden van STL 3D modellen
+- **Realistisch licht**: Maakt gebruik van fysiek gebaseerde rendering (PBR) voor realistische belichting
+- **Rotatie animatie**: Modellen roteren automatisch voor een betere kijkervaring
+- **Haptic feedback**: Voelbare feedback wanneer het model geplaatst wordt
+
 ### Liquid Glass Bottom Bar
 De bottom navigation bar heeft een uniek liquid glass effect met:
 - Semi-transparante blur achtergrond
@@ -123,19 +136,29 @@ De app ondersteunt automatisch dark mode en past zich aan aan de systeeminstelli
 ## 📱 Minimale iOS Versie
 
 - **iOS 16.0+** voor volledige functionaliteit
+- **ARKit compatibel apparaat** (iPhone 6s of nieuwer) voor AR functionaliteit
 - MapKit en SceneKit integratie
 - SwiftUI 4.0 features
 
-## 🗺️ Locatie Permissies
+## 🗺️ Locatie & Permissies
 
 De app vraagt om de volgende permissies:
 - **Locatie (When In Use)**: Voor het tonen van je huidige locatie op de kaart
-- **Camera**: Voor het maken van foto's van standbeelden
+- **Camera**: Voor AR functionaliteit en het maken van foto's van standbeelden
 - **Foto Library**: Voor het uploaden van bestaande foto's
+- **ARKit**: Voor het plaatsen van 3D modellen in augmented reality
+
+### AR Apparaat Vereisten
+Voor de beste AR ervaring heb je nodig:
+- iPhone 6s of nieuwer
+- iOS 16.0 of hoger
+- Goede verlichting (AR werkt het best in goed verlichte ruimtes)
+- Vlakke oppervlakken (voor het plaatsen van modellen)
 
 ## 🔐 Privacy & Security
 
 - Gebruikerslocaties worden alleen lokaal gebruikt voor kaartweergave
+- AR beelden worden niet opgeslagen tenzij je expliciet een foto maakt
 - Uploads worden beveiligd via Supabase Row Level Security
 - Geen tracking of analytics
 - EXIF data wordt verwerkt voor locatie-informatie
@@ -151,12 +174,15 @@ De app vraagt om de volgende permissies:
 - De app gebruikt async/await voor asynchrone operaties
 - State management via @StateObject en @EnvironmentObject
 - Dependency injection voor services
+- AR implementatie maakt gebruik van ARKit's world tracking en plane detection
+- STL bestanden worden in real-time geparsed voor gebruik in SceneKit
 
 ## 🐛 Bekende Issues
 
-- Grote STL bestanden kunnen traag laden op oudere devices
-- iOS locatie permissies kunnen soms moeilijk zijn
-- Sommige 3D modellen kunnen extra rotatie/schaling nodig hebben
+- AR werkt niet in de simulator - test op een echt apparaat
+- Grote STL bestanden kunnen traag laden - overweeg model optimalisatie
+- AR werkt het best in goed verlichte omgevingen
+- Voor optimale AR prestaties, gebruik modellen kleiner dan 5MB
 
 ## 🗑️ Verwijderen
 

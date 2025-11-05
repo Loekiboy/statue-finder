@@ -61,11 +61,15 @@
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>We gebruiken je locatie om standbeelden in je buurt te tonen en om je te helpen standbeelden te ontdekken.</string>
+    <string>We gebruiken je locatie om standbeelden in je buurt te tonen en om je te help standbeelden te ontdekken.</string>
     <key>NSCameraUsageDescription</key>
-    <string>We hebben toegang tot je camera nodig om foto's van standbeelden te maken.</string>
+    <string>We hebben toegang tot je camera nodig voor AR (Augmented Reality) functionaliteit en om foto's van standbeelden te maken.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>We hebben toegang tot je fotobibliotheek nodig om foto's van standbeelden te uploaden.</string>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>arkit</string>
+    </array>
     <key>SUPABASE_URL</key>
     <string>https://your-project.supabase.co</string>
     <key>SUPABASE_ANON_KEY</key>

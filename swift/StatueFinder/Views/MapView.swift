@@ -7,6 +7,7 @@
 
 import SwiftUI
 import MapKit
+import ARKit
 
 struct MapView: View {
     @EnvironmentObject var locationService: LocationService
@@ -228,6 +229,7 @@ struct StatueDetailView: View {
     @EnvironmentObject var supabaseService: SupabaseService
     
     @State private var showModelViewer = false
+    @State private var showARViewer = false
     
     var body: some View {
         NavigationView {
@@ -289,6 +291,28 @@ struct StatueDetailView: View {
                             .cornerRadius(12)
                         }
                         
+                        // AR View button
+                        if #available(iOS 16.0, *), ARWorldTrackingConfiguration.isSupported {
+                            Button(action: { showARViewer = true }) {
+                                HStack {
+                                    Image(systemName: "arkit")
+                                    Text("Bekijk in AR")
+                                }
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color.purple, Color.pink],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .cornerRadius(12)
+                            }
+                        }
+                        
                         // Discover button
                         if let coordinate = statue.coordinate,
                            locationService.isWithinDiscoveryRange(coordinate) {
@@ -321,6 +345,12 @@ struct StatueDetailView: View {
         }
         .sheet(isPresented: $showModelViewer) {
             ModelViewer(statue: statue)
+        }
+        .fullScreenCover(isPresented: $showARViewer) {
+            if #available(iOS 16.0, *) {
+                ARModelView(statue: statue)
+                    .environmentObject(supabaseService)
+            }
         }
     }
     

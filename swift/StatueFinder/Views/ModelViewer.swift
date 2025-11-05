@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SceneKit
+import ARKit
 
 struct ModelViewer: View {
     let statue: Statue
@@ -16,6 +17,7 @@ struct ModelViewer: View {
     @State private var isLoading = true
     @State private var modelData: Data?
     @State private var errorMessage: String?
+    @State private var showARView = false
     
     var body: some View {
         NavigationView {
@@ -46,11 +48,28 @@ struct ModelViewer: View {
             .navigationTitle(statue.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if #available(iOS 16.0, *), ARWorldTrackingConfiguration.isSupported {
+                        Button(action: { showARView = true }) {
+                            HStack {
+                                Image(systemName: "arkit")
+                                Text("AR")
+                            }
+                        }
+                    }
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Sluiten") {
                         dismiss()
                     }
                 }
+            }
+        }
+        .fullScreenCover(isPresented: $showARView) {
+            if #available(iOS 16.0, *) {
+                ARModelView(statue: statue)
+                    .environmentObject(supabaseService)
             }
         }
         .task {
@@ -116,12 +135,25 @@ struct SceneKitModelView: UIViewRepresentable {
     }
     
     func updateUIView(_ scnView: SCNView, context: Context) {
-        // Load STL model
-        // Note: SceneKit doesn't natively support STL, so we'd need to convert it
-        // For this implementation, we'll create a placeholder geometry
-        // In production, you would use a library to parse STL files
+        // Load STL model using STLParser
+        guard let geometry = STLParser.parseSTL(data: modelData) else {
+            // Fallback to placeholder if parsing fails
+            let placeholderGeometry = createPlaceholderGeometry()
+            let node = SCNNode(geometry: placeholderGeometry)
+            scnView.scene?.rootNode.addChildNode(node)
+            return
+        }
         
-        let geometry = createPlaceholderGeometry()
+        // Apply material
+        let material = SCNMaterial()
+        material.diffuse.contents = UIColor.systemBlue
+        material.specular.contents = UIColor.white
+        material.shininess = 0.8
+        material.lightingModel = .physicallyBased
+        material.metalness.contents = 0.3
+        material.roughness.contents = 0.5
+        geometry.materials = [material]
+        
         let node = SCNNode(geometry: geometry)
         
         // Center the model
