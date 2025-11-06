@@ -18,6 +18,10 @@ import type * as L from 'leaflet';
 import { nijmegenKunstwerken } from '@/data/nijmegenKunstwerken';
 import { utrechtKunstwerken } from '@/data/utrechtKunstwerken';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 // Lazy load Leaflet only when needed
 let LeafletLib: typeof L | null = null;
@@ -72,6 +76,24 @@ const Upload = () => {
         setLongitude(lon);
         setName(statueName || '');
         setManualLocation(true);
+        
+        // Try to find matching kunstwerk by location (within ~50m)
+        const threshold = 0.0005; // approximately 50m
+        const foundNijmegenKunstwerk = nijmegenKunstwerken.find(k => 
+          Math.abs(k.lat - lat) < threshold && Math.abs(k.lon - lon) < threshold
+        );
+        
+        if (foundNijmegenKunstwerk) {
+          setSelectedKunstwerk({ id: foundNijmegenKunstwerk.id, city: 'nijmegen' });
+        } else {
+          const foundUtrechtKunstwerk = utrechtKunstwerken.find(k => 
+            Math.abs(k.lat - lat) < threshold && Math.abs(k.lon - lon) < threshold
+          );
+          if (foundUtrechtKunstwerk) {
+            setSelectedKunstwerk({ id: foundUtrechtKunstwerk.id, city: 'utrecht' });
+          }
+        }
+        
         localStorage.removeItem('uploadLocation');
       } catch (e) {
         console.error('Error parsing uploadLocation:', e);
@@ -666,62 +688,109 @@ const Upload = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="kunstwerk">{t('Koppel aan bestaand kunstwerk (optioneel)', 'Link to existing artwork (optional)')}</Label>
-                <Select 
-                  value={selectedKunstwerk ? `${selectedKunstwerk.city}-${selectedKunstwerk.id}` : undefined}
-                  onValueChange={(value) => {
-                    if (value === 'none') {
-                      setSelectedKunstwerk(null);
-                      setName('');
-                      setDescription('');
-                      setLatitude(null);
-                      setLongitude(null);
-                      return;
-                    }
-                    const [city, id] = value.split('-');
-                    const cityType = city as 'nijmegen' | 'utrecht';
-                    setSelectedKunstwerk({ id, city: cityType });
-                    
-                    // Pre-fill data based on selected kunstwerk
-                    if (cityType === 'nijmegen') {
-                      const kunstwerk = nijmegenKunstwerken.find(k => k.id === id);
-                      if (kunstwerk) {
-                        setName(kunstwerk.name);
-                        setDescription(kunstwerk.description || '');
-                        setLatitude(kunstwerk.lat);
-                        setLongitude(kunstwerk.lon);
-                        setManualLocation(true);
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className={cn(
+                        "w-full justify-between",
+                        !selectedKunstwerk && "text-muted-foreground"
+                      )}
+                    >
+                      {selectedKunstwerk 
+                        ? (() => {
+                            const kunstwerk = selectedKunstwerk.city === 'nijmegen'
+                              ? nijmegenKunstwerken.find(k => k.id === selectedKunstwerk.id)
+                              : utrechtKunstwerken.find(k => k.id === selectedKunstwerk.id);
+                            return kunstwerk ? `${kunstwerk.name} - ${kunstwerk.artist}` : t('Selecteer een kunstwerk...', 'Select an artwork...');
+                          })()
+                        : t('Selecteer een kunstwerk...', 'Select an artwork...')
                       }
-                    } else if (cityType === 'utrecht') {
-                      const kunstwerk = utrechtKunstwerken.find(k => k.id === id);
-                      if (kunstwerk) {
-                        setName(kunstwerk.name);
-                        setDescription(kunstwerk.description || '');
-                        setLatitude(kunstwerk.lat);
-                        setLongitude(kunstwerk.lon);
-                        setManualLocation(true);
-                      }
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('Selecteer een kunstwerk...', 'Select an artwork...')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{t('Geen - nieuwe locatie', 'None - new location')}</SelectItem>
-                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Nijmegen</div>
-                    {nijmegenKunstwerken.slice(0, 50).map(kunstwerk => (
-                      <SelectItem key={`nijmegen-${kunstwerk.id}`} value={`nijmegen-${kunstwerk.id}`}>
-                        {kunstwerk.name} - {kunstwerk.artist}
-                      </SelectItem>
-                    ))}
-                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Utrecht</div>
-                    {utrechtKunstwerken.slice(0, 50).map(kunstwerk => (
-                      <SelectItem key={`utrecht-${kunstwerk.id}`} value={`utrecht-${kunstwerk.id}`}>
-                        {kunstwerk.name} - {kunstwerk.artist}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder={t('Zoek kunstwerk...', 'Search artwork...')} />
+                      <CommandList>
+                        <CommandEmpty>{t('Geen kunstwerk gevonden.', 'No artwork found.')}</CommandEmpty>
+                        <CommandGroup heading={t('Geen - nieuwe locatie', 'None - new location')}>
+                          <CommandItem
+                            value="none"
+                            onSelect={() => {
+                              setSelectedKunstwerk(null);
+                              setName('');
+                              setDescription('');
+                              setLatitude(null);
+                              setLongitude(null);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                !selectedKunstwerk ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {t('Geen - nieuwe locatie', 'None - new location')}
+                          </CommandItem>
+                        </CommandGroup>
+                        <CommandGroup heading="Nijmegen">
+                          {nijmegenKunstwerken.map(kunstwerk => (
+                            <CommandItem
+                              key={`nijmegen-${kunstwerk.id}`}
+                              value={`nijmegen-${kunstwerk.id} ${kunstwerk.name} ${kunstwerk.artist}`}
+                              onSelect={() => {
+                                setSelectedKunstwerk({ id: kunstwerk.id, city: 'nijmegen' });
+                                setName(kunstwerk.name);
+                                setDescription(kunstwerk.description || '');
+                                setLatitude(kunstwerk.lat);
+                                setLongitude(kunstwerk.lon);
+                                setManualLocation(true);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedKunstwerk?.city === 'nijmegen' && selectedKunstwerk?.id === kunstwerk.id
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              {kunstwerk.name} - {kunstwerk.artist}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                        <CommandGroup heading="Utrecht">
+                          {utrechtKunstwerken.map(kunstwerk => (
+                            <CommandItem
+                              key={`utrecht-${kunstwerk.id}`}
+                              value={`utrecht-${kunstwerk.id} ${kunstwerk.name} ${kunstwerk.artist}`}
+                              onSelect={() => {
+                                setSelectedKunstwerk({ id: kunstwerk.id, city: 'utrecht' });
+                                setName(kunstwerk.name);
+                                setDescription(kunstwerk.description || '');
+                                setLatitude(kunstwerk.lat);
+                                setLongitude(kunstwerk.lon);
+                                setManualLocation(true);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedKunstwerk?.city === 'utrecht' && selectedKunstwerk?.id === kunstwerk.id
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              {kunstwerk.name} - {kunstwerk.artist}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
                 <p className="text-xs text-muted-foreground">
                   {t('Upload een foto of model voor een bestaand kunstwerk uit Amsterdam, Nijmegen of Utrecht', 'Upload a photo or model for an existing artwork from Amsterdam, Nijmegen or Utrecht')}
                 </p>
