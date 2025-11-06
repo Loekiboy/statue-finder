@@ -4,7 +4,7 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { USDZExporter } from 'three/examples/jsm/exporters/USDZExporter.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { X, Loader2, Maximize2 } from 'lucide-react';
+import { X, Loader2, Maximize2, Box } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from './ui/button';
 import '@google/model-viewer';
@@ -283,20 +283,26 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
   return (
     <div className="relative h-full w-full overflow-hidden">
       {showAR && glbUrl && isIOS && usdzUrl ? (
-        <div className="h-full w-full flex items-center justify-center bg-background">
-          <model-viewer
-            src={glbUrl}
-            ios-src={usdzUrl}
-            ar
-            ar-modes="quick-look scene-viewer webxr"
-            ar-scale="fixed"
-            camera-controls
-            auto-rotate
-            shadow-intensity="1"
-            loading="eager"
-            reveal="auto"
-            style={{ width: '100%', height: '100%' }}
-          />
+        <div className="h-full w-full flex flex-col items-center justify-center bg-background">
+          <div className="h-full w-full">
+            <model-viewer
+              src={glbUrl}
+              ios-src={usdzUrl}
+              ar
+              ar-modes="quick-look scene-viewer webxr"
+              ar-scale="fixed"
+              camera-controls
+              auto-rotate
+              shadow-intensity="1"
+              loading="eager"
+              reveal="auto"
+              style={{ width: '100%', height: '100%' }}
+            />
+          </div>
+          {/* AR Instructions */}
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-primary/90 backdrop-blur-sm text-primary-foreground px-4 py-2 rounded-full text-sm font-medium shadow-lg">
+            Tik op het AR icoon om in augmented reality te bekijken
+          </div>
         </div>
       ) : (
         <div ref={containerRef} className="h-full w-full bg-gradient-to-br from-background to-muted" />
@@ -316,12 +322,15 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
         {isIOS && glbUrl && usdzUrl && !loading && (
           <Button
             onClick={() => setShowAR(!showAR)}
-            variant="default"
+            variant={showAR ? "secondary" : "default"}
             size="icon"
-            className="bg-background/80 backdrop-blur-sm hover:bg-background"
-            title={showAR ? "Toon 3D Viewer" : "Toon AR"}
+            className={showAR 
+              ? "bg-background/80 backdrop-blur-sm hover:bg-background" 
+              : "bg-primary/90 backdrop-blur-sm hover:bg-primary shadow-lg"
+            }
+            title={showAR ? "Toon 3D Viewer" : "Toon AR Modus"}
           >
-            <Maximize2 className="h-5 w-5" />
+            {showAR ? <Box className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
           </Button>
         )}
         <button
