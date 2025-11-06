@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { ArrowLeft, Upload as UploadIcon, MapPin, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Upload as UploadIcon, MapPin, Image as ImageIcon, Lock } from 'lucide-react';
 import { z } from 'zod';
 import { ThumbnailGenerator } from '@/components/ThumbnailGenerator';
 import ExifReader from 'exifreader';
@@ -285,7 +285,7 @@ const Upload = () => {
           toast({ 
             title: t('Locatie vergrendeld', 'Location locked'),
             description: t('De locatie is gekoppeld aan het geselecteerde kunstwerk en kan niet worden gewijzigd', 'The location is linked to the selected artwork and cannot be changed'),
-            variant: 'default'
+            variant: 'destructive'
           });
           return;
         }
@@ -319,7 +319,7 @@ const Upload = () => {
 
   // Update map marker when kunstwerk is selected and map is ready
   useEffect(() => {
-    if (!selectedKunstwerk || !mapReady || !latitude || !longitude) return;
+    if (!selectedKunstwerk || !mapReady || latitude == null || longitude == null) return;
     
     const updateMapMarker = async () => {
       const leaflet = await loadLeaflet();
@@ -917,8 +917,9 @@ const Upload = () => {
                     {t('Locatie (klik op de kaart of upload foto met GPS-data)', 'Location (click on the map or upload photo with GPS data)')}
                   </Label>
                   {selectedKunstwerk && (
-                    <p className="text-xs text-muted-foreground p-2 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
-                      🔒 {t('Locatie is vergrendeld en gekoppeld aan het geselecteerde kunstwerk', 'Location is locked and linked to the selected artwork')}
+                    <p className="text-xs text-muted-foreground p-2 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800 flex items-center gap-2">
+                      <Lock className="h-4 w-4" aria-label="Lock icon" />
+                      {t('Locatie is vergrendeld en gekoppeld aan het geselecteerde kunstwerk', 'Location is locked and linked to the selected artwork')}
                     </p>
                   )}
                   <div 
