@@ -319,7 +319,7 @@ const Upload = () => {
 
   // Update map marker when kunstwerk is selected and map is ready
   useEffect(() => {
-    if (!selectedKunstwerk || !mapReady || latitude == null || longitude == null) return;
+    if (!selectedKunstwerk || !mapReady || latitude === null || longitude === null) return;
     
     const updateMapMarker = async () => {
       const leaflet = await loadLeaflet();
@@ -918,7 +918,7 @@ const Upload = () => {
                   </Label>
                   {selectedKunstwerk && (
                     <p className="text-xs text-muted-foreground p-2 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800 flex items-center gap-2">
-                      <Lock className="h-4 w-4" aria-label="Lock icon" />
+                      <Lock className="h-4 w-4" aria-label={t('Vergrendeld', 'Locked')} />
                       {t('Locatie is vergrendeld en gekoppeld aan het geselecteerde kunstwerk', 'Location is locked and linked to the selected artwork')}
                     </p>
                   )}

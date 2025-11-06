@@ -70,6 +70,11 @@ const DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
+// OSM loading configuration
+const OSM_RADII_METERS = [2000, 5000, 15000, 50000, 100000, 200000, 500000]; // Progressive loading: 2km → 500km
+const OSM_LARGE_RADIUS_THRESHOLD = 50000; // 50km - use slower loading above this
+const OSM_BATCH_DELAY_MS = 1000; // 1 second delay between batches
+const OSM_LARGE_BATCH_DELAY_MS = 2000; // 2 seconds delay for large radius batches
 
 const MapView = () => {
   const { t } = useLanguage();
@@ -231,7 +236,7 @@ const MapView = () => {
       }
       
       // Progressive loading: start with closest, then expand radius slowly to 500km
-      const radii = [2000, 5000, 15000, 50000, 100000, 200000, 500000]; // 2km, 5km, 15km, 50km, 100km, 200km, 500km
+      const radii = OSM_RADII_METERS;
       let allStatues: OSMStatue[] = [];
       
       for (const radius of radii) {
@@ -279,7 +284,7 @@ const MapView = () => {
           // Longer delay between batches for progressive loading (slower loading as requested)
           if (radius !== radii[radii.length - 1]) {
             // Increase delay as radius increases to make it slower
-            const delay = radius > 50000 ? 2000 : 1000; // 2 seconds for larger radii
+            const delay = radius > OSM_LARGE_RADIUS_THRESHOLD ? OSM_LARGE_BATCH_DELAY_MS : OSM_BATCH_DELAY_MS;
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         } catch (error) {
