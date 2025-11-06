@@ -276,9 +276,19 @@ const Upload = () => {
         maxZoom: 19,
       }).addTo(map.current);
 
-      // Add click handler to place marker
+      // Add click handler to place marker (only if no kunstwerk is selected)
       map.current.on('click', (e: L.LeafletMouseEvent) => {
         if (!map.current) return;
+        
+        // Prevent location change if kunstwerk is preselected
+        if (selectedKunstwerk) {
+          toast({ 
+            title: t('Locatie vergrendeld', 'Location locked'),
+            description: t('De locatie is gekoppeld aan het geselecteerde kunstwerk en kan niet worden gewijzigd', 'The location is linked to the selected artwork and cannot be changed'),
+            variant: 'default'
+          });
+          return;
+        }
 
         // Remove existing marker if any
         if (marker.current) {
@@ -305,7 +315,28 @@ const Upload = () => {
       map.current = null;
       setMapReady(false);
     };
-  }, [uploadType, manualLocation, toast]);
+  }, [uploadType, manualLocation, toast, selectedKunstwerk, t]);
+
+  // Update map marker when kunstwerk is selected and map is ready
+  useEffect(() => {
+    if (!selectedKunstwerk || !mapReady || !latitude || !longitude) return;
+    
+    const updateMapMarker = async () => {
+      const leaflet = await loadLeaflet();
+      if (map.current) {
+        // Remove existing marker if any
+        if (marker.current) {
+          marker.current.remove();
+        }
+        
+        // Add marker at kunstwerk location
+        marker.current = leaflet.marker([latitude, longitude]).addTo(map.current);
+        map.current.setView([latitude, longitude], 16);
+      }
+    };
+    
+    updateMapMarker();
+  }, [selectedKunstwerk, mapReady, latitude, longitude]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -804,7 +835,14 @@ const Upload = () => {
                   onChange={(e) => setName(e.target.value)}
                   placeholder={t('Bijv: Standbeeld Centrum', 'E.g: City Center Statue')}
                   required
+                  disabled={!!selectedKunstwerk}
+                  className={selectedKunstwerk ? 'bg-muted cursor-not-allowed' : ''}
                 />
+                {selectedKunstwerk && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('Naam is gekoppeld aan het geselecteerde kunstwerk en kan niet worden gewijzigd', 'Name is linked to the selected artwork and cannot be changed')}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -815,7 +853,14 @@ const Upload = () => {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={t('Beschrijf je model...', 'Describe your model...')}
                   rows={4}
+                  disabled={!!selectedKunstwerk}
+                  className={selectedKunstwerk ? 'bg-muted cursor-not-allowed' : ''}
                 />
+                {selectedKunstwerk && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('Beschrijving is gekoppeld aan het geselecteerde kunstwerk en kan niet worden gewijzigd', 'Description is linked to the selected artwork and cannot be changed')}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -871,9 +916,14 @@ const Upload = () => {
                     <MapPin className="h-4 w-4" />
                     {t('Locatie (klik op de kaart of upload foto met GPS-data)', 'Location (click on the map or upload photo with GPS data)')}
                   </Label>
+                  {selectedKunstwerk && (
+                    <p className="text-xs text-muted-foreground p-2 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
+                      🔒 {t('Locatie is vergrendeld en gekoppeld aan het geselecteerde kunstwerk', 'Location is locked and linked to the selected artwork')}
+                    </p>
+                  )}
                   <div 
                     ref={mapContainer} 
-                    className="h-64 w-full rounded-md border relative"
+                    className={`h-64 w-full rounded-md border relative ${selectedKunstwerk ? 'opacity-75 cursor-not-allowed' : ''}`}
                   >
                     {!mapReady && (
                       <div className="absolute inset-0 flex items-center justify-center bg-muted animate-pulse">

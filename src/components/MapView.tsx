@@ -230,8 +230,8 @@ const MapView = () => {
         return;
       }
       
-      // Progressive loading: start with closest, then expand radius
-      const radii = [2000, 5000, 15000, 50000]; // 2km, 5km, 15km, 50km
+      // Progressive loading: start with closest, then expand radius slowly to 500km
+      const radii = [2000, 5000, 15000, 50000, 100000, 200000, 500000]; // 2km, 5km, 15km, 50km, 100km, 200km, 500km
       let allStatues: OSMStatue[] = [];
       
       for (const radius of radii) {
@@ -276,9 +276,11 @@ const MapView = () => {
           // Update map with current batch (progressive rendering)
           setOsmStatues([...allStatues]);
           
-          // Short delay between batches to not overload the API
+          // Longer delay between batches for progressive loading (slower loading as requested)
           if (radius !== radii[radii.length - 1]) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Increase delay as radius increases to make it slower
+            const delay = radius > 50000 ? 2000 : 1000; // 2 seconds for larger radii
+            await new Promise(resolve => setTimeout(resolve, delay));
           }
         } catch (error) {
           console.error(`Error fetching OSM statues at ${radius}m radius:`, error);
