@@ -87,7 +87,7 @@ const MapView = () => {
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showOsmStatues, setShowOsmStatues] = useState(true);
-  const [selectedKunstwerk, setSelectedKunstwerk] = useState<{ kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk, city: 'nijmegen' | 'utrecht' } | null>(null);
+  const [selectedKunstwerk, setSelectedKunstwerk] = useState<{ kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk, city: 'nijmegen' | 'utrecht', model?: Model } | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
   const osmMarkerRef = useRef<L.Marker[]>([]);
@@ -614,11 +614,37 @@ const MapView = () => {
       maxClusterRadius: 80,
     });
 
-    // Add markers for uploaded models
+    // Helper function to check if a model matches a kunstwerk location
+    const isModelAtKunstwerkLocation = (modelLat: number, modelLon: number) => {
+      // Check Nijmegen kunstwerken
+      const matchesNijmegen = nijmegenKunstwerken.some(kunstwerk => {
+        const dx = Math.abs(kunstwerk.lat - modelLat);
+        const dy = Math.abs(kunstwerk.lon - modelLon);
+        return dx < 0.0001 && dy < 0.0001; // ~10m tolerance
+      });
+      
+      if (matchesNijmegen) return true;
+      
+      // Check Utrecht kunstwerken
+      const matchesUtrecht = utrechtKunstwerken.some(kunstwerk => {
+        const dx = Math.abs(kunstwerk.lat - modelLat);
+        const dy = Math.abs(kunstwerk.lon - modelLon);
+        return dx < 0.0001 && dy < 0.0001; // ~10m tolerance
+      });
+      
+      return matchesUtrecht;
+    };
+
+    // Add markers for uploaded models (but skip those that match kunstwerken)
     const DISCOVERY_RADIUS = 50; // meters - discovery range
     
     models.forEach((model) => {
       if (model.latitude && model.longitude && map.current) {
+        // Skip if this model is at a kunstwerk location - it will be shown with the kunstwerk marker
+        if (isModelAtKunstwerkLocation(model.latitude, model.longitude)) {
+          return;
+        }
+        
         // Calculate distance between user and model
         const modelLatLng = L.latLng(model.latitude, model.longitude);
         const userLatLng = L.latLng(userLocation);
@@ -774,13 +800,16 @@ const MapView = () => {
     // Add markers for Nijmegen kunstwerken
     nijmegenKunstwerken.forEach((kunstwerk) => {
       if (map.current) {
-        // Check if a user model already exists at this location
-        const hasUserModel = models.some(model => {
+        // Find matching user model at this location
+        const matchingModel = models.find(model => {
           if (!model.latitude || !model.longitude) return false;
           const dx = Math.abs(model.latitude - kunstwerk.lat);
           const dy = Math.abs(model.longitude - kunstwerk.lon);
           return dx < 0.0001 && dy < 0.0001; // ~10m tolerance
         });
+
+        const hasUserModel = !!matchingModel;
+        const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url;
 
         // Create custom icon for kunstwerken (purple/violet color)
         const kunstwerkIcon = L.divIcon({
@@ -799,11 +828,14 @@ const MapView = () => {
               justify-content: center;
               position: relative;
             ">
-              <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(270, 75%, 60%)" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
-              </svg>
+              ${previewImage 
+                ? `<img src="${previewImage}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML='<svg width=\\'35\\' height=\\'35\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'hsl(270, 75%, 60%)\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\' ry=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg>'"/>`
+                : `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(270, 75%, 60%)" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>`
+              }
               ${hasUserModel ? '<div style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: hsl(140, 75%, 45%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">✓</div>' : ''}
             </div>
           `,
@@ -851,7 +883,8 @@ const MapView = () => {
     // Add Utrecht kunstwerken markers with orange color
     utrechtKunstwerken.forEach((kunstwerk) => {
       if (kunstwerk.lat && kunstwerk.lon) {
-        const hasUserModel = models.some(
+        // Find matching user model at this location
+        const matchingModel = models.find(
           (model) =>
             model.latitude &&
             model.longitude &&
@@ -859,7 +892,9 @@ const MapView = () => {
             Math.abs(model.longitude - kunstwerk.lon) < 0.0001
         );
 
-        const firstPhoto = kunstwerk.photos && kunstwerk.photos.length > 0 ? kunstwerk.photos[0] : null;
+        const hasUserModel = !!matchingModel;
+        // Use model preview if available, otherwise use kunstwerk's first photo
+        const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url || (kunstwerk.photos && kunstwerk.photos.length > 0 ? kunstwerk.photos[0] : null);
         
         const kunstwerkIcon = L.divIcon({
           html: `
@@ -876,8 +911,8 @@ const MapView = () => {
               justify-content: center;
               position: relative;
             ">
-              ${firstPhoto 
-                ? `<img src="${firstPhoto}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML='<svg width=\\'35\\' height=\\'35\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'hsl(25, 95%, 53%)\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\' ry=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg>'"/>`
+              ${previewImage 
+                ? `<img src="${previewImage}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML='<svg width=\\'35\\' height=\\'35\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'hsl(25, 95%, 53%)\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\' ry=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg>'"/>`
                 : `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(25, 95%, 53%)" stroke-width="2">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                     <circle cx="8.5" cy="8.5" r="1.5"/>
@@ -981,7 +1016,15 @@ const MapView = () => {
       }
       
       if (kunstwerk) {
-        setSelectedKunstwerk({ kunstwerk, city });
+        // Find matching model at this location
+        const matchingModel = models.find(model => {
+          if (!model.latitude || !model.longitude) return false;
+          const dx = Math.abs(model.latitude - kunstwerk!.lat);
+          const dy = Math.abs(model.longitude - kunstwerk!.lon);
+          return dx < 0.0001 && dy < 0.0001; // ~10m tolerance
+        });
+        
+        setSelectedKunstwerk({ kunstwerk, city, model: matchingModel });
         // Close any open popups
         if (map.current) {
           map.current.closePopup();
@@ -1000,6 +1043,7 @@ const MapView = () => {
       <KunstwerkViewer 
         kunstwerk={selectedKunstwerk?.kunstwerk ?? null}
         city={selectedKunstwerk?.city ?? 'nijmegen'}
+        model={selectedKunstwerk?.model}
         onClose={() => setSelectedKunstwerk(null)} 
       />
       
