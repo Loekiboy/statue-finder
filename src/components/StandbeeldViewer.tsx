@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+import { USDZExporter } from 'three/examples/jsm/exporters/USDZExporter.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { X, Loader2, View } from 'lucide-react';
+import { X, Loader2, Maximize2, Box } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from './ui/button';
 import '@google/model-viewer';
@@ -24,6 +25,7 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [glbUrl, setGlbUrl] = useState<string | null>(null);
+  const [usdzUrl, setUsdzUrl] = useState<string | null>(null);
   const [showAR, setShowAR] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const meshRef = useRef<THREE.Mesh | null>(null);
@@ -200,9 +202,9 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
         
         scene.add(mesh);
         
-        // Export to GLB for AR viewing on iOS
-        const exporter = new GLTFExporter();
-        exporter.parse(
+        // Export to GLB for general AR viewing
+        const gltfExporter = new GLTFExporter();
+        gltfExporter.parse(
           mesh,
           (gltf) => {
             const blob = new Blob([gltf as ArrayBuffer], { type: 'model/gltf-binary' });
@@ -214,6 +216,16 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
           },
           { binary: true }
         );
+        
+        // Export to USDZ for iOS AR Quick Look
+        const usdzExporter = new USDZExporter();
+        usdzExporter.parse(mesh).then((arrayBuffer) => {
+          const blob = new Blob([arrayBuffer], { type: 'model/vnd.usdz+zip' });
+          const url = URL.createObjectURL(blob);
+          setUsdzUrl(url);
+        }).catch((error) => {
+          console.error('Error exporting USDZ:', error);
+        });
         
         setLoading(false);
         console.log('STL model geladen!');
@@ -258,27 +270,39 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
       }
       renderer.dispose();
       
-      // Cleanup GLB URL
+      // Cleanup URLs
       if (glbUrl) {
         URL.revokeObjectURL(glbUrl);
+      }
+      if (usdzUrl) {
+        URL.revokeObjectURL(usdzUrl);
       }
     };
   }, [modelUrl, autoRotate]);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      {showAR && glbUrl && isIOS ? (
-        <div className="h-full w-full flex items-center justify-center bg-background">
-          <model-viewer
-            src={glbUrl}
-            ar
-            ar-modes="quick-look scene-viewer webxr"
-            camera-controls
-            auto-rotate
-            shadow-intensity="1"
-            ios-src={glbUrl}
-            style={{ width: '100%', height: '100%' }}
-          />
+      {showAR && glbUrl && isIOS && usdzUrl ? (
+        <div className="h-full w-full flex flex-col items-center justify-center bg-background">
+          <div className="h-full w-full">
+            <model-viewer
+              src={glbUrl}
+              ios-src={usdzUrl}
+              ar
+              ar-modes="quick-look scene-viewer webxr"
+              ar-scale="fixed"
+              camera-controls
+              auto-rotate
+              shadow-intensity="1"
+              loading="eager"
+              reveal="auto"
+              style={{ width: '100%', height: '100%' }}
+            />
+          </div>
+          {/* AR Instructions */}
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-primary/90 backdrop-blur-sm text-primary-foreground px-4 py-2 rounded-full text-sm font-medium shadow-lg">
+            Tik op het AR-icoon om in augmented reality te bekijken
+          </div>
         </div>
       ) : (
         <div ref={containerRef} className="h-full w-full bg-gradient-to-br from-background to-muted" />
@@ -295,14 +319,18 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
       )}
       
       <div className="absolute top-4 right-4 z-20 flex gap-2">
-        {isIOS && glbUrl && !loading && (
+        {isIOS && glbUrl && usdzUrl && !loading && (
           <Button
             onClick={() => setShowAR(!showAR)}
-            variant="default"
+            variant={showAR ? "secondary" : "default"}
             size="icon"
-            className="bg-background/80 backdrop-blur-sm hover:bg-background"
+            className={showAR 
+              ? "bg-background/80 backdrop-blur-sm hover:bg-background" 
+              : "bg-primary/90 backdrop-blur-sm hover:bg-primary shadow-lg"
+            }
+            title={showAR ? "Toon 3D Viewer" : "Toon AR Modus"}
           >
-            <View className="h-5 w-5" />
+            {showAR ? <Box className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
           </Button>
         )}
         <button
