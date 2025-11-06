@@ -301,7 +301,7 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
           </div>
           {/* AR Instructions */}
           <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-primary/90 backdrop-blur-sm text-primary-foreground px-4 py-2 rounded-full text-sm font-medium shadow-lg">
-            Tik op het AR icoon om in augmented reality te bekijken
+            Tik op het AR-icoon om in augmented reality te bekijken
           </div>
         </div>
       ) : (
