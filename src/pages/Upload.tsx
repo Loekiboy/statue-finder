@@ -108,6 +108,23 @@ const Upload = () => {
     }
   }, []);
 
+  // Place marker when location is set and map is ready
+  useEffect(() => {
+    if (mapReady && latitude !== null && longitude !== null) {
+      const placeMarker = async () => {
+        const leaflet = await loadLeaflet();
+        if (map.current) {
+          if (marker.current) {
+            marker.current.remove();
+          }
+          marker.current = leaflet.marker([latitude, longitude]).addTo(map.current);
+          map.current.setView([latitude, longitude], 15);
+        }
+      };
+      placeMarker();
+    }
+  }, [mapReady, latitude, longitude]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
@@ -162,22 +179,6 @@ const Upload = () => {
               setLatitude(lat);
               setLongitude(lon);
               setManualLocation(false);
-              
-              // Update map marker if map is ready
-              const updateMapMarker = async () => {
-                const leaflet = await loadLeaflet();
-                if (map.current) {
-                  if (marker.current) {
-                    marker.current.remove();
-                  }
-                  marker.current = leaflet.marker([lat, lon]).addTo(map.current);
-                  map.current.setView([lat, lon], 15);
-                }
-              };
-              
-              if (mapReady) {
-                updateMapMarker();
-              }
               
               toast({ 
                 title: t('Locatie gevonden!', 'Location found!'),
@@ -276,9 +277,19 @@ const Upload = () => {
         maxZoom: 19,
       }).addTo(map.current);
 
-      // Add click handler to place marker
+      // Add click handler to place marker (only if not locked to existing kunstwerk)
       map.current.on('click', (e: L.LeafletMouseEvent) => {
         if (!map.current) return;
+        
+        // Don't allow location changes for existing Nijmegen/Utrecht kunstwerken
+        if (selectedKunstwerk) {
+          toast({ 
+            title: 'Locatie vastgezet', 
+            description: 'Voor bestaande kunstwerken kan de locatie niet worden gewijzigd',
+            variant: 'default'
+          });
+          return;
+        }
 
         // Remove existing marker if any
         if (marker.current) {
@@ -305,7 +316,7 @@ const Upload = () => {
       map.current = null;
       setMapReady(false);
     };
-  }, [uploadType, manualLocation, toast]);
+  }, [uploadType, manualLocation, toast, selectedKunstwerk]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -804,7 +815,14 @@ const Upload = () => {
                   onChange={(e) => setName(e.target.value)}
                   placeholder={t('Bijv: Standbeeld Centrum', 'E.g: City Center Statue')}
                   required
+                  disabled={!!selectedKunstwerk}
+                  className={selectedKunstwerk ? "bg-muted cursor-not-allowed" : ""}
                 />
+                {selectedKunstwerk && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('Naam is vastgezet voor dit kunstwerk', 'Name is locked for this artwork')}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -815,7 +833,14 @@ const Upload = () => {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={t('Beschrijf je model...', 'Describe your model...')}
                   rows={4}
+                  disabled={!!selectedKunstwerk}
+                  className={selectedKunstwerk ? "bg-muted cursor-not-allowed" : ""}
                 />
+                {selectedKunstwerk && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('Beschrijving is vastgezet voor dit kunstwerk', 'Description is locked for this artwork')}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -873,17 +898,32 @@ const Upload = () => {
                   </Label>
                   <div 
                     ref={mapContainer} 
-                    className="h-64 w-full rounded-md border relative"
+                    className={cn(
+                      "h-64 w-full rounded-md border relative",
+                      selectedKunstwerk && "opacity-80"
+                    )}
                   >
                     {!mapReady && (
                       <div className="absolute inset-0 flex items-center justify-center bg-muted animate-pulse">
                         <p className="text-sm text-muted-foreground">Kaart laden...</p>
                       </div>
                     )}
+                    {selectedKunstwerk && (
+                      <div className="absolute inset-0 bg-muted/30 pointer-events-none z-[1000] flex items-center justify-center">
+                        <div className="bg-background/90 px-4 py-2 rounded-md shadow-lg">
+                          <p className="text-sm font-medium">📍 {t('Locatie vastgezet', 'Location locked')}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   {latitude !== null && longitude !== null && (
                     <p className="text-sm text-muted-foreground">
                       {t('Geselecteerd:', 'Selected:')} {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
+                    </p>
+                  )}
+                  {selectedKunstwerk && (
+                    <p className="text-xs text-muted-foreground">
+                      {t('Locatie is vastgezet voor dit kunstwerk', 'Location is locked for this artwork')}
                     </p>
                   )}
                 </div>
@@ -902,17 +942,32 @@ const Upload = () => {
                       </p>
                       <div 
                         ref={mapContainer} 
-                        className="h-64 w-full rounded-md border relative"
+                        className={cn(
+                          "h-64 w-full rounded-md border relative",
+                          selectedKunstwerk && "opacity-80"
+                        )}
                       >
                         {!mapReady && (
                           <div className="absolute inset-0 flex items-center justify-center bg-muted animate-pulse">
                             <p className="text-sm text-muted-foreground">Kaart laden...</p>
                           </div>
                         )}
+                        {selectedKunstwerk && (
+                          <div className="absolute inset-0 bg-muted/30 pointer-events-none z-[1000] flex items-center justify-center">
+                            <div className="bg-background/90 px-4 py-2 rounded-md shadow-lg">
+                              <p className="text-sm font-medium">📍 {t('Locatie vastgezet', 'Location locked')}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       {latitude !== null && longitude !== null && (
                         <p className="text-sm text-muted-foreground">
                           {t('Geselecteerd:', 'Selected:')} {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
+                        </p>
+                      )}
+                      {selectedKunstwerk && (
+                        <p className="text-xs text-muted-foreground">
+                          {t('Locatie is vastgezet voor dit kunstwerk', 'Location is locked for this artwork')}
                         </p>
                       )}
                     </>
@@ -922,15 +977,17 @@ const Upload = () => {
                         <p className="text-sm">
                           📍 {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
                         </p>
-                        <Button 
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-2"
-                          onClick={() => setManualLocation(true)}
-                        >
-                          {t('Locatie handmatig kiezen', 'Choose location manually')}
-                        </Button>
+                        {!selectedKunstwerk && (
+                          <Button 
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => setManualLocation(true)}
+                          >
+                            {t('Locatie handmatig kiezen', 'Choose location manually')}
+                          </Button>
+                        )}
                       </div>
                     )
                   )}
