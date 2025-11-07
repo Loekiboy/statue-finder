@@ -917,9 +917,15 @@ const Upload = () => {
                     )}
                   </div>
                   {latitude !== null && longitude !== null && (
-                    <p className="text-sm text-muted-foreground">
+                    <a
+                      href={`https://www.google.com/maps?q=${latitude},${longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
+                    >
                       {t('Geselecteerd:', 'Selected:')} {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
-                    </p>
+                      <MapPin className="h-3 w-3" />
+                    </a>
                   )}
                   {selectedKunstwerk && (
                     <p className="text-xs text-muted-foreground">
