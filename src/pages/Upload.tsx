@@ -17,6 +17,8 @@ import imageCompression from 'browser-image-compression';
 import type * as L from 'leaflet';
 import { nijmegenKunstwerken } from '@/data/nijmegenKunstwerken';
 import { utrechtKunstwerken } from '@/data/utrechtKunstwerken';
+import { alkmaartKunstwerken } from '@/data/alkmaartKunstwerken';
+import { denhaagKunstwerken } from '@/data/denhaagKunstwerken';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -59,7 +61,7 @@ const Upload = () => {
   const [showSizeWarning, setShowSizeWarning] = useState(false);
   const [largeFileSize, setLargeFileSize] = useState<number>(0);
   const [mapReady, setMapReady] = useState(false);
-  const [selectedKunstwerk, setSelectedKunstwerk] = useState<{id: string, city: 'nijmegen' | 'utrecht'} | null>(null);
+  const [selectedKunstwerk, setSelectedKunstwerk] = useState<{id: string, city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag'} | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -91,6 +93,20 @@ const Upload = () => {
           );
           if (foundUtrechtKunstwerk) {
             setSelectedKunstwerk({ id: foundUtrechtKunstwerk.id, city: 'utrecht' });
+          } else {
+            const foundAlkmaarKunstwerk = alkmaartKunstwerken.find(k => 
+              Math.abs(k.lat - lat) < threshold && Math.abs(k.lon - lon) < threshold
+            );
+            if (foundAlkmaarKunstwerk) {
+              setSelectedKunstwerk({ id: foundAlkmaarKunstwerk.id, city: 'alkmaar' });
+            } else {
+              const foundDenHaagKunstwerk = denhaagKunstwerken.find(k => 
+                Math.abs(k.lat - lat) < threshold && Math.abs(k.lon - lon) < threshold
+              );
+              if (foundDenHaagKunstwerk) {
+                setSelectedKunstwerk({ id: foundDenHaagKunstwerk.id, city: 'denhaag' });
+              }
+            }
           }
         }
         
@@ -711,9 +727,16 @@ const Upload = () => {
                     >
                       {selectedKunstwerk 
                         ? (() => {
-                            const kunstwerk = selectedKunstwerk.city === 'nijmegen'
-                              ? nijmegenKunstwerken.find(k => k.id === selectedKunstwerk.id)
-                              : utrechtKunstwerken.find(k => k.id === selectedKunstwerk.id);
+                            let kunstwerk;
+                            if (selectedKunstwerk.city === 'nijmegen') {
+                              kunstwerk = nijmegenKunstwerken.find(k => k.id === selectedKunstwerk.id);
+                            } else if (selectedKunstwerk.city === 'utrecht') {
+                              kunstwerk = utrechtKunstwerken.find(k => k.id === selectedKunstwerk.id);
+                            } else if (selectedKunstwerk.city === 'alkmaar') {
+                              kunstwerk = alkmaartKunstwerken.find(k => k.id === selectedKunstwerk.id);
+                            } else {
+                              kunstwerk = denhaagKunstwerken.find(k => k.id === selectedKunstwerk.id);
+                            }
                             return kunstwerk ? `${kunstwerk.name} - ${kunstwerk.artist}` : t('Selecteer een kunstwerk...', 'Select an artwork...');
                           })()
                         : t('Selecteer een kunstwerk...', 'Select an artwork...')
@@ -798,12 +821,64 @@ const Upload = () => {
                             </CommandItem>
                           ))}
                         </CommandGroup>
+                        <CommandGroup heading="Alkmaar">
+                          {alkmaartKunstwerken.map(kunstwerk => (
+                            <CommandItem
+                              key={`alkmaar-${kunstwerk.id}`}
+                              value={`alkmaar-${kunstwerk.id} ${kunstwerk.name} ${kunstwerk.artist}`}
+                              onSelect={() => {
+                                setSelectedKunstwerk({ id: kunstwerk.id, city: 'alkmaar' });
+                                setName(kunstwerk.name);
+                                setDescription(kunstwerk.description || '');
+                                setLatitude(kunstwerk.lat);
+                                setLongitude(kunstwerk.lon);
+                                setManualLocation(true);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedKunstwerk?.city === 'alkmaar' && selectedKunstwerk?.id === kunstwerk.id
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              {kunstwerk.name} - {kunstwerk.artist}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                        <CommandGroup heading="Den Haag">
+                          {denhaagKunstwerken.map(kunstwerk => (
+                            <CommandItem
+                              key={`denhaag-${kunstwerk.id}`}
+                              value={`denhaag-${kunstwerk.id} ${kunstwerk.name} ${kunstwerk.artist}`}
+                              onSelect={() => {
+                                setSelectedKunstwerk({ id: kunstwerk.id, city: 'denhaag' });
+                                setName(kunstwerk.name);
+                                setDescription(kunstwerk.description || '');
+                                setLatitude(kunstwerk.lat);
+                                setLongitude(kunstwerk.lon);
+                                setManualLocation(true);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedKunstwerk?.city === 'denhaag' && selectedKunstwerk?.id === kunstwerk.id
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              {kunstwerk.name} - {kunstwerk.artist}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
                       </CommandList>
                     </Command>
                   </PopoverContent>
                 </Popover>
                 <p className="text-xs text-muted-foreground">
-                  {t('Upload een foto of model voor een bestaand kunstwerk uit Amsterdam, Nijmegen of Utrecht', 'Upload a photo or model for an existing artwork from Amsterdam, Nijmegen or Utrecht')}
+                  {t('Upload een foto of model voor een bestaand kunstwerk uit Nijmegen, Utrecht, Alkmaar of Den Haag', 'Upload a photo or model for an existing artwork from Nijmegen, Utrecht, Alkmaar or Den Haag')}
                 </p>
               </div>
 

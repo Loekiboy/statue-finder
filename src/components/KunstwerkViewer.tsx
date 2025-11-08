@@ -3,6 +3,8 @@ import { Button } from './ui/button';
 import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box } from 'lucide-react';
 import { NijmegenKunstwerk } from '@/data/nijmegenKunstwerken';
 import { UtrechtKunstwerk } from '@/data/utrechtKunstwerken';
+import { AlkmaarKunstwerk } from '@/data/alkmaartKunstwerken';
+import { DenHaagKunstwerk } from '@/data/denhaagKunstwerken';
 import { useState } from 'react';
 import QuickUploadDialog from './QuickUploadDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -21,8 +23,8 @@ interface Model {
 }
 
 interface KunstwerkViewerProps {
-  kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | null;
-  city: 'nijmegen' | 'utrecht';
+  kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | null;
+  city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag';
   model?: Model;
   onClose: () => void;
 }
@@ -45,10 +47,16 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
     photos.push(model.photo_url);
   }
   
-  // Show photos for Utrecht
+  // Show photos for Utrecht, Alkmaar, and Den Haag
   if (city === 'utrecht') {
     const utrechtKunstwerk = kunstwerk as UtrechtKunstwerk;
     photos.push(...utrechtKunstwerk.photos);
+  } else if (city === 'alkmaar') {
+    const alkmaarKunstwerk = kunstwerk as AlkmaarKunstwerk;
+    photos.push(...alkmaarKunstwerk.photos);
+  } else if (city === 'denhaag') {
+    const denhaagKunstwerk = kunstwerk as DenHaagKunstwerk;
+    photos.push(...denhaagKunstwerk.photos);
   }
 
   const hasPhotos = photos.length > 0;
@@ -65,6 +73,10 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   
   const description = city === 'utrecht' 
     ? (kunstwerk as UtrechtKunstwerk).description 
+    : city === 'alkmaar'
+    ? (kunstwerk as AlkmaarKunstwerk).description
+    : city === 'denhaag'
+    ? (kunstwerk as DenHaagKunstwerk).description
     : (kunstwerk as NijmegenKunstwerk).description || '';
   
   const websiteUrl = city === 'nijmegen' 
