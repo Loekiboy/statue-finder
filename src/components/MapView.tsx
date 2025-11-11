@@ -95,6 +95,7 @@ const MapView = () => {
   const osmMarkerRef = useRef<L.Marker[]>([]);
   const kunstwerkMarkersRef = useRef<L.Marker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const wmsLayerRef = useRef<L.TileLayer.WMS | null>(null);
   const accuracyCircleRef = useRef<L.Circle | null>(null);
   const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
 
@@ -546,6 +547,14 @@ const MapView = () => {
       maxZoom: 19,
       // Gebruik browser cache voor tiles
       crossOrigin: true,
+    }).addTo(map.current);
+
+    // Add Drenthe WMS layer for provincial road artworks
+    wmsLayerRef.current = L.tileLayer.wms('https://kaartportaal.drenthe.nl/server/services/GDB_actueel/GBI_WK_KUNST_PROVWEGEN_P/MapServer/WMSServer', {
+      layers: '0',
+      format: 'image/png',
+      transparent: true,
+      attribution: '&copy; Provincie Drenthe'
     }).addTo(map.current);
 
     // Create custom icon for user location (blue)
