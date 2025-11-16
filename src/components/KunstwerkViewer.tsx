@@ -23,8 +23,8 @@ interface Model {
 }
 
 interface KunstwerkViewerProps {
-  kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | null;
-  city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag';
+  kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | any | null;
+  city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'drenthe';
   model?: Model;
   onClose: () => void;
 }
