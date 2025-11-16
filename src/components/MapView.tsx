@@ -89,13 +89,13 @@ const MapView = () => {
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showOsmStatues, setShowOsmStatues] = useState(true);
-  const [selectedKunstwerk, setSelectedKunstwerk] = useState<{ kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk, city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag', model?: Model } | null>(null);
+  const [selectedKunstwerk, setSelectedKunstwerk] = useState<{ kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | any, city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'drenthe', model?: Model } | null>(null);
+  const [drentheKunstwerken, setDrentheKunstwerken] = useState<any[]>([]);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
   const osmMarkerRef = useRef<L.Marker[]>([]);
   const kunstwerkMarkersRef = useRef<L.Marker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
-  const wmsLayerRef = useRef<L.TileLayer.WMS | null>(null);
   const accuracyCircleRef = useRef<L.Circle | null>(null);
   const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
 
@@ -363,6 +363,34 @@ const MapView = () => {
     return () => clearTimeout(timer);
   }, [userLocation, models]);
 
+  // Load Drenthe kunstwerken
+  const loadDrentheKunstwerken = async () => {
+    try {
+      const response = await fetch(
+        'https://kaartportaal.drenthe.nl/server/rest/services/GDB_actueel/GBI_WK_KUNST_PROVWEGEN_P/MapServer/0/query?where=1%3D1&outFields=*&f=geojson'
+      );
+      const data = await response.json();
+      
+      const kunstwerken = data.features.map((feature: any) => ({
+        id: `drenthe-${feature.properties.OBJECTID || feature.properties.FID || Math.random()}`,
+        name: feature.properties.NAAM || feature.properties.Naam || 'Onbekend kunstwerk',
+        artist: feature.properties.KUNSTENAAR || feature.properties.Kunstenaar || '',
+        location: feature.properties.LOCATIE || feature.properties.Locatie || '',
+        description: feature.properties.OMSCHRIJVING || feature.properties.Omschrijving || '',
+        year: feature.properties.JAAR || feature.properties.Jaar || '',
+        material: feature.properties.MATERIAAL || feature.properties.Materiaal || '',
+        lat: feature.geometry.coordinates[1],
+        lon: feature.geometry.coordinates[0],
+        photos: []
+      }));
+      
+      setDrentheKunstwerken(kunstwerken);
+      console.log(`Loaded ${kunstwerken.length} Drenthe kunstwerken`);
+    } catch (error) {
+      console.error('Error loading Drenthe kunstwerken:', error);
+    }
+  };
+
   // Load last known location from profile
   useEffect(() => {
     const loadLastKnownLocation = async () => {
@@ -374,17 +402,18 @@ const MapView = () => {
           .eq('user_id', user.id)
           .single();
         
-        if (data?.last_known_latitude && data?.last_known_longitude) {
-          const lastKnownLocation: [number, number] = [data.last_known_latitude, data.last_known_longitude];
-          setUserLocation(lastKnownLocation);
-          if (!initialLocation) {
-            setInitialLocation(lastKnownLocation);
-          }
+        if (data && data.last_known_latitude && data.last_known_longitude) {
+          const lastKnownLocation: [number, number] = [
+            data.last_known_latitude,
+            data.last_known_longitude
+          ];
+          setInitialLocation(lastKnownLocation);
         }
       }
     };
     
     loadLastKnownLocation();
+    loadDrentheKunstwerken();
   }, []);
 
   useEffect(() => {
@@ -547,14 +576,6 @@ const MapView = () => {
       maxZoom: 19,
       // Gebruik browser cache voor tiles
       crossOrigin: true,
-    }).addTo(map.current);
-
-    // Add Drenthe WMS layer for provincial road artworks
-    wmsLayerRef.current = L.tileLayer.wms('https://kaartportaal.drenthe.nl/server/services/GDB_actueel/GBI_WK_KUNST_PROVWEGEN_P/MapServer/WMSServer', {
-      layers: '0',
-      format: 'image/png',
-      transparent: true,
-      attribution: '&copy; Provincie Drenthe'
     }).addTo(map.current);
 
     // Create custom icon for user location (blue)
@@ -1086,33 +1107,28 @@ const MapView = () => {
             Math.abs(model.longitude - kunstwerk.lon) < 0.0001
         );
 
-        const hasUserModel = !!matchingModel;
-        const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url || (kunstwerk.photos && kunstwerk.photos.length > 0 ? kunstwerk.photos[0] : null);
-        
+        const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url || (kunstwerk.photos && kunstwerk.photos[0]);
+
         const kunstwerkIcon = L.divIcon({
+          className: 'custom-marker-kunstwerk',
           html: `
             <div style="
               width: 70px;
               height: 70px;
-              border-radius: 12px;
-              background-color: white;
-              border: 4px solid hsl(217, 91%, 60%);
-              box-shadow: 0 4px 14px rgba(0,0,0,0.4);
-              overflow: hidden;
+              background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+              border-radius: 50%;
               display: flex;
               align-items: center;
               justify-content: center;
-              position: relative;
+              color: white;
+              font-weight: bold;
+              font-size: 11px;
+              box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+              border: 3px solid white;
+              cursor: pointer;
+              ${previewImage ? `background-image: url('${previewImage}'); background-size: cover; background-position: center;` : ''}
             ">
-              ${previewImage 
-                ? `<img src="${previewImage}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML='<svg width=\\'35\\' height=\\'35\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'hsl(217, 91%, 60%)\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\' ry=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg>'"/>`
-                : `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(217, 91%, 60%)" stroke-width="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <polyline points="21 15 16 10 5 21"/>
-                  </svg>`
-              }
-              ${hasUserModel ? '<div style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: hsl(140, 75%, 45%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">✓</div>' : ''}
+              ${!previewImage ? '🎨' : ''}
             </div>
           `,
           iconSize: [70, 70],
@@ -1124,27 +1140,74 @@ const MapView = () => {
             <div style="text-align: center; min-width: 200px;">
               <h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 16px;">${kunstwerk.name}</h3>
               <p style="margin: 4px 0; font-size: 13px; color: #6b7280;">${kunstwerk.artist}</p>
-              <p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">📍 ${kunstwerk.location}</p>
-              ${kunstwerk.year ? `<p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">🗓️ ${kunstwerk.year}</p>` : ''}
-              ${hasUserModel ? `<p style="margin: 8px 0; color: hsl(140, 75%, 45%); font-weight: 500;">✓ ${t('Er is een 3D model beschikbaar', 'A 3D model is available')}</p>` : ''}
+              <p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">${kunstwerk.location}</p>
               <button 
-                onclick="window.openKunstwerk('${kunstwerk.id}', 'denhaag')"
-                style="
-                  background: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(217, 81%, 50%) 100%);
-                  color: white;
-                  border: none;
-                  padding: 10px 20px;
-                  border-radius: 8px;
-                  cursor: pointer;
-                  font-weight: 600;
-                  width: 100%;
-                  margin-top: 8px;
-                  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-                "
-                onmouseover="this.style.background='linear-gradient(135deg, hsl(217, 81%, 50%) 0%, hsl(217, 71%, 40%) 100%)'"
-                onmouseout="this.style.background='linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(217, 81%, 50%) 100%)'"
+                onclick="window.viewKunstwerkDetails('denhaag', '${kunstwerk.id}')" 
+                style="margin-top: 8px; padding: 6px 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;"
               >
-                🎨 ${t('Bekijk Details', 'View Details')}
+                ${t('Bekijk details', 'View details')}
+              </button>
+            </div>
+          `, {
+            maxWidth: 250,
+            className: 'kunstwerk-popup'
+          });
+
+        markerClusterGroupRef.current?.addLayer(kunstwerkMarker);
+        kunstwerkMarkersRef.current.push(kunstwerkMarker);
+      }
+    });
+
+    // Add Drenthe kunstwerken markers with red color
+    drentheKunstwerken.forEach((kunstwerk) => {
+      if (kunstwerk.lat && kunstwerk.lon) {
+        const matchingModel = models.find(
+          (model) =>
+            model.latitude &&
+            model.longitude &&
+            Math.abs(model.latitude - kunstwerk.lat) < 0.0001 &&
+            Math.abs(model.longitude - kunstwerk.lon) < 0.0001
+        );
+
+        const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url;
+
+        const kunstwerkIcon = L.divIcon({
+          className: 'custom-marker-kunstwerk',
+          html: `
+            <div style="
+              width: 70px;
+              height: 70px;
+              background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-weight: bold;
+              font-size: 11px;
+              box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+              border: 3px solid white;
+              cursor: pointer;
+              ${previewImage ? `background-image: url('${previewImage}'); background-size: cover; background-position: center;` : ''}
+            ">
+              ${!previewImage ? '🎨' : ''}
+            </div>
+          `,
+          iconSize: [70, 70],
+          iconAnchor: [35, 35],
+        });
+
+        const kunstwerkMarker = L.marker([kunstwerk.lat, kunstwerk.lon], { icon: kunstwerkIcon })
+          .bindPopup(`
+            <div style="text-align: center; min-width: 200px;">
+              <h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 16px;">${kunstwerk.name}</h3>
+              <p style="margin: 4px 0; font-size: 13px; color: #6b7280;">${kunstwerk.artist}</p>
+              <p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">${kunstwerk.location}</p>
+              <button 
+                onclick="window.viewKunstwerkDetails('drenthe', '${kunstwerk.id}')" 
+                style="margin-top: 8px; padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;"
+              >
+                ${t('Bekijk details', 'View details')}
               </button>
             </div>
           `, {
@@ -1199,8 +1262,8 @@ const MapView = () => {
       window.location.href = '/upload';
     };
     
-    (window as any).openKunstwerk = (id: string, city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag') => {
-      let kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | undefined;
+    (window as any).openKunstwerk = (id: string, city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'drenthe') => {
+      let kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | any | undefined;
       
       if (city === 'nijmegen') {
         kunstwerk = nijmegenKunstwerken.find(k => k.id === id);
@@ -1210,6 +1273,8 @@ const MapView = () => {
         kunstwerk = alkmaartKunstwerken.find(k => k.id === id);
       } else if (city === 'denhaag') {
         kunstwerk = denhaagKunstwerken.find(k => k.id === id);
+      } else if (city === 'drenthe') {
+        kunstwerk = drentheKunstwerken.find(k => k.id === id);
       }
       
       if (kunstwerk) {
@@ -1229,9 +1294,14 @@ const MapView = () => {
       }
     };
     
+    (window as any).viewKunstwerkDetails = (city: string, id: string) => {
+      (window as any).openKunstwerk(id, city);
+    };
+    
     return () => {
       delete (window as any).uploadStatue;
       delete (window as any).openKunstwerk;
+      delete (window as any).viewKunstwerkDetails;
     };
   }, []);
 
