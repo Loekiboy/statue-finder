@@ -91,6 +91,7 @@ const MapView = () => {
   const [showOsmStatues, setShowOsmStatues] = useState(true);
   const [selectedKunstwerk, setSelectedKunstwerk] = useState<{ kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | any, city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'drenthe', model?: Model } | null>(null);
   const [drentheKunstwerken, setDrentheKunstwerken] = useState<any[]>([]);
+  const [uploadedModels, setUploadedModels] = useState<any[]>([]);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const modelMarkersRef = useRef<L.Marker[]>([]);
   const osmMarkerRef = useRef<L.Marker[]>([]);
@@ -414,6 +415,22 @@ const MapView = () => {
     
     loadLastKnownLocation();
     loadDrentheKunstwerken();
+    
+    // Load uploaded models
+    const loadUploadedModels = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('models')
+          .select('*');
+        
+        if (error) throw error;
+        setUploadedModels(data || []);
+      } catch (error) {
+        console.error('Error loading uploaded models:', error);
+      }
+    };
+    
+    loadUploadedModels();
   }, []);
 
   useEffect(() => {
@@ -1303,7 +1320,7 @@ const MapView = () => {
       delete (window as any).openKunstwerk;
       delete (window as any).viewKunstwerkDetails;
     };
-  }, []);
+  }, [nijmegenKunstwerken, utrechtKunstwerken, alkmaartKunstwerken, denhaagKunstwerken, drentheKunstwerken, models]);
 
   return (
     <div className="relative h-screen w-full">

@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin } from 'lucide-react';
 import { NijmegenKunstwerk } from '@/data/nijmegenKunstwerken';
 import { UtrechtKunstwerk } from '@/data/utrechtKunstwerken';
 import { AlkmaarKunstwerk } from '@/data/alkmaartKunstwerken';
@@ -84,6 +84,12 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
     : null;
     
   const credits = city === 'nijmegen' ? (kunstwerk as NijmegenKunstwerk).credits : null;
+  
+  const openInGoogleMaps = () => {
+    if (kunstwerk.lat && kunstwerk.lon) {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${kunstwerk.lat},${kunstwerk.lon}`, '_blank');
+    }
+  };
 
   return (
     <Dialog open={!!kunstwerk} onOpenChange={onClose}>
@@ -134,6 +140,17 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
             <div>
               <h3 className="font-semibold text-sm text-muted-foreground">Locatie</h3>
               <p className="text-base">{kunstwerk.location}</p>
+              {kunstwerk.lat && kunstwerk.lon && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openInGoogleMaps}
+                  className="gap-2 mt-2"
+                >
+                  <MapPin className="w-4 h-4" />
+                  {t('Open in Google Maps', 'Open in Google Maps')}
+                </Button>
+              )}
             </div>
             
             {description && (
