@@ -20,6 +20,14 @@ interface Model {
   longitude: number | null;
   thumbnail_url: string | null;
   photo_url: string | null;
+  artist?: string | null;
+  year?: string | null;
+  materials?: string | null;
+  credits?: string | null;
+  website_url?: string | null;
+  source_city?: string | null;
+  source_id?: string | null;
+  is_municipal?: boolean;
 }
 
 interface KunstwerkViewerProps {
@@ -47,7 +55,7 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
     photos.push(model.photo_url);
   }
   
-  // Show photos for Utrecht, Alkmaar, and Den Haag
+  // Add kunstwerk photos for specific cities
   if (city === 'utrecht') {
     const utrechtKunstwerk = kunstwerk as UtrechtKunstwerk;
     photos.push(...utrechtKunstwerk.photos);
@@ -71,19 +79,18 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
     setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
   };
   
-  const description = city === 'utrecht' 
-    ? (kunstwerk as UtrechtKunstwerk).description 
-    : city === 'alkmaar'
-    ? (kunstwerk as AlkmaarKunstwerk).description
-    : city === 'denhaag'
-    ? (kunstwerk as DenHaagKunstwerk).description
-    : (kunstwerk as NijmegenKunstwerk).description || '';
+  // Get description, artist, and other details
+  const description = kunstwerk.description || '';
+  const artist = kunstwerk.artist || 'Onbekende kunstenaar';
+  const location = kunstwerk.location || `${kunstwerk.latitude?.toFixed(6)}, ${kunstwerk.longitude?.toFixed(6)}`;
   
   const websiteUrl = city === 'nijmegen' 
     ? (kunstwerk as NijmegenKunstwerk).websiteUrl 
     : null;
     
-  const credits = city === 'nijmegen' ? (kunstwerk as NijmegenKunstwerk).credits : null;
+  const credits = kunstwerk.credits || (city === 'nijmegen' ? (kunstwerk as NijmegenKunstwerk).credits : null);
+  const year = kunstwerk.year || null;
+  const materials = kunstwerk.materials || null;
   
   const openInGoogleMaps = () => {
     if (kunstwerk.lat && kunstwerk.lon) {
@@ -134,12 +141,12 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
           <div className="space-y-3">
             <div>
               <h3 className="font-semibold text-sm text-muted-foreground">Kunstenaar</h3>
-              <p className="text-base">{kunstwerk.artist}</p>
+              <p className="text-base">{artist}</p>
             </div>
             
             <div>
               <h3 className="font-semibold text-sm text-muted-foreground">Locatie</h3>
-              <p className="text-base">{kunstwerk.location}</p>
+              <p className="text-base">{location}</p>
               {kunstwerk.lat && kunstwerk.lon && (
                 <Button
                   variant="outline"
@@ -152,6 +159,20 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                 </Button>
               )}
             </div>
+            
+            {year && (
+              <div>
+                <h3 className="font-semibold text-sm text-muted-foreground">Jaar</h3>
+                <p className="text-base">{year}</p>
+              </div>
+            )}
+            
+            {materials && (
+              <div>
+                <h3 className="font-semibold text-sm text-muted-foreground">Materiaal</h3>
+                <p className="text-base">{materials}</p>
+              </div>
+            )}
             
             {description && (
               <div>

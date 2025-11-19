@@ -23,6 +23,7 @@ import { nijmegenKunstwerken, NijmegenKunstwerk } from '@/data/nijmegenKunstwerk
 import { utrechtKunstwerken, UtrechtKunstwerk } from '@/data/utrechtKunstwerken';
 import { alkmaartKunstwerken, AlkmaarKunstwerk } from '@/data/alkmaartKunstwerken';
 import { denhaagKunstwerken, DenHaagKunstwerk } from '@/data/denhaagKunstwerken';
+import { importMunicipalArtworks, importDrentheArtworks } from '@/lib/importMunicipalArtworks';
 
 interface Model {
   id: string;
@@ -33,6 +34,14 @@ interface Model {
   longitude: number | null;
   thumbnail_url: string | null;
   photo_url: string | null;
+  artist?: string | null;
+  year?: string | null;
+  materials?: string | null;
+  credits?: string | null;
+  website_url?: string | null;
+  source_city?: string | null;
+  source_id?: string | null;
+  is_municipal?: boolean;
 }
 
 interface OSMStatue {
@@ -132,9 +141,14 @@ const MapView = () => {
     fetchDiscoveredModels();
   }, [user]);
 
-  // Fetch models from database
+  // Import municipal artworks and fetch models from database
   useEffect(() => {
-    const fetchModels = async () => {
+    const initModels = async () => {
+      // Import municipal artworks first (only if they don't exist)
+      await importMunicipalArtworks();
+      await importDrentheArtworks();
+      
+      // Then fetch all models (municipal + user uploaded)
       const { data, error } = await supabase
         .from('models')
         .select('*')
@@ -148,8 +162,8 @@ const MapView = () => {
       
       setModels(data || []);
     };
-    
-    fetchModels();
+
+    initModels();
     clearOldCaches(); // Ruim oude caches op bij opstarten
   }, []);
 
