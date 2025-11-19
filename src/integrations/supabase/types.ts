@@ -52,43 +52,67 @@ export type Database = {
       }
       models: {
         Row: {
+          artist: string | null
           created_at: string
+          credits: string | null
           description: string | null
           file_path: string
           id: string
+          is_municipal: boolean | null
           latitude: number | null
           longitude: number | null
+          materials: string | null
           name: string
           photo_url: string | null
+          source_city: string | null
+          source_id: string | null
           thumbnail_url: string | null
           updated_at: string
           user_id: string
+          website_url: string | null
+          year: string | null
         }
         Insert: {
+          artist?: string | null
           created_at?: string
+          credits?: string | null
           description?: string | null
           file_path: string
           id?: string
+          is_municipal?: boolean | null
           latitude?: number | null
           longitude?: number | null
+          materials?: string | null
           name: string
           photo_url?: string | null
+          source_city?: string | null
+          source_id?: string | null
           thumbnail_url?: string | null
           updated_at?: string
           user_id: string
+          website_url?: string | null
+          year?: string | null
         }
         Update: {
+          artist?: string | null
           created_at?: string
+          credits?: string | null
           description?: string | null
           file_path?: string
           id?: string
+          is_municipal?: boolean | null
           latitude?: number | null
           longitude?: number | null
+          materials?: string | null
           name?: string
           photo_url?: string | null
+          source_city?: string | null
+          source_id?: string | null
           thumbnail_url?: string | null
           updated_at?: string
           user_id?: string
+          website_url?: string | null
+          year?: string | null
         }
         Relationships: []
       }
