@@ -223,7 +223,8 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                     if (!model.file_path && model.photo_url) {
                       setShowPhotoViewer(true);
                     } else {
-                      setShow3DViewer(true);
+                      onClose(); // Close the dialog first to prevent event conflicts
+                      setTimeout(() => setShow3DViewer(true), 100); // Small delay to ensure dialog is closed
                     }
                   }}
                   className="gap-2 flex-1"
@@ -254,12 +255,14 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
         longitude={kunstwerk.lon}
       />
       
-      {show3DViewer && model && (
+      {show3DViewer && model && kunstwerk && (
         <div className="fixed inset-0 z-[10000] bg-background flex flex-col">
           <div className="bg-background/98 backdrop-blur-sm border-b border-border p-3 md:p-4 flex-shrink-0">
             <div className="flex items-start gap-3">
               <Button 
-                onClick={() => setShow3DViewer(false)} 
+                onClick={() => {
+                  setShow3DViewer(false);
+                }} 
                 variant="default"
                 size="lg"
                 className="shrink-0"
@@ -277,8 +280,11 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
           
           <div className="flex-1 overflow-hidden">
             <StandbeeldViewer 
-              onClose={() => setShow3DViewer(false)}
-              modelPath={model.file_path} 
+              onClose={() => {
+                setShow3DViewer(false);
+              }}
+              modelPath={model.file_path}
+              autoRotate={true}
             />
           </div>
         </div>
