@@ -1343,12 +1343,14 @@ const MapView = () => {
 
   return (
     <div className="relative h-screen w-full">
-      <KunstwerkViewer 
-        kunstwerk={selectedKunstwerk?.kunstwerk ?? null}
-        city={selectedKunstwerk?.city ?? 'nijmegen'}
-        model={selectedKunstwerk?.model}
-        onClose={() => setSelectedKunstwerk(null)} 
-      />
+      {selectedKunstwerk && (
+        <KunstwerkViewer 
+          kunstwerk={selectedKunstwerk.kunstwerk}
+          city={selectedKunstwerk.city}
+          model={selectedKunstwerk.model}
+          onClose={() => setSelectedKunstwerk(null)} 
+        />
+      )}
       
       {showConfetti && (
         <div className="fixed inset-0 z-50 pointer-events-none">
@@ -1412,7 +1414,7 @@ const MapView = () => {
             />
           </div>
         </div>
-      ) : (
+      ) : !selectedKunstwerk ? (
         <>
           <div ref={mapContainer} className="absolute inset-0 pb-16 md:pb-0" />
           
@@ -1429,7 +1431,7 @@ const MapView = () => {
             </p>
           </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 };
