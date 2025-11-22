@@ -1,6 +1,5 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X } from 'lucide-react';
 import { NijmegenKunstwerk } from '@/data/nijmegenKunstwerken';
 import { UtrechtKunstwerk } from '@/data/utrechtKunstwerken';
 import { AlkmaarKunstwerk } from '@/data/alkmaartKunstwerken';
@@ -93,170 +92,181 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   const materials = kunstwerk.materials || null;
   
   const openInGoogleMaps = () => {
-    if (kunstwerk.lat && kunstwerk.lon) {
-      window.open(`https://www.google.com/maps/search/?api=1&query=${kunstwerk.lat},${kunstwerk.lon}`, '_blank');
+    const lat = kunstwerk.lat || kunstwerk.latitude || model?.latitude;
+    const lon = kunstwerk.lon || kunstwerk.longitude || model?.longitude;
+    if (lat && lon) {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
     }
   };
 
+  const hasCoordinates = !!(kunstwerk.lat || kunstwerk.latitude || model?.latitude);
+
   return (
-    <Dialog open={!!kunstwerk} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto z-[9999]">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">{kunstwerk.name}</DialogTitle>
-        </DialogHeader>
-        
-        <div className="space-y-4">
-          {hasPhotos && currentPhoto && (
-            <div className="relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center" style={{ minHeight: '300px' }}>
-              <img 
-                src={currentPhoto} 
-                alt={kunstwerk.name}
-                className="max-w-full max-h-[500px] object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-              {photos.length > 1 && (
-                <>
-                  <button
-                    onClick={prevPhoto}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
-                  >
-                    <ChevronLeft className="w-6 h-6" />
-                  </button>
-                  <button
-                    onClick={nextPhoto}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
-                  >
-                    <ChevronRight className="w-6 h-6" />
-                  </button>
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
-                    {currentPhotoIndex + 1} / {photos.length}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-          
-          <div className="space-y-3">
-            <div>
-              <h3 className="font-semibold text-sm text-muted-foreground">Kunstenaar</h3>
-              <p className="text-base">{artist}</p>
-            </div>
-            
-            <div>
-              <h3 className="font-semibold text-sm text-muted-foreground">Locatie</h3>
-              <p className="text-base">{location}</p>
-              {kunstwerk.lat && kunstwerk.lon && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={openInGoogleMaps}
-                  className="gap-2 mt-2"
-                >
-                  <MapPin className="w-4 h-4" />
-                  {t('Open in Google Maps', 'Open in Google Maps')}
-                </Button>
-              )}
-            </div>
-            
-            {year && (
-              <div>
-                <h3 className="font-semibold text-sm text-muted-foreground">Jaar</h3>
-                <p className="text-base">{year}</p>
-              </div>
-            )}
-            
-            {materials && (
-              <div>
-                <h3 className="font-semibold text-sm text-muted-foreground">Materiaal</h3>
-                <p className="text-base">{materials}</p>
-              </div>
-            )}
-            
-            {description && (
-              <div>
-                <h3 className="font-semibold text-sm text-muted-foreground">Beschrijving</h3>
-                <div 
-                  className="text-sm leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: description }}
-                />
-              </div>
-            )}
-            
-            {credits && (
-              <div>
-                <h3 className="font-semibold text-sm text-muted-foreground">Eigendom van</h3>
-                <p className="text-base">{credits}</p>
-              </div>
-            )}
-            
-            {model && (
-              <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                <div className="flex items-center gap-2 text-green-700 dark:text-green-300 font-medium">
-                  <Box className="w-5 h-5" />
-                  <span>{t('Er is een 3D model beschikbaar', 'A 3D model is available')}</span>
-                </div>
-              </div>
-            )}
-            
-            {websiteUrl && (
-              <div className="pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.open(websiteUrl!, '_blank')}
-                  className="gap-2"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  Meer informatie
-                </Button>
-              </div>
-            )}
-            
-            <div className="pt-2 flex gap-2">
-              {has3DModel && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => {
-                    if (!model.file_path && model.photo_url) {
-                      setShowPhotoViewer(true);
-                    } else {
-                      onClose(); // Close the dialog first to prevent event conflicts
-                      setTimeout(() => setShow3DViewer(true), 100); // Small delay to ensure dialog is closed
-                    }
-                  }}
-                  className="gap-2 flex-1"
-                >
-                  <Box className="w-4 h-4" />
-                  {t('Bekijk 3D Model', 'View 3D Model')}
-                </Button>
-              )}
-              <Button
-                variant={has3DModel ? "outline" : "default"}
-                size="sm"
-                onClick={() => setShowUploadDialog(true)}
-                className="gap-2 flex-1"
-              >
-                <Upload className="w-4 h-4" />
-                {t('Upload foto/model', 'Upload photo/model')}
-              </Button>
+    <>
+      <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        <div className="bg-background/98 backdrop-blur-sm border-b border-border p-3 md:p-4 flex-shrink-0">
+          <div className="flex items-start gap-3">
+            <Button 
+              onClick={onClose} 
+              variant="default"
+              size="lg"
+              className="shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-glow)] transition-all shrink-0"
+            >
+              <X className="h-5 w-5 mr-2" />
+              {t('Sluiten', 'Close')}
+            </Button>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg md:text-xl font-bold text-foreground truncate">{kunstwerk.name}</h2>
+              <p className="text-xs md:text-sm text-muted-foreground mt-1">{artist}</p>
             </div>
           </div>
         </div>
-      </DialogContent>
+        
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto p-4 space-y-6">
+            {hasPhotos && currentPhoto && (
+              <div className="relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center" style={{ minHeight: '400px' }}>
+                <img 
+                  src={currentPhoto} 
+                  alt={kunstwerk.name}
+                  className="max-w-full max-h-[600px] object-contain"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+                {photos.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevPhoto}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
+                    >
+                      <ChevronLeft className="w-6 h-6" />
+                    </button>
+                    <button
+                      onClick={nextPhoto}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
+                    >
+                      <ChevronRight className="w-6 h-6" />
+                    </button>
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+                      {currentPhotoIndex + 1} / {photos.length}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-sm text-muted-foreground">Locatie</h3>
+                <p className="text-base mb-2">{location}</p>
+                {hasCoordinates && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={openInGoogleMaps}
+                    className="gap-2"
+                  >
+                    <MapPin className="w-4 h-4" />
+                    {t('Open in Google Maps', 'Open in Google Maps')}
+                  </Button>
+                )}
+              </div>
+              
+              {year && (
+                <div>
+                  <h3 className="font-semibold text-sm text-muted-foreground">Jaar</h3>
+                  <p className="text-base">{year}</p>
+                </div>
+              )}
+              
+              {materials && (
+                <div>
+                  <h3 className="font-semibold text-sm text-muted-foreground">Materiaal</h3>
+                  <p className="text-base">{materials}</p>
+                </div>
+              )}
+              
+              {description && (
+                <div>
+                  <h3 className="font-semibold text-sm text-muted-foreground">Beschrijving</h3>
+                  <div 
+                    className="text-sm leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: description }}
+                  />
+                </div>
+              )}
+              
+              {credits && (
+                <div>
+                  <h3 className="font-semibold text-sm text-muted-foreground">Eigendom van</h3>
+                  <p className="text-base">{credits}</p>
+                </div>
+              )}
+              
+              {model && (
+                <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-green-700 dark:text-green-300 font-medium">
+                    <Box className="w-5 h-5" />
+                    <span>{t('Er is een 3D model beschikbaar', 'A 3D model is available')}</span>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex gap-2 flex-wrap">
+                {has3DModel && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      if (!model.file_path && model.photo_url) {
+                        setShowPhotoViewer(true);
+                      } else {
+                        setShow3DViewer(true);
+                      }
+                    }}
+                    className="gap-2 flex-1"
+                  >
+                    <Box className="w-4 h-4" />
+                    {t('Bekijk 3D Model', 'View 3D Model')}
+                  </Button>
+                )}
+                <Button
+                  variant={has3DModel ? "outline" : "default"}
+                  size="sm"
+                  onClick={() => setShowUploadDialog(true)}
+                  className="gap-2 flex-1"
+                >
+                  <Upload className="w-4 h-4" />
+                  {t('Upload foto/model', 'Upload photo/model')}
+                </Button>
+                {websiteUrl && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(websiteUrl!, '_blank')}
+                    className="gap-2 flex-1"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Meer informatie
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       
       <QuickUploadDialog
         open={showUploadDialog}
         onOpenChange={setShowUploadDialog}
         statueName={kunstwerk.name}
-        latitude={kunstwerk.lat}
-        longitude={kunstwerk.lon}
+        latitude={kunstwerk.lat || kunstwerk.latitude}
+        longitude={kunstwerk.lon || kunstwerk.longitude}
       />
       
       {show3DViewer && model && kunstwerk && (
-        <div className="fixed inset-0 z-[10000] bg-background flex flex-col">
+        <div className="fixed inset-0 z-[60] bg-background flex flex-col">
           <div className="bg-background/98 backdrop-blur-sm border-b border-border p-3 md:p-4 flex-shrink-0">
             <div className="flex items-start gap-3">
               <Button 
@@ -298,7 +308,7 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
           onClose={() => setShowPhotoViewer(false)}
         />
       )}
-    </Dialog>
+    </>
   );
 };
 
