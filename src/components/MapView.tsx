@@ -8,6 +8,7 @@ import PhotoViewer from './PhotoViewer';
 import QuickUploadDialog from './QuickUploadDialog';
 import KunstwerkViewer from './KunstwerkViewer';
 import { Button } from './ui/button';
+import { MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { 
@@ -66,6 +67,8 @@ interface SelectedModelInfo {
   description: string | null;
   file_path: string;
   photo_url?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 // Fix for default marker icons in Leaflet
@@ -782,7 +785,9 @@ const MapView = () => {
                 name: model.name,
                 description: model.description,
                 file_path: model.file_path,
-                photo_url: model.photo_url
+                photo_url: model.photo_url,
+                latitude: model.latitude,
+                longitude: model.longitude
               });
               
               // Check if this is a photo-only upload (no 3D model)
@@ -1384,7 +1389,20 @@ const MapView = () => {
                 )}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">👆 {t('Sleep om te roteren', 'Drag to rotate')} • 🔍 {t('Pinch om te zoomen', 'Pinch to zoom')}</p>
+            <div className="flex items-center gap-2 mt-3">
+              <p className="text-xs text-muted-foreground flex-1">👆 {t('Sleep om te roteren', 'Drag to rotate')} • 🔍 {t('Pinch om te zoomen', 'Pinch to zoom')}</p>
+              {selectedModel.latitude && selectedModel.longitude && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${selectedModel.latitude},${selectedModel.longitude}`, '_blank')}
+                  className="gap-2 shrink-0"
+                >
+                  <MapPin className="w-4 h-4" />
+                  {t('Open in Google Maps', 'Open in Google Maps')}
+                </Button>
+              )}
+            </div>
           </div>
           <div className="flex-1 min-h-0 w-full">
             <StandbeeldViewer
