@@ -1,5 +1,6 @@
 import { Button } from './ui/button';
-import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X, Share2, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import { NijmegenKunstwerk } from '@/data/nijmegenKunstwerken';
 import { UtrechtKunstwerk } from '@/data/utrechtKunstwerken';
 import { AlkmaarKunstwerk } from '@/data/alkmaartKunstwerken';
@@ -42,8 +43,36 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [show3DViewer, setShow3DViewer] = useState(false);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   
   if (!kunstwerk) return null;
+
+  const handleShare = async () => {
+    const kunstwerkId = model?.source_id || kunstwerk.id;
+    const shareUrl = `${window.location.origin}/?kunstwerk=${city}-${kunstwerkId}`;
+    const shareData = {
+      title: kunstwerk.name,
+      text: `Bekijk ${kunstwerk.name} door ${artist}`,
+      url: shareUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        toast.success(t('Gedeeld!', 'Shared!'));
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        setIsSharing(true);
+        toast.success(t('Link gekopieerd naar klembord', 'Link copied to clipboard'));
+        setTimeout(() => setIsSharing(false), 2000);
+      }
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') {
+        console.error('Error sharing:', error);
+        toast.error(t('Kon niet delen', 'Could not share'));
+      }
+    }
+  };
 
   const photos: string[] = [];
   
@@ -240,6 +269,15 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                   <Upload className="w-4 h-4" />
                   {t('Upload foto/model', 'Upload photo/model')}
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleShare}
+                  className="gap-2 flex-1"
+                >
+                  {isSharing ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+                  {t('Delen', 'Share')}
+                </Button>
                 {websiteUrl && (
                   <Button
                     variant="outline"
@@ -252,6 +290,20 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                   </Button>
                 )}
               </div>
+              
+              {city === 'alkmaar' && (
+                <div className="pt-4 border-t border-border">
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => window.open('https://data.overheid.nl/dataset/kunstwerken-alkmaar--gemeente-alkmaar', '_blank')}
+                    className="gap-2 p-0 h-auto text-muted-foreground hover:text-foreground"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Bron
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
