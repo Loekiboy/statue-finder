@@ -2,6 +2,7 @@ import { Button } from './ui/button';
 import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X, Share2, Check, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { downloadImage } from '@/lib/downloadUtils';
+import { getLowResImageUrl } from '@/lib/imageUtils';
 import { NijmegenKunstwerk } from '@/data/nijmegenKunstwerken';
 import { UtrechtKunstwerk } from '@/data/utrechtKunstwerken';
 import { AlkmaarKunstwerk } from '@/data/alkmaartKunstwerken';
@@ -178,12 +179,25 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
             {hasPhotos && currentPhoto && (
               <div className="relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center group" style={{ minHeight: '400px' }}>
                 <img 
-                  src={currentPhoto} 
+                  src={getLowResImageUrl(currentPhoto, 800) || currentPhoto}
                   alt={kunstwerk.name}
+                  loading="lazy"
                   className="max-w-full max-h-[600px] object-contain cursor-zoom-in transition-opacity hover:opacity-90"
                   onClick={() => {
                     setZoomedImageUrl(currentPhoto);
                     setShowImageZoom(true);
+                  }}
+                  onLoad={(e) => {
+                    // Load high-res version after low-res is displayed
+                    const img = e.currentTarget;
+                    const lowResUrl = getLowResImageUrl(currentPhoto, 800);
+                    if (lowResUrl && img.src !== currentPhoto) {
+                      const highRes = new Image();
+                      highRes.src = currentPhoto;
+                      highRes.onload = () => {
+                        img.src = currentPhoto;
+                      };
+                    }
                   }}
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';

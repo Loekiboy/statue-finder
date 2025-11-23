@@ -191,39 +191,41 @@ export const SearchBar = ({ models, onResultClick }: SearchBarProps) => {
   return (
     <div className="relative w-full max-w-md">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input
           type="text"
           placeholder="Zoek op naam, kunstenaar of stad..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 pr-10"
+          className="pl-10 pr-10 h-12 text-base bg-background/95 backdrop-blur-sm border-2 focus-visible:ring-2 focus-visible:ring-primary shadow-lg"
         />
         {searchQuery && (
           <Button
             variant="ghost"
             size="sm"
-            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
+            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-accent/80"
             onClick={handleClear}
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </Button>
         )}
       </div>
 
       {isOpen && results.length > 0 && (
-        <div className="absolute top-full mt-2 w-full bg-background border rounded-md shadow-lg z-50">
+        <div className="absolute top-full mt-2 w-full bg-background/98 backdrop-blur-md border-2 rounded-lg shadow-2xl z-50">
           <ScrollArea className="h-[400px]">
             <div className="p-2">
               {results.map((result) => (
                 <button
                   key={`${result.type}-${result.id}`}
                   onClick={() => handleResultClick(result)}
-                  className="w-full text-left p-3 hover:bg-accent rounded-md transition-colors"
+                  className="w-full text-left p-4 hover:bg-accent/80 rounded-lg transition-all duration-200 hover:shadow-md border border-transparent hover:border-border"
                 >
-                  <div className="font-medium">{result.name}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {result.artist} • {result.city}
+                  <div className="font-semibold text-base mb-1">{result.name}</div>
+                  <div className="text-sm text-muted-foreground flex items-center gap-1">
+                    <span>{result.artist}</span>
+                    <span>•</span>
+                    <span className="text-primary font-medium">{result.city}</span>
                   </div>
                 </button>
               ))}
