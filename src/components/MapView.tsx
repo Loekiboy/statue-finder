@@ -1061,27 +1061,31 @@ const MapView = () => {
     denhaagKunstwerken.forEach(kunstwerk => {
       if (kunstwerk.lat && kunstwerk.lon) {
         const matchingModel = models.find(model => model.latitude && model.longitude && Math.abs(model.latitude - kunstwerk.lat) < 0.0001 && Math.abs(model.longitude - kunstwerk.lon) < 0.0001);
+        const hasUserModel = !!matchingModel;
         const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url || kunstwerk.photos && kunstwerk.photos[0];
+        
         const kunstwerkIcon = L.divIcon({
           className: 'custom-marker-kunstwerk',
           html: `
             <div style="
               width: 70px;
               height: 70px;
-              background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
-              border-radius: 50%;
+              border-radius: 12px;
+              background-color: white;
+              border: 4px solid hsl(217, 91%, 60%);
+              box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+              overflow: hidden;
               display: flex;
               align-items: center;
               justify-content: center;
-              color: white;
-              font-weight: bold;
-              font-size: 11px;
-              box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-              border: 3px solid white;
-              cursor: pointer;
-              ${previewImage ? `background-image: url('${previewImage}'); background-size: cover; background-position: center;` : ''}
+              position: relative;
             ">
-              ${!previewImage ? '🎨' : ''}
+              ${previewImage ? `<img src="${previewImage}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML='<svg width=\\'35\\' height=\\'35\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'hsl(217, 91%, 60%)\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\' ry=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg>'"/>` : `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(217, 91%, 60%)" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>`}
+              ${hasUserModel ? '<div style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: hsl(140, 75%, 45%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">✓</div>' : ''}
             </div>
           `,
           iconSize: [70, 70],
@@ -1093,12 +1097,26 @@ const MapView = () => {
             <div style="text-align: center; min-width: 200px;">
               <h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 16px;">${kunstwerk.name}</h3>
               <p style="margin: 4px 0; font-size: 13px; color: #6b7280;">${kunstwerk.artist}</p>
-              <p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">${kunstwerk.location}</p>
+              <p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">📍 ${kunstwerk.location}</p>
+              ${hasUserModel ? `<p style="margin: 8px 0; color: hsl(140, 75%, 45%); font-weight: 500;">✓ ${t('Er is een 3D model beschikbaar', 'A 3D model is available')}</p>` : ''}
               <button 
-                onclick="window.viewKunstwerkDetails('denhaag', '${kunstwerk.id}')" 
-                style="margin-top: 8px; padding: 6px 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;"
+                onclick="window.openKunstwerk('${kunstwerk.id}', 'denhaag')"
+                style="
+                  background: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(217, 81%, 50%) 100%);
+                  color: white;
+                  border: none;
+                  padding: 10px 20px;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-weight: 600;
+                  width: 100%;
+                  margin-top: 8px;
+                  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+                "
+                onmouseover="this.style.background='linear-gradient(135deg, hsl(217, 81%, 50%) 0%, hsl(217, 71%, 40%) 100%)'"
+                onmouseout="this.style.background='linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(217, 81%, 50%) 100%)'"
               >
-                ${t('Bekijk details', 'View details')}
+                🎨 ${t('Bekijk Details', 'View Details')}
               </button>
             </div>
           `, {
@@ -1167,27 +1185,31 @@ const MapView = () => {
     delftKunstwerken.forEach(kunstwerk => {
       if (kunstwerk.lat && kunstwerk.lon) {
         const matchingModel = models.find(model => model.latitude && model.longitude && Math.abs(model.latitude - kunstwerk.lat) < 0.0001 && Math.abs(model.longitude - kunstwerk.lon) < 0.0001);
+        const hasUserModel = !!matchingModel;
         const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url;
+        
         const kunstwerkIcon = L.divIcon({
           className: 'custom-marker-kunstwerk',
           html: `
             <div style="
               width: 70px;
               height: 70px;
-              background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
-              border-radius: 50%;
+              border-radius: 12px;
+              background-color: white;
+              border: 4px solid hsl(25, 95%, 53%);
+              box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+              overflow: hidden;
               display: flex;
               align-items: center;
               justify-content: center;
-              color: white;
-              font-weight: bold;
-              font-size: 11px;
-              box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
-              border: 3px solid white;
-              cursor: pointer;
-              ${previewImage ? `background-image: url('${previewImage}'); background-size: cover; background-position: center;` : ''}
+              position: relative;
             ">
-              ${!previewImage ? '🎨' : ''}
+              ${previewImage ? `<img src="${previewImage}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML='<svg width=\\'35\\' height=\\'35\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'hsl(25, 95%, 53%)\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\' ry=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg>'"/>` : `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(25, 95%, 53%)" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>`}
+              ${hasUserModel ? '<div style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: hsl(140, 75%, 45%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">✓</div>' : ''}
             </div>
           `,
           iconSize: [70, 70],
@@ -1199,13 +1221,27 @@ const MapView = () => {
             <div style="text-align: center; min-width: 200px;">
               <h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 16px;">${kunstwerk.name}</h3>
               <p style="margin: 4px 0; font-size: 13px; color: #6b7280;">${kunstwerk.artist}</p>
-              <p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">${kunstwerk.location}</p>
+              <p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">📍 ${kunstwerk.location}</p>
               ${kunstwerk.year ? `<p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">🗓️ ${kunstwerk.year}</p>` : ''}
+              ${hasUserModel ? `<p style="margin: 8px 0; color: hsl(140, 75%, 45%); font-weight: 500;">✓ ${t('Er is een 3D model beschikbaar', 'A 3D model is available')}</p>` : ''}
               <button 
-                onclick="window.viewKunstwerkDetails('delft', '${kunstwerk.id}')" 
-                style="margin-top: 8px; padding: 6px 12px; background: #f97316; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;"
+                onclick="window.openKunstwerk('${kunstwerk.id}', 'delft')"
+                style="
+                  background: linear-gradient(135deg, hsl(25, 95%, 53%) 0%, hsl(25, 85%, 43%) 100%);
+                  color: white;
+                  border: none;
+                  padding: 10px 20px;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-weight: 600;
+                  width: 100%;
+                  margin-top: 8px;
+                  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+                "
+                onmouseover="this.style.background='linear-gradient(135deg, hsl(25, 85%, 43%) 0%, hsl(25, 75%, 33%) 100%)'"
+                onmouseout="this.style.background='linear-gradient(135deg, hsl(25, 95%, 53%) 0%, hsl(25, 85%, 43%) 100%)'"
               >
-                ${t('Bekijk details', 'View details')}
+                🎨 ${t('Bekijk Details', 'View Details')}
               </button>
             </div>
           `, {
