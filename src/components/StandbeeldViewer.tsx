@@ -3,22 +3,24 @@ import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { X, Loader2, View } from 'lucide-react';
+import { X, Loader2, View, Share2, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from './ui/button';
+import { toast } from 'sonner';
 import '@google/model-viewer';
 
 interface StandbeeldViewerProps {
   onClose: () => void;
   modelPath?: string;
   autoRotate?: boolean;
+  modelId?: string;
 }
 
 // Global cache for loaded geometries to avoid reloading
 const geometryCache = new Map<string, THREE.BufferGeometry>();
 const loadingPromises = new Map<string, Promise<THREE.BufferGeometry>>();
 
-const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.stl', autoRotate = false }: StandbeeldViewerProps) => {
+const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.stl', autoRotate = false, modelId }: StandbeeldViewerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [modelUrl, setModelUrl] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -27,6 +29,36 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
   const [showAR, setShowAR] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const meshRef = useRef<THREE.Mesh | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+
+  const handleShare = async () => {
+    if (!modelId) return;
+    
+    const shareUrl = `${window.location.origin}/?model=${modelId}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: '3D Model',
+          url: shareUrl
+        });
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          console.error('Error sharing:', err);
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setIsSharing(true);
+        toast.success('Link gekopieerd!');
+        setTimeout(() => setIsSharing(false), 2000);
+      } catch (err) {
+        console.error('Error copying to clipboard:', err);
+        toast.error('Kon link niet kopiëren');
+      }
+    }
+  };
 
   // Check if iOS device
   useEffect(() => {
@@ -295,6 +327,16 @@ const StandbeeldViewer = ({ onClose, modelPath = '/models/standbeeld_weezenhof.s
       )}
       
       <div className="absolute top-4 right-4 z-20 flex gap-2">
+        {modelId && (
+          <Button
+            onClick={handleShare}
+            variant="default"
+            size="icon"
+            className="bg-background/80 backdrop-blur-sm hover:bg-background"
+          >
+            {isSharing ? <Check className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}
+          </Button>
+        )}
         {isIOS && glbUrl && !loading && (
           <Button
             onClick={() => setShowAR(!showAR)}
