@@ -5,6 +5,7 @@ import { NijmegenKunstwerk } from '@/data/nijmegenKunstwerken';
 import { UtrechtKunstwerk } from '@/data/utrechtKunstwerken';
 import { AlkmaarKunstwerk } from '@/data/alkmaartKunstwerken';
 import { DenHaagKunstwerk } from '@/data/denhaagKunstwerken';
+import { DelftKunstwerk } from '@/data/delftKunstwerken';
 import { useState } from 'react';
 import QuickUploadDialog from './QuickUploadDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -31,8 +32,8 @@ interface Model {
 }
 
 interface KunstwerkViewerProps {
-  kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | any | null;
-  city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'drenthe';
+  kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | DelftKunstwerk | any | null;
+  city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'delft' | 'drenthe';
   model?: Model;
   onClose: () => void;
 }
@@ -297,6 +298,20 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                     variant="link"
                     size="sm"
                     onClick={() => window.open('https://data.overheid.nl/dataset/kunstwerken-alkmaar--gemeente-alkmaar', '_blank')}
+                    className="gap-2 p-0 h-auto text-muted-foreground hover:text-foreground"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Bron
+                  </Button>
+                </div>
+              )}
+              
+              {city === 'delft' && (
+                <div className="pt-4 border-t border-border">
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => window.open('https://erfgoed.delft.nl/kunst-in-de-openbare-ruimte', '_blank')}
                     className="gap-2 p-0 h-auto text-muted-foreground hover:text-foreground"
                   >
                     <ExternalLink className="w-3 h-3" />

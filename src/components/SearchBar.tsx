@@ -7,6 +7,7 @@ import { nijmegenKunstwerken } from '@/data/nijmegenKunstwerken';
 import { utrechtKunstwerken } from '@/data/utrechtKunstwerken';
 import { alkmaartKunstwerken } from '@/data/alkmaartKunstwerken';
 import { denhaagKunstwerken } from '@/data/denhaagKunstwerken';
+import { delftKunstwerken } from '@/data/delftKunstwerken';
 
 interface SearchResult {
   id: string;
@@ -15,7 +16,7 @@ interface SearchResult {
   city: string;
   lat: number;
   lon: number;
-  type: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'model';
+  type: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'delft' | 'model';
 }
 
 interface SearchBarProps {
@@ -111,6 +112,25 @@ export const SearchBar = ({ models, onResultClick }: SearchBarProps) => {
           lat: artwork.lat,
           lon: artwork.lon,
           type: 'denhaag'
+        });
+      }
+    });
+
+    // Search Delft
+    delftKunstwerken.forEach(artwork => {
+      if (
+        artwork.name.toLowerCase().includes(query) ||
+        artwork.artist.toLowerCase().includes(query) ||
+        'delft'.includes(query)
+      ) {
+        allResults.push({
+          id: artwork.id,
+          name: artwork.name,
+          artist: artwork.artist,
+          city: 'Delft',
+          lat: artwork.lat,
+          lon: artwork.lon,
+          type: 'delft'
         });
       }
     });
