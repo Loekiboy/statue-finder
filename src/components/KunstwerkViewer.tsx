@@ -280,15 +280,18 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                     {t('Bekijk 3D Model', 'View 3D Model')}
                   </Button>
                 )}
-                <Button
-                  variant={has3DModel ? "outline" : "default"}
-                  size="sm"
-                  onClick={() => setShowUploadDialog(true)}
-                  className="gap-2 flex-1"
-                >
-                  <Upload className="w-4 h-4" />
-                  {t('Upload foto/model', 'Upload photo/model')}
-                </Button>
+                {/* Only show upload button for non-Dublin artworks, or Dublin artworks without photos */}
+                {(city !== 'dublin' || !hasPhotos) && (
+                  <Button
+                    variant={has3DModel ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => setShowUploadDialog(true)}
+                    className="gap-2 flex-1"
+                  >
+                    <Upload className="w-4 h-4" />
+                    {t('Upload foto/model', 'Upload photo/model')}
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
