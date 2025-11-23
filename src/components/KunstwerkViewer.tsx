@@ -95,6 +95,11 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   } else if (city === 'denhaag') {
     const denhaagKunstwerk = kunstwerk as DenHaagKunstwerk;
     photos.push(...denhaagKunstwerk.photos);
+  } else if (city === 'dublin') {
+    const dublinKunstwerk = kunstwerk as DublinKunstwerk;
+    if (dublinKunstwerk.photos && dublinKunstwerk.photos.length > 0) {
+      photos.push(...dublinKunstwerk.photos);
+    }
   }
 
   const hasPhotos = photos.length > 0;
@@ -339,6 +344,8 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
         statueName={kunstwerk.name}
         latitude={kunstwerk.lat || kunstwerk.latitude}
         longitude={kunstwerk.lon || kunstwerk.longitude}
+        isStreetArt={city === 'dublin'}
+        hasPhotos={hasPhotos}
       />
       
       {show3DViewer && model && kunstwerk && (
