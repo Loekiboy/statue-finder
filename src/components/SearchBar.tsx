@@ -8,6 +8,7 @@ import { utrechtKunstwerken } from '@/data/utrechtKunstwerken';
 import { alkmaartKunstwerken } from '@/data/alkmaartKunstwerken';
 import { denhaagKunstwerken } from '@/data/denhaagKunstwerken';
 import { delftKunstwerken } from '@/data/delftKunstwerken';
+import { dublinKunstwerken } from '@/data/dublinKunstwerken';
 
 interface SearchResult {
   id: string;
@@ -16,7 +17,7 @@ interface SearchResult {
   city: string;
   lat: number;
   lon: number;
-  type: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'delft' | 'model';
+  type: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'delft' | 'dublin' | 'model';
 }
 
 interface SearchBarProps {
@@ -131,6 +132,25 @@ export const SearchBar = ({ models, onResultClick }: SearchBarProps) => {
           lat: artwork.lat,
           lon: artwork.lon,
           type: 'delft'
+        });
+      }
+    });
+    
+    // Search Dublin
+    dublinKunstwerken.forEach(artwork => {
+      if (
+        artwork.name.toLowerCase().includes(query) ||
+        artwork.artist.toLowerCase().includes(query) ||
+        'dublin'.includes(query)
+      ) {
+        allResults.push({
+          id: artwork.id,
+          name: artwork.name,
+          artist: artwork.artist,
+          city: 'Dublin',
+          lat: artwork.lat,
+          lon: artwork.lon,
+          type: 'dublin'
         });
       }
     });
