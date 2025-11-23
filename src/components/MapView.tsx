@@ -1414,24 +1414,25 @@ const MapView = () => {
             />
           </div>
         </div>
-      ) : !selectedKunstwerk ? (
-        <>
-          <div ref={mapContainer} className="absolute inset-0 pb-16 md:pb-0" />
-          
-          {/* Mobile-optimized info card */}
-          <div className="absolute left-2 md:left-20 top-2 md:top-4 right-2 md:right-auto z-20 rounded-xl bg-card/95 px-3 md:px-4 py-2 md:py-3 shadow-[var(--shadow-elevated)] backdrop-blur-sm max-w-xs">
-            <p className="text-sm md:text-lg font-bold text-foreground">📍 {t('Je Locatie', 'Your Location')}</p>
-            {userLocation && (
-              <p className="text-xs text-muted-foreground">
-                {userLocation[0].toFixed(4)}°N, {userLocation[1].toFixed(4)}°E
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground mt-1 md:mt-2">
-              💡 {t('Tik op standbeeld om te bekijken', 'Tap on statue to view')}
-            </p>
-          </div>
-        </>
       ) : null}
+
+      {/* Map - always rendered */}
+      <div ref={mapContainer} className="absolute inset-0 pb-16 md:pb-0 z-0" />
+      
+      {/* Mobile-optimized info card - only show when no kunstwerk is selected */}
+      {!selectedKunstwerk && (
+        <div className="absolute left-2 md:left-20 top-2 md:top-4 right-2 md:right-auto z-20 rounded-xl bg-card/95 px-3 md:px-4 py-2 md:py-3 shadow-[var(--shadow-elevated)] backdrop-blur-sm max-w-xs">
+          <p className="text-sm md:text-lg font-bold text-foreground">📍 {t('Je Locatie', 'Your Location')}</p>
+          {userLocation && (
+            <p className="text-xs text-muted-foreground">
+              {userLocation[0].toFixed(4)}°N, {userLocation[1].toFixed(4)}°E
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground mt-1 md:mt-2">
+            💡 {t('Tik op standbeeld om te bekijken', 'Tap on statue to view')}
+          </p>
+        </div>
+      )}
     </div>
   );
 };
