@@ -289,7 +289,7 @@ const StandbeeldViewer = ({
         {isIOS && glbUrl && !loading && <Button onClick={() => setShowAR(!showAR)} variant="default" size="icon" className="bg-background/80 backdrop-blur-sm hover:bg-background">
             <View className="h-5 w-5" />
           </Button>}
-        <button onClick={onClose} className="p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors" aria-label="Sluiten">
+        <button onClick={onClose} aria-label="Sluiten" className="p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors shadow-md">
           <X className="h-5 w-5 text-foreground" />
         </button>
       </div>
