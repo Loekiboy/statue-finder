@@ -1348,26 +1348,27 @@ const MapView = () => {
 
   // Load kunstwerk from URL parameter
   useEffect(() => {
-    if (hasLoadedFromUrl.current) return;
-    
     const urlParams = new URLSearchParams(window.location.search);
     const kunstwerkParam = urlParams.get('kunstwerk');
     
-    if (kunstwerkParam) {
+    if (kunstwerkParam && !hasLoadedFromUrl.current) {
       const [city, id] = kunstwerkParam.split('-');
       if (city && id) {
-        // Wait for data to be loaded
-        if (models.length === 0 || 
-            (city === 'nijmegen' && nijmegenKunstwerken.length === 0) ||
-            (city === 'utrecht' && utrechtKunstwerken.length === 0) ||
-            (city === 'alkmaar' && alkmaartKunstwerken.length === 0) ||
-            (city === 'denhaag' && denhaagKunstwerken.length === 0) ||
-            (city === 'drenthe' && drentheKunstwerken.length === 0)) {
-          return; // Data not loaded yet
-        }
+        // Check if the required data is loaded
+        const dataLoaded = 
+            (city === 'nijmegen' && nijmegenKunstwerken.length > 0) ||
+            (city === 'utrecht' && utrechtKunstwerken.length > 0) ||
+            (city === 'alkmaar' && alkmaartKunstwerken.length > 0) ||
+            (city === 'denhaag' && denhaagKunstwerken.length > 0) ||
+            (city === 'drenthe' && drentheKunstwerken.length > 0);
         
-        hasLoadedFromUrl.current = true;
-        (window as any).openKunstwerk(id, city as any);
+        if (dataLoaded) {
+          hasLoadedFromUrl.current = true;
+          // Use setTimeout to ensure the map is ready
+          setTimeout(() => {
+            (window as any).openKunstwerk(id, city as any);
+          }, 100);
+        }
       }
     }
   }, [models, nijmegenKunstwerken, utrechtKunstwerken, alkmaartKunstwerken, denhaagKunstwerken, drentheKunstwerken]);
@@ -1381,6 +1382,7 @@ const MapView = () => {
           model={selectedKunstwerk.model}
           onClose={() => {
             setSelectedKunstwerk(null);
+            hasLoadedFromUrl.current = false;
             // Clear URL parameter
             const url = new URL(window.location.href);
             url.searchParams.delete('kunstwerk');
