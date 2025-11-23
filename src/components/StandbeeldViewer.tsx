@@ -39,12 +39,17 @@ const StandbeeldViewer = ({
   const handleShare = async () => {
     if (!modelId) return;
     const shareUrl = `${window.location.origin}/?model=${modelId}`;
+    const modelName = modelPath.split('/').pop()?.split('.')[0] || 'model';
+    const shareData = {
+      title: '3D Model',
+      text: `Bekijk dit 3D model: ${modelName}`,
+      url: shareUrl
+    };
+    
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: '3D Model',
-          url: shareUrl
-        });
+        await navigator.share(shareData);
+        toast.success('Succesvol gedeeld!');
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           console.error('Error sharing:', err);
@@ -54,7 +59,7 @@ const StandbeeldViewer = ({
       try {
         await navigator.clipboard.writeText(shareUrl);
         setIsSharing(true);
-        toast.success('Link gekopieerd!');
+        toast.success('Link gekopieerd naar klembord!');
         setTimeout(() => setIsSharing(false), 2000);
       } catch (err) {
         console.error('Error copying to clipboard:', err);
