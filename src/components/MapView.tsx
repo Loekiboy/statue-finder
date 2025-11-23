@@ -11,21 +11,12 @@ import { Button } from './ui/button';
 import { MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { 
-  isOnWiFi, 
-  cacheMapTiles, 
-  cacheNearbyModels, 
-  clearOldCaches,
-  cacheOSMStatues,
-  getCachedOSMStatues,
-  OSMStatue as CachedOSMStatue
-} from '@/lib/cacheManager';
+import { isOnWiFi, cacheMapTiles, cacheNearbyModels, clearOldCaches, cacheOSMStatues, getCachedOSMStatues, OSMStatue as CachedOSMStatue } from '@/lib/cacheManager';
 import { nijmegenKunstwerken, NijmegenKunstwerk } from '@/data/nijmegenKunstwerken';
 import { utrechtKunstwerken, UtrechtKunstwerk } from '@/data/utrechtKunstwerken';
 import { alkmaartKunstwerken, AlkmaarKunstwerk } from '@/data/alkmaartKunstwerken';
 import { denhaagKunstwerken, DenHaagKunstwerk } from '@/data/denhaagKunstwerken';
 import { importMunicipalArtworks, importDrentheArtworks } from '@/lib/importMunicipalArtworks';
-
 interface Model {
   id: string;
   name: string;
@@ -44,7 +35,6 @@ interface Model {
   source_id?: string | null;
   is_municipal?: boolean;
 }
-
 interface OSMStatue {
   id: string;
   name: string;
@@ -57,11 +47,9 @@ interface OSMStatue {
   };
   distance?: number;
 }
-
 interface Profile {
   show_osm_statues: boolean;
 }
-
 interface SelectedModelInfo {
   id: string;
   name: string;
@@ -75,19 +63,17 @@ interface SelectedModelInfo {
 // Fix for default marker icons in Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
 const DefaultIcon = L.icon({
   iconUrl: icon,
   shadowUrl: iconShadow,
   iconSize: [25, 41],
-  iconAnchor: [12, 41],
+  iconAnchor: [12, 41]
 });
-
 L.Marker.prototype.options.icon = DefaultIcon;
-
-
 const MapView = () => {
-  const { t } = useLanguage();
+  const {
+    t
+  } = useLanguage();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
@@ -100,10 +86,16 @@ const MapView = () => {
   const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const hasLoadedFromUrl = useRef(false);
-  const [user, setUser] = useState<{ id: string } | null>(null);
+  const [user, setUser] = useState<{
+    id: string;
+  } | null>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showOsmStatues, setShowOsmStatues] = useState(true);
-  const [selectedKunstwerk, setSelectedKunstwerk] = useState<{ kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | any, city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'drenthe', model?: Model } | null>(null);
+  const [selectedKunstwerk, setSelectedKunstwerk] = useState<{
+    kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | any;
+    city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'drenthe';
+    model?: Model;
+  } | null>(null);
   const [drentheKunstwerken, setDrentheKunstwerken] = useState<any[]>([]);
   const [uploadedModels, setUploadedModels] = useState<any[]>([]);
   const userMarkerRef = useRef<L.Marker | null>(null);
@@ -114,17 +106,22 @@ const MapView = () => {
   const accuracyCircleRef = useRef<L.Circle | null>(null);
   const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
 
-
   // Get current user
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({
+      data: {
+        session
+      }
+    }) => {
       setUser(session?.user ?? null);
     });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: {
+        subscription
+      }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
@@ -132,17 +129,14 @@ const MapView = () => {
   useEffect(() => {
     const fetchDiscoveredModels = async () => {
       if (!user) return;
-      
-      const { data, error } = await supabase
-        .from('discovered_models')
-        .select('model_id')
-        .eq('user_id', user.id);
-      
+      const {
+        data,
+        error
+      } = await supabase.from('discovered_models').select('model_id').eq('user_id', user.id);
       if (!error && data) {
         setDiscoveredModels(data.map(d => d.model_id));
       }
     };
-    
     fetchDiscoveredModels();
   }, [user]);
 
@@ -152,22 +146,18 @@ const MapView = () => {
       // Import municipal artworks first (only if they don't exist)
       await importMunicipalArtworks();
       await importDrentheArtworks();
-      
+
       // Then fetch all models (municipal + user uploaded)
-      const { data, error } = await supabase
-        .from('models')
-        .select('*')
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
-      
+      const {
+        data,
+        error
+      } = await supabase.from('models').select('*').not('latitude', 'is', null).not('longitude', 'is', null);
       if (error) {
         console.error('Error fetching models:', error);
         return;
       }
-      
       setModels(data || []);
     };
-
     initModels();
     clearOldCaches(); // Ruim oude caches op bij opstarten
   }, []);
@@ -175,14 +165,15 @@ const MapView = () => {
   // Fetch user profile settings
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('show_osm_statues')
-          .eq('user_id', user.id)
-          .single();
-        
+        const {
+          data
+        } = await supabase.from('profiles').select('show_osm_statues').eq('user_id', user.id).single();
         if (data) {
           setShowOsmStatues(data.show_osm_statues ?? true);
         }
@@ -197,17 +188,16 @@ const MapView = () => {
       setOsmStatues([]);
       return;
     }
-
     const fetchOSMStatues = async () => {
       const [lat, lon] = userLocation;
-      
+
       // Calculate distance between two points in meters
       const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
         const dx = (lon2 - lon1) * 111000 * Math.cos(lat1 * Math.PI / 180);
         const dy = (lat2 - lat1) * 111000;
         return Math.sqrt(dx * dx + dy * dy);
       };
-      
+
       // Check if OSM statue is too close to existing models or kunstwerken
       const isTooCloseToExisting = (statueLat: number, statueLon: number) => {
         // Check distance to all uploaded models
@@ -216,47 +206,39 @@ const MapView = () => {
           const distance = calculateDistance(statueLat, statueLon, model.latitude, model.longitude);
           return distance < 7;
         });
-        
         if (tooCloseToModel) return true;
-        
+
         // Check distance to Nijmegen kunstwerken
         const tooCloseToNijmegen = nijmegenKunstwerken.some(kunstwerk => {
           const distance = calculateDistance(statueLat, statueLon, kunstwerk.lat, kunstwerk.lon);
           return distance < 7;
         });
-        
         if (tooCloseToNijmegen) return true;
-        
+
         // Check distance to Utrecht kunstwerken
         const tooCloseToUtrecht = utrechtKunstwerken.some(kunstwerk => {
           const distance = calculateDistance(statueLat, statueLon, kunstwerk.lat, kunstwerk.lon);
           return distance < 7;
         });
-        
         return tooCloseToUtrecht;
       };
-      
+
       // Try to get cached data first
       const cachedStatues = getCachedOSMStatues(userLocation);
       if (cachedStatues) {
         // Update distances, filter out duplicates, and use cached data
-        const filteredStatues = cachedStatues
-          .filter(statue => !isTooCloseToExisting(statue.lat, statue.lon))
-          .map(statue => ({
-            ...statue,
-            distance: calculateDistance(lat, lon, statue.lat, statue.lon)
-          }))
-          .sort((a, b) => (a.distance || 0) - (b.distance || 0));
-        
+        const filteredStatues = cachedStatues.filter(statue => !isTooCloseToExisting(statue.lat, statue.lon)).map(statue => ({
+          ...statue,
+          distance: calculateDistance(lat, lon, statue.lat, statue.lon)
+        })).sort((a, b) => (a.distance || 0) - (b.distance || 0));
         setOsmStatues(filteredStatues);
         console.log(`Using ${filteredStatues.length} cached OSM statues (filtered from ${cachedStatues.length})`);
         return;
       }
-      
+
       // Progressive loading: start with closest, then expand radius
       const radii = [2000, 5000, 15000, 50000]; // 2km, 5km, 15km, 50km
       let allStatues: OSMStatue[] = [];
-      
       for (const radius of radii) {
         const query = `
           [out:json][timeout:25];
@@ -266,39 +248,39 @@ const MapView = () => {
           );
           out body;
         `;
-        
         try {
           const response = await fetch('https://overpass-api.de/api/interpreter', {
             method: 'POST',
-            body: query,
+            body: query
           });
-          
           const data = await response.json();
-          const newStatues: OSMStatue[] = data.elements
-            .filter((element: { lat: number; lon: number }) => 
-              !isTooCloseToExisting(element.lat, element.lon)
-            )
-            .map((element: { id: number; lat: number; lon: number; tags?: { name?: string; 'name:nl'?: string } }) => ({
-              id: `osm-${element.id}`,
-              name: element.tags?.name || element.tags?.['name:nl'] || 'Onbekend standbeeld',
-              lat: element.lat,
-              lon: element.lon,
-              tags: element.tags,
-              distance: calculateDistance(lat, lon, element.lat, element.lon),
-            }));
-          
+          const newStatues: OSMStatue[] = data.elements.filter((element: {
+            lat: number;
+            lon: number;
+          }) => !isTooCloseToExisting(element.lat, element.lon)).map((element: {
+            id: number;
+            lat: number;
+            lon: number;
+            tags?: {
+              name?: string;
+              'name:nl'?: string;
+            };
+          }) => ({
+            id: `osm-${element.id}`,
+            name: element.tags?.name || element.tags?.['name:nl'] || 'Onbekend standbeeld',
+            lat: element.lat,
+            lon: element.lon,
+            tags: element.tags,
+            distance: calculateDistance(lat, lon, element.lat, element.lon)
+          }));
+
           // Filter out duplicates and sort by distance
-          const uniqueStatues = newStatues.filter(
-            newStatue => !allStatues.some(existing => existing.id === newStatue.id)
-          );
-          
-          allStatues = [...allStatues, ...uniqueStatues].sort((a, b) => 
-            (a.distance || 0) - (b.distance || 0)
-          );
-          
+          const uniqueStatues = newStatues.filter(newStatue => !allStatues.some(existing => existing.id === newStatue.id));
+          allStatues = [...allStatues, ...uniqueStatues].sort((a, b) => (a.distance || 0) - (b.distance || 0));
+
           // Update map with current batch (progressive rendering)
           setOsmStatues([...allStatues]);
-          
+
           // Short delay between batches to not overload the API
           if (radius !== radii[radii.length - 1]) {
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -308,89 +290,78 @@ const MapView = () => {
           // Continue with next radius even if one fails
         }
       }
-      
+
       // Cache the final results
       if (allStatues.length > 0) {
         cacheOSMStatues(allStatues, userLocation);
       }
     };
-
     fetchOSMStatues();
   }, [userLocation, showOsmStatues, models]);
 
   // Auto-cache wanneer op WiFi
   useEffect(() => {
     if (!userLocation || models.length === 0) return;
-    
     const autoCacheData = async () => {
       if (isOnWiFi()) {
         console.log('WiFi gedetecteerd - starten met caching...');
-        
+
         // Cache kaart tiles rond gebruiker
         await cacheMapTiles(userLocation, 3);
-        
+
         // Cache modellen binnen 500m
         await cacheNearbyModels(userLocation, models, 500);
-        
         console.log('Caching voltooid!');
       }
     };
-    
+
     // Cache na 2 seconden om niet te interfereren met app loading
     const timer = setTimeout(autoCacheData, 2000);
-    
     return () => clearTimeout(timer);
   }, [userLocation, models]);
 
   // Preload nearby 3D models in the background for better performance
   useEffect(() => {
     if (!userLocation || models.length === 0) return;
-    
     const preloadNearbyModels = async () => {
       // Get models within 1km that have 3D files
       const nearbyModelsWithFiles = models.filter(model => {
         if (!model.latitude || !model.longitude || !model.file_path) return false;
-        
         const dx = (model.longitude - userLocation[1]) * 111000 * Math.cos(userLocation[0] * Math.PI / 180);
         const dy = (model.latitude - userLocation[0]) * 111000;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        
         return distance <= 1000; // 1km radius
       });
-      
       if (nearbyModelsWithFiles.length === 0) return;
-      
       console.log(`Preloading ${nearbyModelsWithFiles.length} nearby 3D models...`);
-      
+
       // Get public URLs for the models
       const modelUrls = nearbyModelsWithFiles.map(model => {
         if (model.file_path.startsWith('/')) {
           return model.file_path;
         }
-        const { data } = supabase.storage.from('models').getPublicUrl(model.file_path);
+        const {
+          data
+        } = supabase.storage.from('models').getPublicUrl(model.file_path);
         return data.publicUrl;
       });
-      
+
       // Preload models in background (fire and forget)
       preloadModels(modelUrls).catch(err => {
         console.log('Some models failed to preload, but continuing:', err);
       });
     };
-    
+
     // Start preloading after a short delay to not block initial render
     const timer = setTimeout(preloadNearbyModels, 3000);
-    
     return () => clearTimeout(timer);
   }, [userLocation, models]);
 
   // Load Drenthe kunstwerken
   const loadDrentheKunstwerken = async () => {
     try {
-      const response = await fetch(
-        'https://kaartportaal.drenthe.nl/server/rest/services/GDB_actueel/GBI_WK_KUNST_PROVWEGEN_P/MapServer/0/query?where=1%3D1&outFields=*&f=geojson'
-      );
+      const response = await fetch('https://kaartportaal.drenthe.nl/server/rest/services/GDB_actueel/GBI_WK_KUNST_PROVWEGEN_P/MapServer/0/query?where=1%3D1&outFields=*&f=geojson');
       const data = await response.json();
-      
       const kunstwerken = data.features.map((feature: any) => ({
         id: `drenthe-${feature.properties.OBJECTID || feature.properties.FID || Math.random()}`,
         name: feature.properties.NAAM || feature.properties.Naam || 'Onbekend kunstwerk',
@@ -403,7 +374,6 @@ const MapView = () => {
         lon: feature.geometry.coordinates[0],
         photos: []
       }));
-      
       setDrentheKunstwerken(kunstwerken);
       console.log(`Loaded ${kunstwerken.length} Drenthe kunstwerken`);
     } catch (error) {
@@ -414,44 +384,39 @@ const MapView = () => {
   // Load last known location from profile
   useEffect(() => {
     const loadLastKnownLocation = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('last_known_latitude, last_known_longitude')
-          .eq('user_id', user.id)
-          .single();
-        
+        const {
+          data
+        } = await supabase.from('profiles').select('last_known_latitude, last_known_longitude').eq('user_id', user.id).single();
         if (data && data.last_known_latitude && data.last_known_longitude) {
-          const lastKnownLocation: [number, number] = [
-            data.last_known_latitude,
-            data.last_known_longitude
-          ];
+          const lastKnownLocation: [number, number] = [data.last_known_latitude, data.last_known_longitude];
           setInitialLocation(lastKnownLocation);
         }
       }
     };
-    
     loadLastKnownLocation();
     loadDrentheKunstwerken();
-    
+
     // Load uploaded models
     const loadUploadedModels = async () => {
       try {
-        const { data, error } = await supabase
-          .from('models')
-          .select('*');
-        
+        const {
+          data,
+          error
+        } = await supabase.from('models').select('*');
         if (error) throw error;
         setUploadedModels(data || []);
       } catch (error) {
         console.error('Error loading uploaded models:', error);
       }
     };
-    
     loadUploadedModels();
   }, []);
-
   useEffect(() => {
     // Watch user's location continuously
     if (!navigator.geolocation) {
@@ -461,98 +426,85 @@ const MapView = () => {
       setInitialLocation(fallback);
       return;
     }
-
     let hasShownSuccess = false;
     let watchId: number | null = null;
 
     // First try to get current position (works better in Safari)
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const coords: [number, number] = [
-          position.coords.latitude,
-          position.coords.longitude,
-        ];
-        setUserLocation(coords);
-        if (!initialLocation) {
-          setInitialLocation(coords);
-        }
-        toast.success(t('Locatie gevonden!', 'Location found!'));
-        hasShownSuccess = true;
-
-        // Save location to user profile
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase
-            .from('profiles')
-            .update({
-              last_known_latitude: coords[0],
-              last_known_longitude: coords[1],
-              last_location_updated_at: new Date().toISOString()
-            })
-            .eq('user_id', user.id);
-        }
-
-        // After successful initial position, start watching for updates
-        watchId = navigator.geolocation.watchPosition(
-          async (position) => {
-            const coords: [number, number] = [
-              position.coords.latitude,
-              position.coords.longitude,
-            ];
-            setUserLocation(coords);
-            
-            // Update location in profile
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-              await supabase
-                .from('profiles')
-                .update({
-                  last_known_latitude: coords[0],
-                  last_known_longitude: coords[1],
-                  last_location_updated_at: new Date().toISOString()
-                })
-                .eq('user_id', user.id);
-            }
-          },
-          (error) => {
-            console.error('Watch position error:', error.code, error.message);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 27000, // Longer timeout for Safari
-            maximumAge: 5000 // Allow cached position up to 5s old
-          }
-        );
-      },
-      (error) => {
-        console.error('Geolocation error:', error.code, error.message);
-        let errorMessage = t('Kon locatie niet vinden.', 'Could not find location.');
-        
-        if (error.code === 1) {
-          errorMessage = t('Locatie toegang geweigerd. Gebruik laatste bekende locatie.', 'Location access denied. Using last known location.');
-        } else if (error.code === 2) {
-          errorMessage = t('Locatie niet beschikbaar.', 'Location unavailable.');
-        } else if (error.code === 3) {
-          errorMessage = t('Locatie timeout. Probeer opnieuw.', 'Location timeout. Try again.');
-        }
-        
-        toast.error(errorMessage);
-        
-        // Don't set fallback if we already have last known location from profile
-        if (!userLocation) {
-          const fallback: [number, number] = [52.3676, 4.9041];
-          setUserLocation(fallback);
-          if (!initialLocation) {
-            setInitialLocation(fallback);
-          }
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 27000, // Longer timeout for Safari
-        maximumAge: 5000
+    navigator.geolocation.getCurrentPosition(async position => {
+      const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
+      setUserLocation(coords);
+      if (!initialLocation) {
+        setInitialLocation(coords);
       }
-    );
+      toast.success(t('Locatie gevonden!', 'Location found!'));
+      hasShownSuccess = true;
+
+      // Save location to user profile
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('profiles').update({
+          last_known_latitude: coords[0],
+          last_known_longitude: coords[1],
+          last_location_updated_at: new Date().toISOString()
+        }).eq('user_id', user.id);
+      }
+
+      // After successful initial position, start watching for updates
+      watchId = navigator.geolocation.watchPosition(async position => {
+        const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
+        setUserLocation(coords);
+
+        // Update location in profile
+        const {
+          data: {
+            user
+          }
+        } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('profiles').update({
+            last_known_latitude: coords[0],
+            last_known_longitude: coords[1],
+            last_location_updated_at: new Date().toISOString()
+          }).eq('user_id', user.id);
+        }
+      }, error => {
+        console.error('Watch position error:', error.code, error.message);
+      }, {
+        enableHighAccuracy: true,
+        timeout: 27000,
+        // Longer timeout for Safari
+        maximumAge: 5000 // Allow cached position up to 5s old
+      });
+    }, error => {
+      console.error('Geolocation error:', error.code, error.message);
+      let errorMessage = t('Kon locatie niet vinden.', 'Could not find location.');
+      if (error.code === 1) {
+        errorMessage = t('Locatie toegang geweigerd. Gebruik laatste bekende locatie.', 'Location access denied. Using last known location.');
+      } else if (error.code === 2) {
+        errorMessage = t('Locatie niet beschikbaar.', 'Location unavailable.');
+      } else if (error.code === 3) {
+        errorMessage = t('Locatie timeout. Probeer opnieuw.', 'Location timeout. Try again.');
+      }
+      toast.error(errorMessage);
+
+      // Don't set fallback if we already have last known location from profile
+      if (!userLocation) {
+        const fallback: [number, number] = [52.3676, 4.9041];
+        setUserLocation(fallback);
+        if (!initialLocation) {
+          setInitialLocation(fallback);
+        }
+      }
+    }, {
+      enableHighAccuracy: true,
+      timeout: 27000,
+      // Longer timeout for Safari
+      maximumAge: 5000
+    });
 
     // Cleanup function to stop watching when component unmounts
     return () => {
@@ -561,15 +513,14 @@ const MapView = () => {
       }
     };
   }, []);
-
-
   const markModelAsDiscovered = async (modelId: string) => {
     if (!user) return;
-    
-    const { error } = await supabase
-      .from('discovered_models')
-      .insert({ user_id: user.id, model_id: modelId });
-    
+    const {
+      error
+    } = await supabase.from('discovered_models').insert({
+      user_id: user.id,
+      model_id: modelId
+    });
     if (!error) {
       setDiscoveredModels(prev => [...prev, modelId]);
       setShowConfetti(true);
@@ -591,10 +542,13 @@ const MapView = () => {
     const focusData = localStorage.getItem('mapFocus');
     let mapCenter: [number, number] = initialLocation;
     let mapZoom = 18;
-    
     if (focusData) {
       try {
-        const { lat, lon, zoom } = JSON.parse(focusData);
+        const {
+          lat,
+          lon,
+          zoom
+        } = JSON.parse(focusData);
         mapCenter = [lat, lon];
         mapZoom = zoom || 18;
         localStorage.removeItem('mapFocus');
@@ -611,7 +565,7 @@ const MapView = () => {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
       // Gebruik browser cache voor tiles
-      crossOrigin: true,
+      crossOrigin: true
     }).addTo(map.current);
 
     // Create custom icon for user location (blue)
@@ -638,13 +592,13 @@ const MapView = () => {
         </div>
       `,
       iconSize: [40, 40],
-      iconAnchor: [20, 20],
+      iconAnchor: [20, 20]
     });
 
-
     // Add marker for user location
-    userMarkerRef.current = L.marker(initialLocation, { icon: userIcon })
-      .addTo(map.current);
+    userMarkerRef.current = L.marker(initialLocation, {
+      icon: userIcon
+    }).addTo(map.current);
 
     // Clear old model markers
     modelMarkersRef.current = [];
@@ -653,9 +607,8 @@ const MapView = () => {
     if (markerClusterGroupRef.current) {
       map.current.removeLayer(markerClusterGroupRef.current);
     }
-    
     markerClusterGroupRef.current = L.markerClusterGroup({
-      iconCreateFunction: function(cluster) {
+      iconCreateFunction: function (cluster) {
         const count = cluster.getChildCount();
         return L.divIcon({
           html: `<div style="
@@ -679,7 +632,7 @@ const MapView = () => {
       spiderfyOnMaxZoom: true,
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
-      maxClusterRadius: 80,
+      maxClusterRadius: 80
     });
 
     // Helper function to check if a model matches a kunstwerk location
@@ -690,59 +643,54 @@ const MapView = () => {
         const dy = Math.abs(kunstwerk.lon - modelLon);
         return dx < 0.0001 && dy < 0.0001; // ~10m tolerance
       });
-      
       if (matchesNijmegen) return true;
-      
+
       // Check Utrecht kunstwerken
       const matchesUtrecht = utrechtKunstwerken.some(kunstwerk => {
         const dx = Math.abs(kunstwerk.lat - modelLat);
         const dy = Math.abs(kunstwerk.lon - modelLon);
         return dx < 0.0001 && dy < 0.0001; // ~10m tolerance
       });
-      
       if (matchesUtrecht) return true;
-      
+
       // Check Alkmaar kunstwerken
       const matchesAlkmaar = alkmaartKunstwerken.some(kunstwerk => {
         const dx = Math.abs(kunstwerk.lat - modelLat);
         const dy = Math.abs(kunstwerk.lon - modelLon);
         return dx < 0.0001 && dy < 0.0001; // ~10m tolerance
       });
-      
       if (matchesAlkmaar) return true;
-      
+
       // Check Den Haag kunstwerken
       const matchesDenHaag = denhaagKunstwerken.some(kunstwerk => {
         const dx = Math.abs(kunstwerk.lat - modelLat);
         const dy = Math.abs(kunstwerk.lon - modelLon);
         return dx < 0.0001 && dy < 0.0001; // ~10m tolerance
       });
-      
       return matchesDenHaag;
     };
 
     // Add markers for uploaded models (but skip those that match kunstwerken)
     const DISCOVERY_RADIUS = 50; // meters - discovery range
-    
-    models.forEach((model) => {
+
+    models.forEach(model => {
       if (model.latitude && model.longitude && map.current) {
         // Skip if this model is at a kunstwerk location - it will be shown with the kunstwerk marker
         if (isModelAtKunstwerkLocation(model.latitude, model.longitude)) {
           return;
         }
-        
+
         // Calculate distance between user and model
         const modelLatLng = L.latLng(model.latitude, model.longitude);
         const userLatLng = L.latLng(userLocation);
         const distance = userLatLng.distanceTo(modelLatLng);
-        
+
         // Check if model is already discovered in database
         const isAlreadyDiscovered = discoveredModels.includes(model.id);
         // Check if model is within discovery range
         const isWithinRange = distance <= DISCOVERY_RADIUS;
         const isDiscovered = isAlreadyDiscovered || isWithinRange;
         const thumbnailUrl = model.thumbnail_url;
-        
         const modelIcon = L.divIcon({
           className: 'custom-marker-model',
           html: `
@@ -771,44 +719,42 @@ const MapView = () => {
             </div>
           `,
           iconSize: [80, 80],
-          iconAnchor: [40, 40],
+          iconAnchor: [40, 40]
         });
-
-        const modelMarker = L.marker([model.latitude, model.longitude], { icon: modelIcon })
-          .bindPopup(`<b>${model.name}</b><br>${isDiscovered ? (model.description || t('Klik om 3D model te bekijken', 'Click to view 3D model')) : `🔒 ${t('Kom binnen', 'Come within')} ${Math.round(distance)}m ${t('om te ontdekken', 'to discover')}`}`)
-          .on('click', async () => {
-            if (isDiscovered) {
-              // Mark as discovered if not already
-              if (!isAlreadyDiscovered && isWithinRange && user) {
-                await markModelAsDiscovered(model.id);
-                toast.success(`${model.name} ${t('gevonden! 🎉', 'found! 🎉')}`);
-              }
-              setSelectedModel({
-                id: model.id,
-                name: model.name,
-                description: model.description,
-                file_path: model.file_path,
-                photo_url: model.photo_url,
-                latitude: model.latitude,
-                longitude: model.longitude
-              });
-              
-              // Update URL parameter
-              const url = new URL(window.location.href);
-              url.searchParams.set('model', model.id);
-              window.history.pushState({}, '', url.toString());
-              
-              // Check if this is a photo-only upload (no 3D model)
-              if (!model.file_path && model.photo_url) {
-                setShowPhotoViewer(true);
-              } else {
-                setShowViewer(true);
-              }
-            } else {
-              toast.error(`${t('Je bent nog', 'You are still')} ${Math.round(distance)}m ${t('verwijderd van dit model', 'away from this model')}`);
+        const modelMarker = L.marker([model.latitude, model.longitude], {
+          icon: modelIcon
+        }).bindPopup(`<b>${model.name}</b><br>${isDiscovered ? model.description || t('Klik om 3D model te bekijken', 'Click to view 3D model') : `🔒 ${t('Kom binnen', 'Come within')} ${Math.round(distance)}m ${t('om te ontdekken', 'to discover')}`}`).on('click', async () => {
+          if (isDiscovered) {
+            // Mark as discovered if not already
+            if (!isAlreadyDiscovered && isWithinRange && user) {
+              await markModelAsDiscovered(model.id);
+              toast.success(`${model.name} ${t('gevonden! 🎉', 'found! 🎉')}`);
             }
-          });
-        
+            setSelectedModel({
+              id: model.id,
+              name: model.name,
+              description: model.description,
+              file_path: model.file_path,
+              photo_url: model.photo_url,
+              latitude: model.latitude,
+              longitude: model.longitude
+            });
+
+            // Update URL parameter
+            const url = new URL(window.location.href);
+            url.searchParams.set('model', model.id);
+            window.history.pushState({}, '', url.toString());
+
+            // Check if this is a photo-only upload (no 3D model)
+            if (!model.file_path && model.photo_url) {
+              setShowPhotoViewer(true);
+            } else {
+              setShowViewer(true);
+            }
+          } else {
+            toast.error(`${t('Je bent nog', 'You are still')} ${Math.round(distance)}m ${t('verwijderd van dit model', 'away from this model')}`);
+          }
+        });
         markerClusterGroupRef.current?.addLayer(modelMarker);
         modelMarkersRef.current.push(modelMarker);
       }
@@ -816,7 +762,7 @@ const MapView = () => {
 
     // Add markers for OSM statues (statues without 3D models from OpenStreetMap)
     if (showOsmStatues) {
-      osmStatues.forEach((statue) => {
+      osmStatues.forEach(statue => {
         if (map.current) {
           // Check if a model already exists at this location
           const hasModel = models.some(model => {
@@ -825,7 +771,6 @@ const MapView = () => {
             const dy = Math.abs(model.longitude - statue.lon);
             return dx < 0.0001 && dy < 0.0001; // ~10m tolerance
           });
-
           if (hasModel) return; // Skip if model already exists
 
           // Create custom icon for OSM statues (orange/amber color to indicate "no model yet")
@@ -854,11 +799,11 @@ const MapView = () => {
               </div>
             `,
             iconSize: [70, 70],
-            iconAnchor: [35, 35],
+            iconAnchor: [35, 35]
           });
-
-          const osmMarker = L.marker([statue.lat, statue.lon], { icon: osmIcon })
-            .bindPopup(`
+          const osmMarker = L.marker([statue.lat, statue.lon], {
+            icon: osmIcon
+          }).bindPopup(`
               <div style="text-align: center; min-width: 200px;">
                 <h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 16px;">${statue.name}</h3>
                 <p style="margin: 8px 0; color: #f59e0b; font-weight: 500;">⚠️ ${t('Dit standbeeld heeft nog geen 3D model', 'This statue doesn\'t have a 3D model yet')}</p>
@@ -884,7 +829,6 @@ const MapView = () => {
                 </button>
               </div>
             `);
-
           markerClusterGroupRef.current?.addLayer(osmMarker);
           osmMarkerRef.current.push(osmMarker);
         }
@@ -892,7 +836,7 @@ const MapView = () => {
     }
 
     // Add markers for Nijmegen kunstwerken
-    nijmegenKunstwerken.forEach((kunstwerk) => {
+    nijmegenKunstwerken.forEach(kunstwerk => {
       if (map.current) {
         // Find matching user model at this location
         const matchingModel = models.find(model => {
@@ -901,7 +845,6 @@ const MapView = () => {
           const dy = Math.abs(model.longitude - kunstwerk.lon);
           return dx < 0.0001 && dy < 0.0001; // ~10m tolerance
         });
-
         const hasUserModel = !!matchingModel;
         const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url;
 
@@ -922,23 +865,20 @@ const MapView = () => {
               justify-content: center;
               position: relative;
             ">
-              ${previewImage 
-                ? `<img src="${previewImage}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML='<svg width=\\'35\\' height=\\'35\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'hsl(270, 75%, 60%)\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\' ry=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg>'"/>`
-                : `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(270, 75%, 60%)" stroke-width="2">
+              ${previewImage ? `<img src="${previewImage}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML='<svg width=\\'35\\' height=\\'35\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'hsl(270, 75%, 60%)\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\' ry=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg>'"/>` : `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(270, 75%, 60%)" stroke-width="2">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                     <circle cx="8.5" cy="8.5" r="1.5"/>
                     <polyline points="21 15 16 10 5 21"/>
-                  </svg>`
-              }
+                  </svg>`}
               ${hasUserModel ? '<div style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: hsl(140, 75%, 45%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">✓</div>' : ''}
             </div>
           `,
           iconSize: [70, 70],
-          iconAnchor: [35, 35],
+          iconAnchor: [35, 35]
         });
-
-        const kunstwerkMarker = L.marker([kunstwerk.lat, kunstwerk.lon], { icon: kunstwerkIcon })
-          .bindPopup(`
+        const kunstwerkMarker = L.marker([kunstwerk.lat, kunstwerk.lon], {
+          icon: kunstwerkIcon
+        }).bindPopup(`
             <div style="text-align: center; min-width: 200px;">
               <h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 16px;">${kunstwerk.name}</h3>
               <p style="margin: 4px 0; font-size: 13px; color: #6b7280;">${kunstwerk.artist}</p>
@@ -965,31 +905,22 @@ const MapView = () => {
               </button>
             </div>
           `, {
-            maxWidth: 250,
-            className: 'kunstwerk-popup'
-          });
-
+          maxWidth: 250,
+          className: 'kunstwerk-popup'
+        });
         markerClusterGroupRef.current?.addLayer(kunstwerkMarker);
         kunstwerkMarkersRef.current.push(kunstwerkMarker);
       }
     });
 
     // Add Utrecht kunstwerken markers with orange color
-    utrechtKunstwerken.forEach((kunstwerk) => {
+    utrechtKunstwerken.forEach(kunstwerk => {
       if (kunstwerk.lat && kunstwerk.lon) {
         // Find matching user model at this location
-        const matchingModel = models.find(
-          (model) =>
-            model.latitude &&
-            model.longitude &&
-            Math.abs(model.latitude - kunstwerk.lat) < 0.0001 &&
-            Math.abs(model.longitude - kunstwerk.lon) < 0.0001
-        );
-
+        const matchingModel = models.find(model => model.latitude && model.longitude && Math.abs(model.latitude - kunstwerk.lat) < 0.0001 && Math.abs(model.longitude - kunstwerk.lon) < 0.0001);
         const hasUserModel = !!matchingModel;
         // Use model preview if available, otherwise use kunstwerk's first photo
         const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url || (kunstwerk.photos && kunstwerk.photos.length > 0 ? kunstwerk.photos[0] : null);
-        
         const kunstwerkIcon = L.divIcon({
           html: `
             <div style="
@@ -1005,23 +936,20 @@ const MapView = () => {
               justify-content: center;
               position: relative;
             ">
-              ${previewImage 
-                ? `<img src="${previewImage}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML='<svg width=\\'35\\' height=\\'35\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'hsl(25, 95%, 53%)\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\' ry=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg>'"/>`
-                : `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(25, 95%, 53%)" stroke-width="2">
+              ${previewImage ? `<img src="${previewImage}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML='<svg width=\\'35\\' height=\\'35\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'hsl(25, 95%, 53%)\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\' ry=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg>'"/>` : `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(25, 95%, 53%)" stroke-width="2">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                     <circle cx="8.5" cy="8.5" r="1.5"/>
                     <polyline points="21 15 16 10 5 21"/>
-                  </svg>`
-              }
+                  </svg>`}
               ${hasUserModel ? '<div style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: hsl(140, 75%, 45%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">✓</div>' : ''}
             </div>
           `,
           iconSize: [70, 70],
-          iconAnchor: [35, 35],
+          iconAnchor: [35, 35]
         });
-
-        const kunstwerkMarker = L.marker([kunstwerk.lat, kunstwerk.lon], { icon: kunstwerkIcon })
-          .bindPopup(`
+        const kunstwerkMarker = L.marker([kunstwerk.lat, kunstwerk.lon], {
+          icon: kunstwerkIcon
+        }).bindPopup(`
             <div style="text-align: center; min-width: 200px;">
               <h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 16px;">${kunstwerk.name}</h3>
               <p style="margin: 4px 0; font-size: 13px; color: #6b7280;">${kunstwerk.artist}</p>
@@ -1049,29 +977,20 @@ const MapView = () => {
               </button>
             </div>
           `, {
-            maxWidth: 250,
-            className: 'kunstwerk-popup'
-          });
-
+          maxWidth: 250,
+          className: 'kunstwerk-popup'
+        });
         markerClusterGroupRef.current?.addLayer(kunstwerkMarker);
         kunstwerkMarkersRef.current.push(kunstwerkMarker);
       }
     });
 
     // Add Alkmaar kunstwerken markers with green color
-    alkmaartKunstwerken.forEach((kunstwerk) => {
+    alkmaartKunstwerken.forEach(kunstwerk => {
       if (kunstwerk.lat && kunstwerk.lon) {
-        const matchingModel = models.find(
-          (model) =>
-            model.latitude &&
-            model.longitude &&
-            Math.abs(model.latitude - kunstwerk.lat) < 0.0001 &&
-            Math.abs(model.longitude - kunstwerk.lon) < 0.0001
-        );
-
+        const matchingModel = models.find(model => model.latitude && model.longitude && Math.abs(model.latitude - kunstwerk.lat) < 0.0001 && Math.abs(model.longitude - kunstwerk.lon) < 0.0001);
         const hasUserModel = !!matchingModel;
         const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url || (kunstwerk.photos && kunstwerk.photos.length > 0 ? kunstwerk.photos[0] : null);
-        
         const kunstwerkIcon = L.divIcon({
           html: `
             <div style="
@@ -1087,23 +1006,20 @@ const MapView = () => {
               justify-content: center;
               position: relative;
             ">
-              ${previewImage 
-                ? `<img src="${previewImage}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML='<svg width=\\'35\\' height=\\'35\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'hsl(142, 76%, 36%)\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\' ry=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg>'"/>`
-                : `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(142, 76%, 36%)" stroke-width="2">
+              ${previewImage ? `<img src="${previewImage}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML='<svg width=\\'35\\' height=\\'35\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'hsl(142, 76%, 36%)\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\' ry=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg>'"/>` : `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(142, 76%, 36%)" stroke-width="2">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                     <circle cx="8.5" cy="8.5" r="1.5"/>
                     <polyline points="21 15 16 10 5 21"/>
-                  </svg>`
-              }
+                  </svg>`}
               ${hasUserModel ? '<div style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: hsl(140, 75%, 45%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">✓</div>' : ''}
             </div>
           `,
           iconSize: [70, 70],
-          iconAnchor: [35, 35],
+          iconAnchor: [35, 35]
         });
-
-        const kunstwerkMarker = L.marker([kunstwerk.lat, kunstwerk.lon], { icon: kunstwerkIcon })
-          .bindPopup(`
+        const kunstwerkMarker = L.marker([kunstwerk.lat, kunstwerk.lon], {
+          icon: kunstwerkIcon
+        }).bindPopup(`
             <div style="text-align: center; min-width: 200px;">
               <h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 16px;">${kunstwerk.name}</h3>
               <p style="margin: 4px 0; font-size: 13px; color: #6b7280;">${kunstwerk.artist}</p>
@@ -1131,28 +1047,19 @@ const MapView = () => {
               </button>
             </div>
           `, {
-            maxWidth: 250,
-            className: 'kunstwerk-popup'
-          });
-
+          maxWidth: 250,
+          className: 'kunstwerk-popup'
+        });
         markerClusterGroupRef.current?.addLayer(kunstwerkMarker);
         kunstwerkMarkersRef.current.push(kunstwerkMarker);
       }
     });
 
     // Add Den Haag kunstwerken markers with blue color
-    denhaagKunstwerken.forEach((kunstwerk) => {
+    denhaagKunstwerken.forEach(kunstwerk => {
       if (kunstwerk.lat && kunstwerk.lon) {
-        const matchingModel = models.find(
-          (model) =>
-            model.latitude &&
-            model.longitude &&
-            Math.abs(model.latitude - kunstwerk.lat) < 0.0001 &&
-            Math.abs(model.longitude - kunstwerk.lon) < 0.0001
-        );
-
-        const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url || (kunstwerk.photos && kunstwerk.photos[0]);
-
+        const matchingModel = models.find(model => model.latitude && model.longitude && Math.abs(model.latitude - kunstwerk.lat) < 0.0001 && Math.abs(model.longitude - kunstwerk.lon) < 0.0001);
+        const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url || kunstwerk.photos && kunstwerk.photos[0];
         const kunstwerkIcon = L.divIcon({
           className: 'custom-marker-kunstwerk',
           html: `
@@ -1176,11 +1083,11 @@ const MapView = () => {
             </div>
           `,
           iconSize: [70, 70],
-          iconAnchor: [35, 35],
+          iconAnchor: [35, 35]
         });
-
-        const kunstwerkMarker = L.marker([kunstwerk.lat, kunstwerk.lon], { icon: kunstwerkIcon })
-          .bindPopup(`
+        const kunstwerkMarker = L.marker([kunstwerk.lat, kunstwerk.lon], {
+          icon: kunstwerkIcon
+        }).bindPopup(`
             <div style="text-align: center; min-width: 200px;">
               <h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 16px;">${kunstwerk.name}</h3>
               <p style="margin: 4px 0; font-size: 13px; color: #6b7280;">${kunstwerk.artist}</p>
@@ -1193,28 +1100,19 @@ const MapView = () => {
               </button>
             </div>
           `, {
-            maxWidth: 250,
-            className: 'kunstwerk-popup'
-          });
-
+          maxWidth: 250,
+          className: 'kunstwerk-popup'
+        });
         markerClusterGroupRef.current?.addLayer(kunstwerkMarker);
         kunstwerkMarkersRef.current.push(kunstwerkMarker);
       }
     });
 
     // Add Drenthe kunstwerken markers with red color
-    drentheKunstwerken.forEach((kunstwerk) => {
+    drentheKunstwerken.forEach(kunstwerk => {
       if (kunstwerk.lat && kunstwerk.lon) {
-        const matchingModel = models.find(
-          (model) =>
-            model.latitude &&
-            model.longitude &&
-            Math.abs(model.latitude - kunstwerk.lat) < 0.0001 &&
-            Math.abs(model.longitude - kunstwerk.lon) < 0.0001
-        );
-
+        const matchingModel = models.find(model => model.latitude && model.longitude && Math.abs(model.latitude - kunstwerk.lat) < 0.0001 && Math.abs(model.longitude - kunstwerk.lon) < 0.0001);
         const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url;
-
         const kunstwerkIcon = L.divIcon({
           className: 'custom-marker-kunstwerk',
           html: `
@@ -1238,11 +1136,11 @@ const MapView = () => {
             </div>
           `,
           iconSize: [70, 70],
-          iconAnchor: [35, 35],
+          iconAnchor: [35, 35]
         });
-
-        const kunstwerkMarker = L.marker([kunstwerk.lat, kunstwerk.lon], { icon: kunstwerkIcon })
-          .bindPopup(`
+        const kunstwerkMarker = L.marker([kunstwerk.lat, kunstwerk.lon], {
+          icon: kunstwerkIcon
+        }).bindPopup(`
             <div style="text-align: center; min-width: 200px;">
               <h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 16px;">${kunstwerk.name}</h3>
               <p style="margin: 4px 0; font-size: 13px; color: #6b7280;">${kunstwerk.artist}</p>
@@ -1255,10 +1153,9 @@ const MapView = () => {
               </button>
             </div>
           `, {
-            maxWidth: 250,
-            className: 'kunstwerk-popup'
-          });
-
+          maxWidth: 250,
+          className: 'kunstwerk-popup'
+        });
         markerClusterGroupRef.current?.addLayer(kunstwerkMarker);
         kunstwerkMarkersRef.current.push(kunstwerkMarker);
       }
@@ -1274,10 +1171,8 @@ const MapView = () => {
       color: 'hsl(220, 85%, 55%)',
       fillColor: 'hsl(220, 85%, 55%)',
       fillOpacity: 0.1,
-      radius: 50,
+      radius: 50
     }).addTo(map.current);
-
-
     return () => {
       if (map.current) {
         map.current.remove();
@@ -1289,10 +1184,10 @@ const MapView = () => {
   // Update user marker position when location changes
   useEffect(() => {
     if (!userLocation || !userMarkerRef.current) return;
-    
+
     // Update marker position smoothly
     userMarkerRef.current.setLatLng(userLocation);
-    
+
     // Update accuracy circle position
     if (accuracyCircleRef.current) {
       accuracyCircleRef.current.setLatLng(userLocation);
@@ -1302,13 +1197,15 @@ const MapView = () => {
   // Add global functions for buttons in popups
   useEffect(() => {
     (window as any).uploadStatue = (lat: number, lon: number, name: string) => {
-      localStorage.setItem('uploadLocation', JSON.stringify({ lat, lon, name }));
+      localStorage.setItem('uploadLocation', JSON.stringify({
+        lat,
+        lon,
+        name
+      }));
       window.location.href = '/upload';
     };
-    
     (window as any).openKunstwerk = (id: string, city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'drenthe') => {
       let kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | any | undefined;
-      
       if (city === 'nijmegen') {
         kunstwerk = nijmegenKunstwerken.find(k => k.id === id);
       } else if (city === 'utrecht') {
@@ -1320,7 +1217,6 @@ const MapView = () => {
       } else if (city === 'drenthe') {
         kunstwerk = drentheKunstwerken.find(k => k.id === id);
       }
-      
       if (kunstwerk) {
         // Find matching model at this location
         const matchingModel = models.find(model => {
@@ -1329,8 +1225,11 @@ const MapView = () => {
           const dy = Math.abs(model.longitude - kunstwerk!.lon);
           return dx < 0.0001 && dy < 0.0001; // ~10m tolerance
         });
-        
-        setSelectedKunstwerk({ kunstwerk, city, model: matchingModel });
+        setSelectedKunstwerk({
+          kunstwerk,
+          city,
+          model: matchingModel
+        });
         // Update URL
         const url = new URL(window.location.href);
         url.searchParams.set('kunstwerk', `${city}-${id}`);
@@ -1341,11 +1240,9 @@ const MapView = () => {
         }
       }
     };
-    
     (window as any).viewKunstwerkDetails = (city: string, id: string) => {
       (window as any).openKunstwerk(id, city);
     };
-    
     return () => {
       delete (window as any).uploadStatue;
       delete (window as any).openKunstwerk;
@@ -1358,18 +1255,11 @@ const MapView = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const kunstwerkParam = urlParams.get('kunstwerk');
     const modelParam = urlParams.get('model');
-    
     if (kunstwerkParam && !hasLoadedFromUrl.current) {
       const [city, id] = kunstwerkParam.split('-');
       if (city && id) {
         // Check if the required data is loaded
-        const dataLoaded = 
-            (city === 'nijmegen' && nijmegenKunstwerken.length > 0) ||
-            (city === 'utrecht' && utrechtKunstwerken.length > 0) ||
-            (city === 'alkmaar' && alkmaartKunstwerken.length > 0) ||
-            (city === 'denhaag' && denhaagKunstwerken.length > 0) ||
-            (city === 'drenthe' && drentheKunstwerken.length > 0);
-        
+        const dataLoaded = city === 'nijmegen' && nijmegenKunstwerken.length > 0 || city === 'utrecht' && utrechtKunstwerken.length > 0 || city === 'alkmaar' && alkmaartKunstwerken.length > 0 || city === 'denhaag' && denhaagKunstwerken.length > 0 || city === 'drenthe' && drentheKunstwerken.length > 0;
         if (dataLoaded) {
           hasLoadedFromUrl.current = true;
           // Use setTimeout to ensure the map is ready
@@ -1379,7 +1269,6 @@ const MapView = () => {
         }
       }
     }
-    
     if (modelParam && !hasLoadedFromUrl.current && models.length > 0) {
       const model = models.find(m => m.id === modelParam);
       if (model) {
@@ -1390,122 +1279,64 @@ const MapView = () => {
       }
     }
   }, [models, nijmegenKunstwerken, utrechtKunstwerken, alkmaartKunstwerken, denhaagKunstwerken, drentheKunstwerken]);
-
-  return (
-    <div className="relative h-screen w-full">
-      {selectedKunstwerk && (
-        <KunstwerkViewer 
-          kunstwerk={selectedKunstwerk.kunstwerk}
-          city={selectedKunstwerk.city}
-          model={selectedKunstwerk.model}
-          onClose={() => {
-            setSelectedKunstwerk(null);
+  return <div className="relative h-screen w-full">
+      {selectedKunstwerk && <KunstwerkViewer kunstwerk={selectedKunstwerk.kunstwerk} city={selectedKunstwerk.city} model={selectedKunstwerk.model} onClose={() => {
+      setSelectedKunstwerk(null);
+      hasLoadedFromUrl.current = false;
+      // Clear URL parameter
+      const url = new URL(window.location.href);
+      url.searchParams.delete('kunstwerk');
+      window.history.pushState({}, '', url.toString());
+    }} />}
+      
+      {showConfetti && <div className="fixed inset-0 z-50 pointer-events-none">
+          <Confetti width={window.innerWidth} height={window.innerHeight} recycle={false} numberOfPieces={500} />
+        </div>}
+      {showPhotoViewer && selectedModel && selectedModel.photo_url ? <PhotoViewer photoUrl={selectedModel.photo_url} name={selectedModel.name} description={selectedModel.description} onClose={() => setShowPhotoViewer(false)} /> : showViewer && selectedModel ? <div className="fixed inset-0 z-30 bg-background flex flex-col">
+          <div className="bg-background/98 backdrop-blur-sm border-b border-border p-3 md:p-4 flex-shrink-0 safe-area-top">
+            <div className="flex items-start gap-3">
+              <Button onClick={() => {
+            setShowViewer(false);
+            setSelectedModel(null);
             hasLoadedFromUrl.current = false;
             // Clear URL parameter
             const url = new URL(window.location.href);
-            url.searchParams.delete('kunstwerk');
+            url.searchParams.delete('model');
             window.history.pushState({}, '', url.toString());
-          }} 
-        />
-      )}
-      
-      {showConfetti && (
-        <div className="fixed inset-0 z-50 pointer-events-none">
-          <Confetti
-            width={window.innerWidth}
-            height={window.innerHeight}
-            recycle={false}
-            numberOfPieces={500}
-          />
-        </div>
-      )}
-      {showPhotoViewer && selectedModel && selectedModel.photo_url ? (
-        <PhotoViewer
-          photoUrl={selectedModel.photo_url}
-          name={selectedModel.name}
-          description={selectedModel.description}
-          onClose={() => setShowPhotoViewer(false)}
-        />
-      ) : showViewer && selectedModel ? (
-        <div className="fixed inset-0 z-30 bg-background flex flex-col">
-          <div className="bg-background/98 backdrop-blur-sm border-b border-border p-3 md:p-4 flex-shrink-0 safe-area-top">
-            <div className="flex items-start gap-3">
-              <Button 
-                onClick={() => {
-                  setShowViewer(false);
-                  setSelectedModel(null);
-                  hasLoadedFromUrl.current = false;
-                  // Clear URL parameter
-                  const url = new URL(window.location.href);
-                  url.searchParams.delete('model');
-                  window.history.pushState({}, '', url.toString());
-                }}
-                variant="default"
-                size="lg"
-                className="shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-glow)] transition-all shrink-0"
-              >
+          }} variant="default" size="lg" className="shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-glow)] transition-all shrink-0">
                 ← {t('Terug', 'Back')}
               </Button>
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg md:text-xl font-bold text-foreground truncate">{selectedModel.name}</h2>
-                {selectedModel.description && (
-                  <p className="text-xs md:text-sm text-muted-foreground mt-1 line-clamp-2">{selectedModel.description}</p>
-                )}
+                {selectedModel.description && <p className="text-xs md:text-sm text-muted-foreground mt-1 line-clamp-2">{selectedModel.description}</p>}
               </div>
             </div>
             <div className="flex items-center gap-2 mt-3">
               <p className="text-xs text-muted-foreground flex-1">👆 {t('Sleep om te roteren', 'Drag to rotate')} • 🔍 {t('Pinch om te zoomen', 'Pinch to zoom')}</p>
-              {selectedModel.latitude && selectedModel.longitude && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${selectedModel.latitude},${selectedModel.longitude}`, '_blank')}
-                  className="gap-2 shrink-0"
-                >
+              {selectedModel.latitude && selectedModel.longitude && <Button variant="outline" size="sm" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${selectedModel.latitude},${selectedModel.longitude}`, '_blank')} className="gap-2 shrink-0">
                   <MapPin className="w-4 h-4" />
                   {t('Open in Google Maps', 'Open in Google Maps')}
-                </Button>
-              )}
+                </Button>}
             </div>
           </div>
           <div className="flex-1 min-h-0 w-full">
-            <StandbeeldViewer
-              modelPath={selectedModel.file_path}
-              modelId={selectedModel.id}
-              onClose={() => {
-                setShowViewer(false);
-                setSelectedModel(null);
-                hasLoadedFromUrl.current = false;
-                // Clear URL parameter
-                const url = new URL(window.location.href);
-                url.searchParams.delete('model');
-                window.history.pushState({}, '', url.toString());
-              }}
-              autoRotate={true}
-            />
+            <StandbeeldViewer modelPath={selectedModel.file_path} modelId={selectedModel.id} onClose={() => {
+          setShowViewer(false);
+          setSelectedModel(null);
+          hasLoadedFromUrl.current = false;
+          // Clear URL parameter
+          const url = new URL(window.location.href);
+          url.searchParams.delete('model');
+          window.history.pushState({}, '', url.toString());
+        }} autoRotate={true} />
           </div>
-        </div>
-      ) : null}
+        </div> : null}
 
       {/* Map - always rendered */}
       <div ref={mapContainer} className="absolute inset-0 pb-16 md:pb-0 z-0" />
       
       {/* Mobile-optimized info card - only show when no kunstwerk is selected */}
-      {!selectedKunstwerk && (
-        <div className="absolute left-2 md:left-20 top-2 md:top-4 right-2 md:right-auto z-20 rounded-xl bg-card/95 px-3 md:px-4 py-2 md:py-3 shadow-[var(--shadow-elevated)] backdrop-blur-sm max-w-xs">
-          <p className="text-sm md:text-lg font-bold text-foreground">📍 {t('Je Locatie', 'Your Location')}</p>
-          {userLocation && (
-            <p className="text-xs text-muted-foreground">
-              {userLocation[0].toFixed(4)}°N, {userLocation[1].toFixed(4)}°E
-            </p>
-          )}
-          <p className="text-xs text-muted-foreground mt-1 md:mt-2">
-            💡 {t('Tik op standbeeld om te bekijken', 'Tap on statue to view')}
-          </p>
-        </div>
-      )}
-    </div>
-  );
+      {!selectedKunstwerk}
+    </div>;
 };
-
 export default MapView;
