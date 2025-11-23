@@ -63,6 +63,7 @@ interface Profile {
 }
 
 interface SelectedModelInfo {
+  id: string;
   name: string;
   description: string | null;
   file_path: string;
@@ -783,6 +784,7 @@ const MapView = () => {
                 toast.success(`${model.name} ${t('gevonden! 🎉', 'found! 🎉')}`);
               }
               setSelectedModel({
+                id: model.id,
                 name: model.name,
                 description: model.description,
                 file_path: model.file_path,
@@ -790,6 +792,11 @@ const MapView = () => {
                 latitude: model.latitude,
                 longitude: model.longitude
               });
+              
+              // Update URL parameter
+              const url = new URL(window.location.href);
+              url.searchParams.set('model', model.id);
+              window.history.pushState({}, '', url.toString());
               
               // Check if this is a photo-only upload (no 3D model)
               if (!model.file_path && model.photo_url) {
@@ -1346,10 +1353,11 @@ const MapView = () => {
     };
   }, [nijmegenKunstwerken, utrechtKunstwerken, alkmaartKunstwerken, denhaagKunstwerken, drentheKunstwerken, models]);
 
-  // Load kunstwerk from URL parameter
+  // Load kunstwerk or model from URL parameter
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const kunstwerkParam = urlParams.get('kunstwerk');
+    const modelParam = urlParams.get('model');
     
     if (kunstwerkParam && !hasLoadedFromUrl.current) {
       const [city, id] = kunstwerkParam.split('-');
@@ -1369,6 +1377,16 @@ const MapView = () => {
             (window as any).openKunstwerk(id, city as any);
           }, 100);
         }
+      }
+    }
+    
+    if (modelParam && !hasLoadedFromUrl.current && models.length > 0) {
+      const model = models.find(m => m.id === modelParam);
+      if (model) {
+        hasLoadedFromUrl.current = true;
+        setTimeout(() => {
+          setSelectedModel(model);
+        }, 100);
       }
     }
   }, [models, nijmegenKunstwerken, utrechtKunstwerken, alkmaartKunstwerken, denhaagKunstwerken, drentheKunstwerken]);
@@ -1416,7 +1434,12 @@ const MapView = () => {
                 onClick={() => {
                   setShowViewer(false);
                   setSelectedModel(null);
-                }} 
+                  hasLoadedFromUrl.current = false;
+                  // Clear URL parameter
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('model');
+                  window.history.pushState({}, '', url.toString());
+                }}
                 variant="default"
                 size="lg"
                 className="shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-glow)] transition-all shrink-0"
@@ -1448,7 +1471,16 @@ const MapView = () => {
           <div className="flex-1 min-h-0 w-full">
             <StandbeeldViewer
               modelPath={selectedModel.file_path}
-              onClose={() => setShowViewer(false)}
+              modelId={selectedModel.id}
+              onClose={() => {
+                setShowViewer(false);
+                setSelectedModel(null);
+                hasLoadedFromUrl.current = false;
+                // Clear URL parameter
+                const url = new URL(window.location.href);
+                url.searchParams.delete('model');
+                window.history.pushState({}, '', url.toString());
+              }}
               autoRotate={true}
             />
           </div>
