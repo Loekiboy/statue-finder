@@ -12,6 +12,7 @@ import QuickUploadDialog from './QuickUploadDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import StandbeeldViewer from './StandbeeldViewer';
 import PhotoViewer from './PhotoViewer';
+import { ImageZoom } from './ImageZoom';
 
 interface Model {
   id: string;
@@ -46,6 +47,8 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   const [show3DViewer, setShow3DViewer] = useState(false);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [showImageZoom, setShowImageZoom] = useState(false);
+  const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
   
   if (!kunstwerk) return null;
 
@@ -161,15 +164,25 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto p-4 space-y-6">
             {hasPhotos && currentPhoto && (
-              <div className="relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center" style={{ minHeight: '400px' }}>
+              <div className="relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center group" style={{ minHeight: '400px' }}>
                 <img 
                   src={currentPhoto} 
                   alt={kunstwerk.name}
-                  className="max-w-full max-h-[600px] object-contain"
+                  className="max-w-full max-h-[600px] object-contain cursor-zoom-in transition-opacity hover:opacity-90"
+                  onClick={() => {
+                    setZoomedImageUrl(currentPhoto);
+                    setShowImageZoom(true);
+                  }}
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                   }}
                 />
+                {/* Zoom hint overlay */}
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none">
+                  <div className="bg-black/60 text-white px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
+                    🔍 Klik om in te zoomen
+                  </div>
+                </div>
                 {photos.length > 1 && (
                   <>
                     <button
@@ -389,6 +402,17 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
           name={kunstwerk.name}
           description={model.description}
           onClose={() => setShowPhotoViewer(false)}
+        />
+      )}
+      
+      {showImageZoom && zoomedImageUrl && (
+        <ImageZoom
+          imageUrl={zoomedImageUrl}
+          altText={kunstwerk.name}
+          onClose={() => {
+            setShowImageZoom(false);
+            setZoomedImageUrl(null);
+          }}
         />
       )}
     </>
