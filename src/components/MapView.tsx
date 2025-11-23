@@ -18,6 +18,7 @@ import { utrechtKunstwerken, UtrechtKunstwerk } from '@/data/utrechtKunstwerken'
 import { alkmaartKunstwerken, AlkmaarKunstwerk } from '@/data/alkmaartKunstwerken';
 import { denhaagKunstwerken, DenHaagKunstwerk } from '@/data/denhaagKunstwerken';
 import { delftKunstwerken, DelftKunstwerk } from '@/data/delftKunstwerken';
+import { dublinKunstwerken, DublinKunstwerk } from '@/data/dublinKunstwerken';
 import { importMunicipalArtworks, importDrentheArtworks } from '@/lib/importMunicipalArtworks';
 interface Model {
   id: string;
@@ -94,8 +95,8 @@ const MapView = () => {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showOsmStatues, setShowOsmStatues] = useState(true);
   const [selectedKunstwerk, setSelectedKunstwerk] = useState<{
-    kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | DelftKunstwerk | any;
-    city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'delft' | 'drenthe';
+    kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | DelftKunstwerk | DublinKunstwerk | any;
+    city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'delft' | 'dublin' | 'drenthe';
     model?: Model;
   } | null>(null);
   const [drentheKunstwerken, setDrentheKunstwerken] = useState<any[]>([]);
@@ -1252,6 +1253,81 @@ const MapView = () => {
         kunstwerkMarkersRef.current.push(kunstwerkMarker);
       }
     });
+    
+    // Dublin kunstwerken markers (groen)
+    dublinKunstwerken.forEach(kunstwerk => {
+      const hasUserModel = models.some(model => {
+        if (!model.latitude || !model.longitude) return false;
+        const dx = Math.abs(model.latitude - kunstwerk.lat);
+        const dy = Math.abs(model.longitude - kunstwerk.lon);
+        return dx < 0.0001 && dy < 0.0001;
+      });
+      
+      const previewImage = kunstwerk.photos && kunstwerk.photos.length > 0 ? kunstwerk.photos[0] : null;
+      
+      const kunstwerkIcon = L.divIcon({
+        html: `
+          <div style="
+            width: 70px;
+            height: 70px;
+            background: white;
+            border-radius: 50%;
+            border: 4px solid hsl(142, 76%, 36%);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+          ">
+            ${previewImage ? `<img src="${previewImage}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML='<svg width=\\'35\\' height=\\'35\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'hsl(142, 76%, 36%)\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\' ry=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg>'"/>` : `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="hsl(142, 76%, 36%)" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>`}
+            ${hasUserModel ? '<div style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: hsl(140, 75%, 45%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">✓</div>' : ''}
+          </div>
+        `,
+        iconSize: [70, 70],
+        iconAnchor: [35, 35]
+      });
+      
+      const kunstwerkMarker = L.marker([kunstwerk.lat, kunstwerk.lon], {
+        icon: kunstwerkIcon
+      }).bindPopup(`
+          <div style="text-align: center; min-width: 200px;">
+            <h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 16px;">${kunstwerk.name}</h3>
+            <p style="margin: 4px 0; font-size: 13px; color: #6b7280;">${kunstwerk.artist}</p>
+            <p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">📍 ${kunstwerk.location}</p>
+            ${kunstwerk.year ? `<p style="margin: 4px 0; font-size: 12px; color: #9ca3af;">🗓️ ${kunstwerk.year}</p>` : ''}
+            ${hasUserModel ? `<p style="margin: 8px 0; color: hsl(140, 75%, 45%); font-weight: 500;">✓ ${t('Er is een 3D model beschikbaar', 'A 3D model is available')}</p>` : ''}
+            <button 
+              onclick="window.openKunstwerk('${kunstwerk.id}', 'dublin')"
+              style="
+                background: linear-gradient(135deg, hsl(142, 76%, 36%) 0%, hsl(142, 66%, 26%) 100%);
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-weight: 600;
+                width: 100%;
+                margin-top: 8px;
+                box-shadow: 0 2px 8px rgba(34, 139, 34, 0.3);
+              "
+              onmouseover="this.style.background='linear-gradient(135deg, hsl(142, 66%, 26%) 0%, hsl(142, 56%, 16%) 100%)'"
+              onmouseout="this.style.background='linear-gradient(135deg, hsl(142, 76%, 36%) 0%, hsl(142, 66%, 26%) 100%)'"
+            >
+              🎨 ${t('Bekijk Details', 'View Details')}
+            </button>
+          </div>
+        `, {
+        maxWidth: 250,
+        className: 'kunstwerk-popup'
+      });
+      markerClusterGroupRef.current?.addLayer(kunstwerkMarker);
+      kunstwerkMarkersRef.current.push(kunstwerkMarker);
+    });
 
     // Add the cluster group to the map
     if (markerClusterGroupRef.current) {
@@ -1264,14 +1340,14 @@ const MapView = () => {
       fillColor: 'hsl(220, 85%, 55%)',
       fillOpacity: 0.1,
       radius: 50
-    }).addTo(map.current);
+     }).addTo(map.current);
     return () => {
       if (map.current) {
         map.current.remove();
         map.current = null;
       }
     };
-  }, [initialLocation, models, showViewer, discoveredModels, user]);
+  }, [initialLocation, models, showViewer, discoveredModels, user, nijmegenKunstwerken, utrechtKunstwerken, alkmaartKunstwerken, denhaagKunstwerken, delftKunstwerken, dublinKunstwerken]);
 
   // Update user marker position when location changes
   useEffect(() => {
@@ -1296,8 +1372,8 @@ const MapView = () => {
       }));
       window.location.href = '/upload';
     };
-    (window as any).openKunstwerk = (id: string, city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'delft' | 'drenthe') => {
-      let kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | DelftKunstwerk | any | undefined;
+    (window as any).openKunstwerk = (id: string, city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'delft' | 'dublin' | 'drenthe') => {
+      let kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | DelftKunstwerk | DublinKunstwerk | any | undefined;
       if (city === 'nijmegen') {
         kunstwerk = nijmegenKunstwerken.find(k => k.id === id);
       } else if (city === 'utrecht') {
@@ -1308,6 +1384,8 @@ const MapView = () => {
         kunstwerk = denhaagKunstwerken.find(k => k.id === id);
       } else if (city === 'delft') {
         kunstwerk = delftKunstwerken.find(k => k.id === id);
+      } else if (city === 'dublin') {
+        kunstwerk = dublinKunstwerken.find(k => k.id === id);
       } else if (city === 'drenthe') {
         kunstwerk = drentheKunstwerken.find(k => k.id === id);
       }
@@ -1342,7 +1420,7 @@ const MapView = () => {
       delete (window as any).openKunstwerk;
       delete (window as any).viewKunstwerkDetails;
     };
-  }, [nijmegenKunstwerken, utrechtKunstwerken, alkmaartKunstwerken, denhaagKunstwerken, delftKunstwerken, drentheKunstwerken, models]);
+  }, [nijmegenKunstwerken, utrechtKunstwerken, alkmaartKunstwerken, denhaagKunstwerken, delftKunstwerken, dublinKunstwerken, drentheKunstwerken, models]);
 
   // Load kunstwerk or model from URL parameter
   useEffect(() => {
@@ -1353,7 +1431,7 @@ const MapView = () => {
       const [city, id] = kunstwerkParam.split('-');
       if (city && id) {
         // Check if the required data is loaded
-        const dataLoaded = city === 'nijmegen' && nijmegenKunstwerken.length > 0 || city === 'utrecht' && utrechtKunstwerken.length > 0 || city === 'alkmaar' && alkmaartKunstwerken.length > 0 || city === 'denhaag' && denhaagKunstwerken.length > 0 || city === 'delft' && delftKunstwerken.length > 0 || city === 'drenthe' && drentheKunstwerken.length > 0;
+        const dataLoaded = city === 'nijmegen' && nijmegenKunstwerken.length > 0 || city === 'utrecht' && utrechtKunstwerken.length > 0 || city === 'alkmaar' && alkmaartKunstwerken.length > 0 || city === 'denhaag' && denhaagKunstwerken.length > 0 || city === 'delft' && delftKunstwerken.length > 0 || city === 'dublin' && dublinKunstwerken.length > 0 || city === 'drenthe' && drentheKunstwerken.length > 0;
         if (dataLoaded) {
           hasLoadedFromUrl.current = true;
           // Use setTimeout to ensure the map is ready
@@ -1372,7 +1450,7 @@ const MapView = () => {
         }, 100);
       }
     }
-  }, [models, nijmegenKunstwerken, utrechtKunstwerken, alkmaartKunstwerken, denhaagKunstwerken, delftKunstwerken, drentheKunstwerken]);
+  }, [models, nijmegenKunstwerken, utrechtKunstwerken, alkmaartKunstwerken, denhaagKunstwerken, delftKunstwerken, dublinKunstwerken, drentheKunstwerken]);
   const handleSearchResultClick = (result: any) => {
     if (result.type === 'model') {
       // Open user model

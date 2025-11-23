@@ -6,6 +6,7 @@ import { UtrechtKunstwerk } from '@/data/utrechtKunstwerken';
 import { AlkmaarKunstwerk } from '@/data/alkmaartKunstwerken';
 import { DenHaagKunstwerk } from '@/data/denhaagKunstwerken';
 import { DelftKunstwerk } from '@/data/delftKunstwerken';
+import { DublinKunstwerk } from '@/data/dublinKunstwerken';
 import { useState } from 'react';
 import QuickUploadDialog from './QuickUploadDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -32,8 +33,8 @@ interface Model {
 }
 
 interface KunstwerkViewerProps {
-  kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | DelftKunstwerk | any | null;
-  city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'delft' | 'drenthe';
+  kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | DelftKunstwerk | DublinKunstwerk | any | null;
+  city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'delft' | 'dublin' | 'drenthe';
   model?: Model;
   onClose: () => void;
 }
@@ -317,6 +318,14 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                     <ExternalLink className="w-3 h-3" />
                     Bron
                   </Button>
+                </div>
+              )}
+              
+              {city === 'dublin' && 'source' in kunstwerk && (
+                <div className="pt-4 border-t border-border">
+                  <p className="text-sm text-muted-foreground">
+                    Bron: {kunstwerk.source}
+                  </p>
                 </div>
               )}
             </div>
