@@ -20,6 +20,7 @@ import { denhaagKunstwerken, DenHaagKunstwerk } from '@/data/denhaagKunstwerken'
 import { delftKunstwerken, DelftKunstwerk } from '@/data/delftKunstwerken';
 import { dublinKunstwerken, DublinKunstwerk } from '@/data/dublinKunstwerken';
 import { importMunicipalArtworks, importDrentheArtworks } from '@/lib/importMunicipalArtworks';
+import { getLowResImageUrl } from '@/lib/imageUtils';
 interface Model {
   id: string;
   name: string;
@@ -922,8 +923,10 @@ const MapView = () => {
         // Find matching user model at this location
         const matchingModel = models.find(model => model.latitude && model.longitude && Math.abs(model.latitude - kunstwerk.lat) < 0.0001 && Math.abs(model.longitude - kunstwerk.lon) < 0.0001);
         const hasUserModel = !!matchingModel;
-        // Use model preview if available, otherwise use kunstwerk's first photo
-        const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url || (kunstwerk.photos && kunstwerk.photos.length > 0 ? kunstwerk.photos[0] : null);
+        
+        // Use low-res versions for map markers
+        const originalImage = matchingModel?.thumbnail_url || matchingModel?.photo_url || (kunstwerk.photos && kunstwerk.photos.length > 0 ? kunstwerk.photos[0] : null);
+        const previewImage = getLowResImageUrl(originalImage, 100);
         const kunstwerkIcon = L.divIcon({
           html: `
             <div style="
@@ -993,7 +996,10 @@ const MapView = () => {
       if (kunstwerk.lat && kunstwerk.lon) {
         const matchingModel = models.find(model => model.latitude && model.longitude && Math.abs(model.latitude - kunstwerk.lat) < 0.0001 && Math.abs(model.longitude - kunstwerk.lon) < 0.0001);
         const hasUserModel = !!matchingModel;
-        const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url || (kunstwerk.photos && kunstwerk.photos.length > 0 ? kunstwerk.photos[0] : null);
+        
+        // Use low-res versions for map markers
+        const originalImage = matchingModel?.thumbnail_url || matchingModel?.photo_url || (kunstwerk.photos && kunstwerk.photos.length > 0 ? kunstwerk.photos[0] : null);
+        const previewImage = getLowResImageUrl(originalImage, 100);
         const kunstwerkIcon = L.divIcon({
           html: `
             <div style="
@@ -1063,7 +1069,10 @@ const MapView = () => {
       if (kunstwerk.lat && kunstwerk.lon) {
         const matchingModel = models.find(model => model.latitude && model.longitude && Math.abs(model.latitude - kunstwerk.lat) < 0.0001 && Math.abs(model.longitude - kunstwerk.lon) < 0.0001);
         const hasUserModel = !!matchingModel;
-        const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url || kunstwerk.photos && kunstwerk.photos[0];
+        
+        // Use low-res versions for map markers
+        const originalImage = matchingModel?.thumbnail_url || matchingModel?.photo_url || (kunstwerk.photos && kunstwerk.photos[0]);
+        const previewImage = getLowResImageUrl(originalImage, 100);
         
         const kunstwerkIcon = L.divIcon({
           className: 'custom-marker-kunstwerk',
@@ -1187,7 +1196,10 @@ const MapView = () => {
       if (kunstwerk.lat && kunstwerk.lon) {
         const matchingModel = models.find(model => model.latitude && model.longitude && Math.abs(model.latitude - kunstwerk.lat) < 0.0001 && Math.abs(model.longitude - kunstwerk.lon) < 0.0001);
         const hasUserModel = !!matchingModel;
-        const previewImage = matchingModel?.thumbnail_url || matchingModel?.photo_url;
+        
+        // Use low-res versions for map markers
+        const originalImage = matchingModel?.thumbnail_url || matchingModel?.photo_url;
+        const previewImage = getLowResImageUrl(originalImage, 100);
         
         const kunstwerkIcon = L.divIcon({
           className: 'custom-marker-kunstwerk',
@@ -1263,7 +1275,9 @@ const MapView = () => {
         return dx < 0.0001 && dy < 0.0001;
       });
       
-      const previewImage = kunstwerk.photos && kunstwerk.photos.length > 0 ? kunstwerk.photos[0] : null;
+      // Use low-res versions for map markers
+      const originalImage = kunstwerk.photos && kunstwerk.photos.length > 0 ? kunstwerk.photos[0] : null;
+      const previewImage = getLowResImageUrl(originalImage, 100);
       
       const kunstwerkIcon = L.divIcon({
         html: `

@@ -11,9 +11,11 @@ interface QuickUploadDialogProps {
   statueName: string;
   latitude: number;
   longitude: number;
+  isStreetArt?: boolean;
+  hasPhotos?: boolean;
 }
 
-const QuickUploadDialog = ({ open, onOpenChange, statueName, latitude, longitude }: QuickUploadDialogProps) => {
+const QuickUploadDialog = ({ open, onOpenChange, statueName, latitude, longitude, isStreetArt = false, hasPhotos = false }: QuickUploadDialogProps) => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [isNavigating, setIsNavigating] = useState(false);
@@ -42,30 +44,50 @@ const QuickUploadDialog = ({ open, onOpenChange, statueName, latitude, longitude
         <DialogHeader>
           <DialogTitle>{t('Uploaderen voor', 'Upload for')} {statueName}</DialogTitle>
           <DialogDescription>
-            {t('Kies wat je wilt uploaden voor dit standbeeld', 'Choose what you want to upload for this statue')}
+            {isStreetArt 
+              ? hasPhotos 
+                ? t('Voor street art kunnen alleen foto\'s worden geüpload', 'For street art only photos can be uploaded')
+                : t('Voor street art zonder foto\'s kun je een foto uploaden', 'For street art without photos you can upload a photo')
+              : t('Kies wat je wilt uploaden voor dit standbeeld', 'Choose what you want to upload for this statue')
+            }
           </DialogDescription>
         </DialogHeader>
         
         <div className="flex flex-col gap-3 py-4">
-          <Button
-            onClick={() => handleUploadChoice('photo')}
-            className="w-full h-20 text-lg"
-            variant="outline"
-            disabled={isNavigating}
-          >
-            <ImageIcon className="mr-2 h-6 w-6" />
-            {t('Foto Uploaden', 'Upload Photo')}
-          </Button>
+          {/* Show photo upload if not street art OR if street art without photos */}
+          {(!isStreetArt || !hasPhotos) && (
+            <Button
+              onClick={() => handleUploadChoice('photo')}
+              className="w-full h-20 text-lg"
+              variant="outline"
+              disabled={isNavigating}
+            >
+              <ImageIcon className="mr-2 h-6 w-6" />
+              {t('Foto Uploaden', 'Upload Photo')}
+            </Button>
+          )}
           
-          <Button
-            onClick={() => handleUploadChoice('model')}
-            className="w-full h-20 text-lg"
-            variant="outline"
-            disabled={isNavigating}
-          >
-            <UploadIcon className="mr-2 h-6 w-6" />
-            {t('3D Model Uploaden', 'Upload 3D Model')}
-          </Button>
+          {/* Only show model upload if NOT street art */}
+          {!isStreetArt && (
+            <Button
+              onClick={() => handleUploadChoice('model')}
+              className="w-full h-20 text-lg"
+              variant="outline"
+              disabled={isNavigating}
+            >
+              <UploadIcon className="mr-2 h-6 w-6" />
+              {t('3D Model Uploaden', 'Upload 3D Model')}
+            </Button>
+          )}
+          
+          {/* Show message if street art with photos (no uploads allowed) */}
+          {isStreetArt && hasPhotos && (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">
+                {t('Voor deze street art met foto\'s kunnen geen uploads worden toegevoegd', 'No uploads can be added for this street art with photos')}
+              </p>
+            </div>
+          )}
           
           {isNavigating && (
             <p className="text-sm text-muted-foreground text-center">
