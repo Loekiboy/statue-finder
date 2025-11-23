@@ -7,6 +7,7 @@ import StandbeeldViewer, { preloadModels } from './StandbeeldViewer';
 import PhotoViewer from './PhotoViewer';
 import QuickUploadDialog from './QuickUploadDialog';
 import KunstwerkViewer from './KunstwerkViewer';
+import { SearchBar } from './SearchBar';
 import { Button } from './ui/button';
 import { MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -1279,7 +1280,33 @@ const MapView = () => {
       }
     }
   }, [models, nijmegenKunstwerken, utrechtKunstwerken, alkmaartKunstwerken, denhaagKunstwerken, drentheKunstwerken]);
+  const handleSearchResultClick = (result: any) => {
+    if (result.type === 'model') {
+      // Open user model
+      const model = models.find(m => m.id === result.id);
+      if (model) {
+        setSelectedModel(model);
+        if (map.current && result.lat && result.lon) {
+          map.current.setView([result.lat, result.lon], 16, { animate: true });
+        }
+      }
+    } else {
+      // Open municipal artwork
+      (window as any).openKunstwerk(result.id, result.type);
+      if (map.current && result.lat && result.lon) {
+        map.current.setView([result.lat, result.lon], 16, { animate: true });
+      }
+    }
+  };
+
   return <div className="relative h-screen w-full">
+      {/* Search Bar */}
+      {!selectedKunstwerk && !showViewer && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] w-full px-4">
+          <SearchBar models={models} onResultClick={handleSearchResultClick} />
+        </div>
+      )}
+
       {selectedKunstwerk && <KunstwerkViewer kunstwerk={selectedKunstwerk.kunstwerk} city={selectedKunstwerk.city} model={selectedKunstwerk.model} onClose={() => {
       setSelectedKunstwerk(null);
       hasLoadedFromUrl.current = false;
