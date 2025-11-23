@@ -3,10 +3,11 @@ import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { X, Loader2, View, Share2, Check } from 'lucide-react';
+import { X, Loader2, View, Share2, Check, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
+import { downloadModel } from '@/lib/downloadUtils';
 import '@google/model-viewer';
 interface StandbeeldViewerProps {
   onClose: () => void;
@@ -33,6 +34,8 @@ const StandbeeldViewer = ({
   const [isIOS, setIsIOS] = useState(false);
   const meshRef = useRef<THREE.Mesh | null>(null);
   const [isSharing, setIsSharing] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  
   const handleShare = async () => {
     if (!modelId) return;
     const shareUrl = `${window.location.origin}/?model=${modelId}`;
@@ -57,6 +60,22 @@ const StandbeeldViewer = ({
         console.error('Error copying to clipboard:', err);
         toast.error('Kon link niet kopiëren');
       }
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!modelUrl) return;
+    
+    setIsDownloading(true);
+    try {
+      const modelName = modelPath.split('/').pop()?.split('.')[0] || 'model';
+      await downloadModel(modelUrl, modelName);
+      toast.success('Model gedownload!');
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast.error('Download mislukt');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -286,6 +305,16 @@ const StandbeeldViewer = ({
         {modelId && <Button onClick={handleShare} variant="default" size="icon" className="bg-background/80 backdrop-blur-sm hover:bg-background opacity-80 text-slate-950 shadow-md">
             {isSharing ? <Check className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}
           </Button>}
+        <Button 
+          onClick={handleDownload} 
+          variant="default" 
+          size="icon" 
+          className="bg-background/80 backdrop-blur-sm hover:bg-background opacity-80 text-slate-950 shadow-md"
+          disabled={isDownloading || !modelUrl}
+          title="Download 3D model"
+        >
+          {isDownloading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
+        </Button>
         {isIOS && glbUrl && !loading && <Button onClick={() => setShowAR(!showAR)} variant="default" size="icon" className="bg-background/80 backdrop-blur-sm hover:bg-background">
             <View className="h-5 w-5" />
           </Button>}

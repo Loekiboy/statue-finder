@@ -1,6 +1,7 @@
 import { Button } from './ui/button';
-import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X, Share2, Check } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X, Share2, Check, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { downloadImage } from '@/lib/downloadUtils';
 import { NijmegenKunstwerk } from '@/data/nijmegenKunstwerken';
 import { UtrechtKunstwerk } from '@/data/utrechtKunstwerken';
 import { AlkmaarKunstwerk } from '@/data/alkmaartKunstwerken';
@@ -75,6 +76,17 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
       if ((error as Error).name !== 'AbortError') {
         console.error('Error sharing:', error);
         toast.error(t('Kon niet delen', 'Could not share'));
+      }
+    }
+  };
+
+  const handleDownloadPhoto = async () => {
+    if (currentPhoto) {
+      try {
+        await downloadImage(currentPhoto, kunstwerk.name);
+        toast.success(t('Foto gedownload!', 'Photo downloaded!'));
+      } catch (error) {
+        toast.error(t('Download mislukt', 'Download failed'));
       }
     }
   };
@@ -187,21 +199,29 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                   <>
                     <button
                       onClick={prevPhoto}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors z-10"
                     >
                       <ChevronLeft className="w-6 h-6" />
                     </button>
                     <button
                       onClick={nextPhoto}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors z-10"
                     >
                       <ChevronRight className="w-6 h-6" />
                     </button>
-                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm z-10">
                       {currentPhotoIndex + 1} / {photos.length}
                     </div>
                   </>
                 )}
+                {/* Download button */}
+                <button
+                  onClick={handleDownloadPhoto}
+                  className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors z-10"
+                  title={t('Download foto', 'Download photo')}
+                >
+                  <Download className="w-5 h-5" />
+                </button>
               </div>
             )}
             

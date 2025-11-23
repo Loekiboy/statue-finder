@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { X, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, RotateCw, Download } from 'lucide-react';
 import { Button } from './ui/button';
+import { downloadImage } from '@/lib/downloadUtils';
+import { toast } from 'sonner';
 
 interface ImageZoomProps {
   imageUrl: string;
@@ -31,6 +33,15 @@ export const ImageZoom = ({ imageUrl, altText, onClose }: ImageZoomProps) => {
     setScale(1);
     setRotation(0);
     setPosition({ x: 0, y: 0 });
+  };
+
+  const handleDownload = async () => {
+    try {
+      await downloadImage(imageUrl, altText);
+      toast.success('Afbeelding gedownload!');
+    } catch (error) {
+      toast.error('Download mislukt');
+    }
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -124,6 +135,15 @@ export const ImageZoom = ({ imageUrl, altText, onClose }: ImageZoomProps) => {
             className="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white"
           >
             Reset
+          </Button>
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={handleDownload}
+            className="bg-white/10 hover:bg-white/20 backdrop-blur-sm"
+            title="Download afbeelding"
+          >
+            <Download className="h-4 w-4 text-white" />
           </Button>
         </div>
         <Button
