@@ -1,5 +1,5 @@
 import { Button } from './ui/button';
-import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X, Share2, Check, Download } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X, Share2, Check, Download, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { downloadImage } from '@/lib/downloadUtils';
 import { getLowResImageUrl } from '@/lib/imageUtils';
@@ -9,7 +9,7 @@ import { AlkmaarKunstwerk } from '@/data/alkmaartKunstwerken';
 import { DenHaagKunstwerk } from '@/data/denhaagKunstwerken';
 import { DelftKunstwerk } from '@/data/delftKunstwerken';
 import { DublinKunstwerk } from '@/data/dublinKunstwerken';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import QuickUploadDialog from './QuickUploadDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import StandbeeldViewer from './StandbeeldViewer';
@@ -51,8 +51,82 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   const [isSharing, setIsSharing] = useState(false);
   const [showImageZoom, setShowImageZoom] = useState(false);
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
   
   if (!kunstwerk) return null;
+
+  // Build photos array
+  const photos: string[] = [];
+  
+  // Add model photo/thumbnail first if available
+  if (model?.thumbnail_url) {
+    photos.push(model.thumbnail_url);
+  } else if (model?.photo_url) {
+    photos.push(model.photo_url);
+  }
+  
+  // Add kunstwerk photos for specific cities
+  if (city === 'utrecht') {
+    const utrechtKunstwerk = kunstwerk as UtrechtKunstwerk;
+    photos.push(...utrechtKunstwerk.photos);
+  } else if (city === 'alkmaar') {
+    const alkmaarKunstwerk = kunstwerk as AlkmaarKunstwerk;
+    photos.push(...alkmaarKunstwerk.photos);
+  } else if (city === 'denhaag') {
+    const denhaagKunstwerk = kunstwerk as DenHaagKunstwerk;
+    photos.push(...denhaagKunstwerk.photos);
+  } else if (city === 'dublin') {
+    const dublinKunstwerk = kunstwerk as DublinKunstwerk;
+    if (dublinKunstwerk.photos && dublinKunstwerk.photos.length > 0) {
+      photos.push(...dublinKunstwerk.photos);
+    }
+  }
+
+  const hasPhotos = photos.length > 0;
+  const has3DModel = model && model.file_path;
+  const currentPhoto = hasPhotos ? photos[currentPhotoIndex] : null;
+  
+  const nextPhoto = () => {
+    setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
+  };
+  
+  const prevPhoto = () => {
+    setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
+  };
+  
+  // Keyboard shortcuts for photo navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle shortcuts when zoom is open (ImageZoom handles its own)
+      if (showImageZoom || show3DViewer || showPhotoViewer) return;
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          if (photos.length > 1) {
+            e.preventDefault();
+            prevPhoto();
+          }
+          break;
+        case 'ArrowRight':
+          if (photos.length > 1) {
+            e.preventDefault();
+            nextPhoto();
+          }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          onClose();
+          break;
+        case '?':
+          e.preventDefault();
+          setShowHelp(prev => !prev);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showImageZoom, show3DViewer, showPhotoViewer, photos.length, onClose]);
 
   const handleShare = async () => {
     const kunstwerkId = model?.source_id || kunstwerk.id;
@@ -90,44 +164,6 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
         toast.error(t('Download mislukt', 'Download failed'));
       }
     }
-  };
-
-  const photos: string[] = [];
-  
-  // Add model photo/thumbnail first if available
-  if (model?.thumbnail_url) {
-    photos.push(model.thumbnail_url);
-  } else if (model?.photo_url) {
-    photos.push(model.photo_url);
-  }
-  
-  // Add kunstwerk photos for specific cities
-  if (city === 'utrecht') {
-    const utrechtKunstwerk = kunstwerk as UtrechtKunstwerk;
-    photos.push(...utrechtKunstwerk.photos);
-  } else if (city === 'alkmaar') {
-    const alkmaarKunstwerk = kunstwerk as AlkmaarKunstwerk;
-    photos.push(...alkmaarKunstwerk.photos);
-  } else if (city === 'denhaag') {
-    const denhaagKunstwerk = kunstwerk as DenHaagKunstwerk;
-    photos.push(...denhaagKunstwerk.photos);
-  } else if (city === 'dublin') {
-    const dublinKunstwerk = kunstwerk as DublinKunstwerk;
-    if (dublinKunstwerk.photos && dublinKunstwerk.photos.length > 0) {
-      photos.push(...dublinKunstwerk.photos);
-    }
-  }
-
-  const hasPhotos = photos.length > 0;
-  const has3DModel = model && model.file_path;
-  const currentPhoto = hasPhotos ? photos[currentPhotoIndex] : null;
-  
-  const nextPhoto = () => {
-    setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
-  };
-  
-  const prevPhoto = () => {
-    setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
   };
   
   // Get description, artist, and other details
@@ -178,7 +214,50 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
           <div className="max-w-4xl mx-auto p-4 space-y-6">
             {hasPhotos && currentPhoto && (
               <div className="relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center group" style={{ minHeight: '400px' }}>
-                <img 
+                {/* Keyboard shortcuts help button */}
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  onClick={() => setShowHelp(prev => !prev)}
+                  className="absolute top-4 left-4 z-20 bg-background/80 hover:bg-background/90 backdrop-blur-sm shadow-lg"
+                  title={t('Toon sneltoetsen (?)', 'Show shortcuts (?)')}
+                >
+                  <Info className="h-4 w-4" />
+                </Button>
+
+                {/* Keyboard shortcuts overlay */}
+                {showHelp && !showImageZoom && (
+                  <div className="absolute top-16 left-4 bg-background/95 backdrop-blur-md p-4 rounded-xl shadow-2xl z-20 border border-border max-w-xs">
+                    <h4 className="font-semibold mb-3 flex items-center gap-2 text-sm">
+                      <Info className="h-4 w-4" />
+                      {t('Sneltoetsen', 'Shortcuts')}
+                    </h4>
+                    <div className="space-y-2 text-xs">
+                      {photos.length > 1 && (
+                        <>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">{t('Volgende foto', 'Next photo')}</span>
+                            <kbd className="bg-muted px-2 py-1 rounded text-[10px]">→</kbd>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">{t('Vorige foto', 'Previous photo')}</span>
+                            <kbd className="bg-muted px-2 py-1 rounded text-[10px]">←</kbd>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">{t('Zoom (meer opties)', 'Zoom (more options)')}</span>
+                        <kbd className="bg-muted px-2 py-1 rounded text-[10px]">{t('Klik foto', 'Click photo')}</kbd>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">{t('Sluiten', 'Close')}</span>
+                        <kbd className="bg-muted px-2 py-1 rounded text-[10px]">ESC</kbd>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <img
                   src={getLowResImageUrl(currentPhoto, 800) || currentPhoto}
                   alt={kunstwerk.name}
                   loading="lazy"
