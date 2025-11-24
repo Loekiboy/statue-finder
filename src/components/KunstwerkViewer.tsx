@@ -249,6 +249,15 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                     setZoomedImageUrl(currentPhoto);
                     setShowImageZoom(true);
                   }}
+                  onDoubleClick={() => {
+                    setZoomedImageUrl(currentPhoto);
+                    setShowImageZoom(true);
+                  }}
+                  onWheel={(e) => {
+                    e.preventDefault();
+                    setZoomedImageUrl(currentPhoto);
+                    setShowImageZoom(true);
+                  }}
                   onTouchStart={onTouchStart}
                   onTouchMove={onTouchMove}
                   onTouchEnd={onTouchEnd}
