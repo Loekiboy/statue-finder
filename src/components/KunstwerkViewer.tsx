@@ -138,7 +138,7 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
     setIsSlideshow(true);
     const interval = setInterval(() => {
       nextPhoto();
-    }, 3000); // Change photo every 3 seconds
+    }, 5000); // Change photo every 5 seconds
     setSlideshowInterval(interval);
   };
   
