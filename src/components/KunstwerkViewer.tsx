@@ -127,7 +127,27 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
     }
   };
   
-  // Cleanup slideshow on unmount
+  // Auto-start slideshow on mount and handle zoom state
+  useEffect(() => {
+    // Start slideshow if multiple photos and not zoomed
+    if (photos.length > 1 && !showImageZoom && !isSlideshow) {
+      startSlideshow();
+    }
+    
+    // Stop slideshow when zoomed
+    if (showImageZoom && isSlideshow) {
+      stopSlideshow();
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (slideshowInterval) {
+        clearInterval(slideshowInterval);
+      }
+    };
+  }, [showImageZoom, photos.length]);
+  
+  // Separate cleanup effect
   useEffect(() => {
     return () => {
       if (slideshowInterval) {
