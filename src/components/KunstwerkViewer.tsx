@@ -1,5 +1,5 @@
 import { Button } from './ui/button';
-import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X, Share2, Check, Download } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X, Share2, Check, Download, Play, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { downloadImage } from '@/lib/downloadUtils';
 import { getLowResImageUrl } from '@/lib/imageUtils';
@@ -99,6 +99,42 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   
   const minSwipeDistance = 50;
   const [swipeIndicator, setSwipeIndicator] = useState<'left' | 'right' | null>(null);
+  const [isSlideshow, setIsSlideshow] = useState(false);
+  const [slideshowInterval, setSlideshowInterval] = useState<NodeJS.Timeout | null>(null);
+  
+  // Slideshow functionality
+  const startSlideshow = () => {
+    setIsSlideshow(true);
+    const interval = setInterval(() => {
+      nextPhoto();
+    }, 3000); // Change photo every 3 seconds
+    setSlideshowInterval(interval);
+  };
+  
+  const stopSlideshow = () => {
+    setIsSlideshow(false);
+    if (slideshowInterval) {
+      clearInterval(slideshowInterval);
+      setSlideshowInterval(null);
+    }
+  };
+  
+  const toggleSlideshow = () => {
+    if (isSlideshow) {
+      stopSlideshow();
+    } else {
+      startSlideshow();
+    }
+  };
+  
+  // Cleanup slideshow on unmount
+  useEffect(() => {
+    return () => {
+      if (slideshowInterval) {
+        clearInterval(slideshowInterval);
+      }
+    };
+  }, [slideshowInterval]);
   
   const onTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
@@ -277,11 +313,6 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                     setZoomedImageUrl(currentPhoto);
                     setShowImageZoom(true);
                   }}
-                  onWheel={(e) => {
-                    e.preventDefault();
-                    setZoomedImageUrl(currentPhoto);
-                    setShowImageZoom(true);
-                  }}
                   onTouchStart={onTouchStart}
                   onTouchMove={onTouchMove}
                   onTouchEnd={onTouchEnd}
@@ -312,6 +343,13 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm z-10">
                       {currentPhotoIndex + 1} / {photos.length}
                     </div>
+                    <button
+                      onClick={toggleSlideshow}
+                      className="absolute bottom-2 right-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors z-10 flex items-center gap-2"
+                      title={isSlideshow ? "Stop slideshow" : "Start slideshow"}
+                    >
+                      {isSlideshow ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                    </button>
                   </>
                 )}
                 {/* Download button */}
