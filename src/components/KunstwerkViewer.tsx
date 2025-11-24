@@ -87,11 +87,19 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   const currentPhoto = hasPhotos ? photos[currentPhotoIndex] : null;
   
   const nextPhoto = () => {
-    setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
+    setSlideDirection('left');
+    setTimeout(() => {
+      setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
+      setSlideDirection(null);
+    }, 400);
   };
   
   const prevPhoto = () => {
-    setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
+    setSlideDirection('right');
+    setTimeout(() => {
+      setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
+      setSlideDirection(null);
+    }, 400);
   };
   
   // Touch/swipe handling for mobile
@@ -103,7 +111,7 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   const [isSlideshow, setIsSlideshow] = useState(false);
   const [slideshowInterval, setSlideshowInterval] = useState<NodeJS.Timeout | null>(null);
   const [slideshowEnabled, setSlideshowEnabled] = useState(true);
-  const [fadeTransition, setFadeTransition] = useState(false);
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   
   // Fetch slideshow setting from profile
   useEffect(() => {
@@ -129,11 +137,7 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   const startSlideshow = () => {
     setIsSlideshow(true);
     const interval = setInterval(() => {
-      setFadeTransition(true);
-      setTimeout(() => {
-        nextPhoto();
-        setFadeTransition(false);
-      }, 300); // Match fade duration
+      nextPhoto();
     }, 3000); // Change photo every 3 seconds
     setSlideshowInterval(interval);
   };
@@ -338,29 +342,33 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                     {swipeIndicator === 'left' ? '→' : '←'}
                   </div>
                 )}
-                <img
-                  key={`photo-${currentPhotoIndex}-${currentPhoto}`}
-                  src={currentPhoto}
-                  alt={kunstwerk.name}
-                  loading="eager"
-                  className={`max-w-full max-h-[600px] object-contain cursor-zoom-in transition-opacity duration-300 hover:opacity-90 ${
-                    fadeTransition ? 'opacity-0' : 'opacity-100'
-                  }`}
-                  onClick={() => {
-                    setZoomedImageUrl(currentPhoto);
-                    setShowImageZoom(true);
-                  }}
-                  onDoubleClick={() => {
-                    setZoomedImageUrl(currentPhoto);
-                    setShowImageZoom(true);
-                  }}
-                  onTouchStart={onTouchStart}
-                  onTouchMove={onTouchMove}
-                  onTouchEnd={onTouchEnd}
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
+                <div className="relative w-full h-full flex items-center justify-center">
+                  <img
+                    key={`photo-${currentPhotoIndex}-${currentPhoto}`}
+                    src={currentPhoto}
+                    alt={kunstwerk.name}
+                    loading="eager"
+                    className={`max-w-full max-h-[600px] object-contain cursor-zoom-in transition-all duration-400 ease-out hover:opacity-90 ${
+                      slideDirection === 'left' ? 'translate-x-[-100%] opacity-0' : 
+                      slideDirection === 'right' ? 'translate-x-[100%] opacity-0' : 
+                      'translate-x-0 opacity-100'
+                    }`}
+                    onClick={() => {
+                      setZoomedImageUrl(currentPhoto);
+                      setShowImageZoom(true);
+                    }}
+                    onDoubleClick={() => {
+                      setZoomedImageUrl(currentPhoto);
+                      setShowImageZoom(true);
+                    }}
+                    onTouchStart={onTouchStart}
+                    onTouchMove={onTouchMove}
+                    onTouchEnd={onTouchEnd}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
                 {/* Zoom hint overlay */}
                 <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none">
                   <div className="bg-black/60 text-white px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
