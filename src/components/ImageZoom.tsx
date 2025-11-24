@@ -99,6 +99,23 @@ export const ImageZoom = ({ imageUrl, altText, onClose }: ImageZoomProps) => {
     setIsDragging(false);
   };
 
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    if (e.deltaY < 0) {
+      handleZoomIn();
+    } else {
+      handleZoomOut();
+    }
+  };
+
+  const handleDoubleClick = () => {
+    if (scale === 1) {
+      setScale(2);
+    } else {
+      handleReset();
+    }
+  };
+
   const handleTouchStart = (e: React.TouchEvent) => {
     if (scale > 1 && e.touches.length === 1) {
       setIsDragging(true);
@@ -200,6 +217,8 @@ export const ImageZoom = ({ imageUrl, altText, onClose }: ImageZoomProps) => {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+        onDoubleClick={handleDoubleClick}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
