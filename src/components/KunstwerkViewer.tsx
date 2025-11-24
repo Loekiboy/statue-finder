@@ -98,18 +98,32 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   
   const minSwipeDistance = 50;
+  const [swipeIndicator, setSwipeIndicator] = useState<'left' | 'right' | null>(null);
   
   const onTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
+    setSwipeIndicator(null);
   };
   
   const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+    const currentTouch = e.targetTouches[0].clientX;
+    setTouchEnd(currentTouch);
+    
+    // Show swipe indicator
+    if (touchStart) {
+      const distance = touchStart - currentTouch;
+      if (Math.abs(distance) > minSwipeDistance / 2) {
+        setSwipeIndicator(distance > 0 ? 'left' : 'right');
+      }
+    }
   };
   
   const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
+    if (!touchStart || !touchEnd) {
+      setSwipeIndicator(null);
+      return;
+    }
     
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > minSwipeDistance;
@@ -121,6 +135,8 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
     if (isRightSwipe && photos.length > 1) {
       prevPhoto();
     }
+    
+    setSwipeIndicator(null);
   };
   
   // Keyboard shortcuts for photo navigation
@@ -239,7 +255,15 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
           <div className="max-w-4xl mx-auto p-4 space-y-6">
             {hasPhotos && currentPhoto && (
               <div className="relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center group" style={{ minHeight: '400px' }}>
-                <img 
+                {/* Swipe indicator */}
+                {swipeIndicator && photos.length > 1 && (
+                  <div className={`absolute top-1/2 -translate-y-1/2 z-10 bg-black/60 backdrop-blur-sm text-white p-4 rounded-full transition-all ${
+                    swipeIndicator === 'left' ? 'right-4 animate-pulse' : 'left-4 animate-pulse'
+                  }`}>
+                    {swipeIndicator === 'left' ? '→' : '←'}
+                  </div>
+                )}
+                <img
                   key={`photo-${currentPhotoIndex}-${currentPhoto}`}
                   src={currentPhoto}
                   alt={kunstwerk.name}
@@ -268,7 +292,7 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                 {/* Zoom hint overlay */}
                 <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none">
                   <div className="bg-black/60 text-white px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
-                    🔍 Klik om in te zoomen
+                    🔍 Klik om in te zoomen {photos.length > 1 && '• Swipe voor volgende foto'}
                   </div>
                 </div>
                 {photos.length > 1 && (
