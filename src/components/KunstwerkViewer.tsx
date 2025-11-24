@@ -87,29 +87,19 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   const currentPhoto = hasPhotos ? photos[currentPhotoIndex] : null;
   
   const nextPhoto = () => {
-    const newIndex = (currentPhotoIndex + 1) % photos.length;
-    setNextPhotoIndex(newIndex);
     setSlideDirection('left');
-    setIsTransitioning(true);
     setTimeout(() => {
-      setCurrentPhotoIndex(newIndex);
-      setIsTransitioning(false);
+      setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
       setSlideDirection(null);
-      setNextPhotoIndex(null);
-    }, 600);
+    }, 400);
   };
   
   const prevPhoto = () => {
-    const newIndex = (currentPhotoIndex - 1 + photos.length) % photos.length;
-    setNextPhotoIndex(newIndex);
     setSlideDirection('right');
-    setIsTransitioning(true);
     setTimeout(() => {
-      setCurrentPhotoIndex(newIndex);
-      setIsTransitioning(false);
+      setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
       setSlideDirection(null);
-      setNextPhotoIndex(null);
-    }, 600);
+    }, 400);
   };
   
   // Touch/swipe handling for mobile
@@ -122,8 +112,6 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   const [slideshowInterval, setSlideshowInterval] = useState<NodeJS.Timeout | null>(null);
   const [slideshowEnabled, setSlideshowEnabled] = useState(true);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [nextPhotoIndex, setNextPhotoIndex] = useState<number | null>(null);
   
   // Fetch slideshow setting from profile
   useEffect(() => {
@@ -150,7 +138,7 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
     setIsSlideshow(true);
     const interval = setInterval(() => {
       nextPhoto();
-    }, 5000); // Change photo every 5 seconds
+    }, 3000); // Change photo every 3 seconds
     setSlideshowInterval(interval);
   };
   
@@ -355,30 +343,23 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                   </div>
                 )}
                 <div className="relative w-full h-full flex items-center justify-center">
-                  {/* Current photo */}
                   <img
                     key={`photo-${currentPhotoIndex}-${currentPhoto}`}
                     src={currentPhoto}
                     alt={kunstwerk.name}
                     loading="eager"
-                    className={`absolute max-w-full max-h-[600px] object-contain cursor-zoom-in hover:opacity-90 transition-all duration-[600ms] ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
-                      slideDirection === 'left' 
-                        ? '-translate-x-full opacity-0 scale-95' 
-                        : slideDirection === 'right' 
-                        ? 'translate-x-full opacity-0 scale-95' 
-                        : 'translate-x-0 opacity-100 scale-100'
+                    className={`max-w-full max-h-[600px] object-contain cursor-zoom-in transition-all duration-400 ease-out hover:opacity-90 ${
+                      slideDirection === 'left' ? 'translate-x-[-100%] opacity-0' : 
+                      slideDirection === 'right' ? 'translate-x-[100%] opacity-0' : 
+                      'translate-x-0 opacity-100'
                     }`}
                     onClick={() => {
-                      if (!isTransitioning) {
-                        setZoomedImageUrl(currentPhoto);
-                        setShowImageZoom(true);
-                      }
+                      setZoomedImageUrl(currentPhoto);
+                      setShowImageZoom(true);
                     }}
                     onDoubleClick={() => {
-                      if (!isTransitioning) {
-                        setZoomedImageUrl(currentPhoto);
-                        setShowImageZoom(true);
-                      }
+                      setZoomedImageUrl(currentPhoto);
+                      setShowImageZoom(true);
                     }}
                     onTouchStart={onTouchStart}
                     onTouchMove={onTouchMove}
@@ -387,34 +368,6 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                       e.currentTarget.style.display = 'none';
                     }}
                   />
-                  
-                  {/* Next photo (during transition) */}
-                  {isTransitioning && nextPhotoIndex !== null && (
-                    <img
-                      key={`photo-next-${nextPhotoIndex}-${photos[nextPhotoIndex]}`}
-                      src={photos[nextPhotoIndex]}
-                      alt={kunstwerk.name}
-                      loading="eager"
-                      className={`absolute max-w-full max-h-[600px] object-contain transition-all duration-[600ms] ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
-                        slideDirection === 'left'
-                          ? 'translate-x-0 opacity-100 scale-100'
-                          : 'translate-x-0 opacity-100 scale-100'
-                      }`}
-                      style={{
-                        transform: slideDirection === 'left' 
-                          ? 'translateX(100%)' 
-                          : slideDirection === 'right'
-                          ? 'translateX(-100%)'
-                          : 'translateX(0)',
-                        animation: slideDirection 
-                          ? `${slideDirection === 'left' ? 'slideInRight' : 'slideInLeft'} 600ms cubic-bezier(0.4,0.0,0.2,1) forwards`
-                          : 'none'
-                      }}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  )}
                 </div>
                 {/* Zoom hint overlay */}
                 <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none">
