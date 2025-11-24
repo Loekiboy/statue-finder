@@ -53,6 +53,8 @@ const Upload = () => {
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [manualLocation, setManualLocation] = useState(false);
+  const [locationLocked, setLocationLocked] = useState(false);
+  const [isMunicipalArtwork, setIsMunicipalArtwork] = useState(false);
   const [loading, setLoading] = useState(false);
   const [generateThumbnail, setGenerateThumbnail] = useState(false);
   const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null);
@@ -73,11 +75,14 @@ const Upload = () => {
     const uploadLocationData = localStorage.getItem('uploadLocation');
     if (uploadLocationData) {
       try {
-        const { lat, lon, name: statueName } = JSON.parse(uploadLocationData);
+        const { lat, lon, name: statueName, description: artworkDescription, artist: artworkArtist, isMunicipal, locked } = JSON.parse(uploadLocationData);
         setLatitude(lat);
         setLongitude(lon);
         setName(statueName || '');
+        setDescription(artworkDescription || '');
         setManualLocation(true);
+        setLocationLocked(locked || false);
+        setIsMunicipalArtwork(isMunicipal || false);
         
         // Try to find matching kunstwerk by location (within ~50m)
         const threshold = 0.0005; // approximately 50m
@@ -293,15 +298,15 @@ const Upload = () => {
         maxZoom: 19,
       }).addTo(map.current);
 
-      // Add click handler to place marker (only if not locked to existing kunstwerk)
+      // Add click handler to place marker (only if location is not locked)
       map.current.on('click', (e: L.LeafletMouseEvent) => {
         if (!map.current) return;
         
-        // Don't allow location changes for existing Nijmegen/Utrecht kunstwerken
-        if (selectedKunstwerk) {
+        // Don't allow location changes if locked
+        if (locationLocked) {
           toast({ 
-            title: 'Locatie vastgezet', 
-            description: 'Voor bestaande kunstwerken kan de locatie niet worden gewijzigd',
+            title: t('Locatie vastgezet', 'Location locked'), 
+            description: t('Voor voorgeselecteerde kunstwerken kan de locatie niet worden gewijzigd', 'Location cannot be changed for preselected artworks'),
             variant: 'default'
           });
           return;
@@ -319,7 +324,7 @@ const Upload = () => {
         setLatitude(e.latlng.lat);
         setLongitude(e.latlng.lng);
         
-        toast({ title: 'Locatie geselecteerd!' });
+        toast({ title: t('Locatie geselecteerd!', 'Location selected!') });
       });
       
       setMapReady(true);
@@ -890,10 +895,10 @@ const Upload = () => {
                   onChange={(e) => setName(e.target.value)}
                   placeholder={t('Bijv: Standbeeld Centrum', 'E.g: City Center Statue')}
                   required
-                  disabled={!!selectedKunstwerk}
-                  className={selectedKunstwerk ? "bg-muted cursor-not-allowed" : ""}
+                  disabled={!!selectedKunstwerk || isMunicipalArtwork}
+                  className={(selectedKunstwerk || isMunicipalArtwork) ? "bg-muted cursor-not-allowed" : ""}
                 />
-                {selectedKunstwerk && (
+                {(selectedKunstwerk || isMunicipalArtwork) && (
                   <p className="text-xs text-muted-foreground">
                     {t('Naam is vastgezet voor dit kunstwerk', 'Name is locked for this artwork')}
                   </p>
@@ -908,10 +913,10 @@ const Upload = () => {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={t('Beschrijf je model...', 'Describe your model...')}
                   rows={4}
-                  disabled={!!selectedKunstwerk}
-                  className={selectedKunstwerk ? "bg-muted cursor-not-allowed" : ""}
+                  disabled={!!selectedKunstwerk || isMunicipalArtwork}
+                  className={(selectedKunstwerk || isMunicipalArtwork) ? "bg-muted cursor-not-allowed" : ""}
                 />
-                {selectedKunstwerk && (
+                {(selectedKunstwerk || isMunicipalArtwork) && (
                   <p className="text-xs text-muted-foreground">
                     {t('Beschrijving is vastgezet voor dit kunstwerk', 'Description is locked for this artwork')}
                   </p>
@@ -975,15 +980,15 @@ const Upload = () => {
                     ref={mapContainer} 
                     className={cn(
                       "h-64 w-full rounded-md border relative",
-                      selectedKunstwerk && "opacity-80"
+                      (selectedKunstwerk || locationLocked) && "opacity-80"
                     )}
                   >
                     {!mapReady && (
                       <div className="absolute inset-0 flex items-center justify-center bg-muted animate-pulse">
-                        <p className="text-sm text-muted-foreground">Kaart laden...</p>
+                        <p className="text-sm text-muted-foreground">{t('Kaart laden...', 'Loading map...')}</p>
                       </div>
                     )}
-                    {selectedKunstwerk && (
+                    {(selectedKunstwerk || locationLocked) && (
                       <div className="absolute inset-0 bg-muted/30 pointer-events-none z-[1000] flex items-center justify-center">
                         <div className="bg-background/90 px-4 py-2 rounded-md shadow-lg">
                           <p className="text-sm font-medium">📍 {t('Locatie vastgezet', 'Location locked')}</p>
@@ -1002,7 +1007,7 @@ const Upload = () => {
                       <MapPin className="h-3 w-3" />
                     </a>
                   )}
-                  {selectedKunstwerk && (
+                  {(selectedKunstwerk || locationLocked) && (
                     <p className="text-xs text-muted-foreground">
                       {t('Locatie is vastgezet voor dit kunstwerk', 'Location is locked for this artwork')}
                     </p>
@@ -1025,15 +1030,15 @@ const Upload = () => {
                         ref={mapContainer} 
                         className={cn(
                           "h-64 w-full rounded-md border relative",
-                          selectedKunstwerk && "opacity-80"
+                          (selectedKunstwerk || locationLocked) && "opacity-80"
                         )}
                       >
                         {!mapReady && (
                           <div className="absolute inset-0 flex items-center justify-center bg-muted animate-pulse">
-                            <p className="text-sm text-muted-foreground">Kaart laden...</p>
+                            <p className="text-sm text-muted-foreground">{t('Kaart laden...', 'Loading map...')}</p>
                           </div>
                         )}
-                        {selectedKunstwerk && (
+                        {(selectedKunstwerk || locationLocked) && (
                           <div className="absolute inset-0 bg-muted/30 pointer-events-none z-[1000] flex items-center justify-center">
                             <div className="bg-background/90 px-4 py-2 rounded-md shadow-lg">
                               <p className="text-sm font-medium">📍 {t('Locatie vastgezet', 'Location locked')}</p>

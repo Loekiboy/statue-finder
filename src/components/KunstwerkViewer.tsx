@@ -508,6 +508,9 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
         longitude={kunstwerk.lon || kunstwerk.longitude}
         isStreetArt={city === 'dublin'}
         hasPhotos={hasPhotos}
+        description={kunstwerk.description || description}
+        artist={artist}
+        isMunicipal={model?.is_municipal || false}
       />
       
       {show3DViewer && model && kunstwerk && (
