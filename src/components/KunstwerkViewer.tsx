@@ -1,5 +1,5 @@
 import { Button } from './ui/button';
-import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X, Share2, Check, Download, Info } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X, Share2, Check, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { downloadImage } from '@/lib/downloadUtils';
 import { getLowResImageUrl } from '@/lib/imageUtils';
@@ -51,7 +51,6 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   const [isSharing, setIsSharing] = useState(false);
   const [showImageZoom, setShowImageZoom] = useState(false);
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
-  const [showHelp, setShowHelp] = useState(false);
   
   if (!kunstwerk) return null;
 
@@ -147,10 +146,6 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
           e.preventDefault();
           onClose();
           break;
-        case '?':
-          e.preventDefault();
-          setShowHelp(prev => !prev);
-          break;
       }
     };
 
@@ -244,50 +239,7 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
           <div className="max-w-4xl mx-auto p-4 space-y-6">
             {hasPhotos && currentPhoto && (
               <div className="relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center group" style={{ minHeight: '400px' }}>
-                {/* Keyboard shortcuts help button */}
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  onClick={() => setShowHelp(prev => !prev)}
-                  className="absolute top-4 left-4 z-20 bg-background/80 hover:bg-background/90 backdrop-blur-sm shadow-lg"
-                  title={t('Toon sneltoetsen (?)', 'Show shortcuts (?)')}
-                >
-                  <Info className="h-4 w-4" />
-                </Button>
-
-                {/* Keyboard shortcuts overlay */}
-                {showHelp && !showImageZoom && (
-                  <div className="absolute top-16 left-4 bg-background/95 backdrop-blur-md p-4 rounded-xl shadow-2xl z-20 border border-border max-w-xs">
-                    <h4 className="font-semibold mb-3 flex items-center gap-2 text-sm">
-                      <Info className="h-4 w-4" />
-                      {t('Sneltoetsen', 'Shortcuts')}
-                    </h4>
-                    <div className="space-y-2 text-xs">
-                      {photos.length > 1 && (
-                        <>
-                          <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground">{t('Volgende foto', 'Next photo')}</span>
-                            <kbd className="bg-muted px-2 py-1 rounded text-[10px]">→</kbd>
-                          </div>
-                          <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground">{t('Vorige foto', 'Previous photo')}</span>
-                            <kbd className="bg-muted px-2 py-1 rounded text-[10px]">←</kbd>
-                          </div>
-                        </>
-                      )}
-                      <div className="flex justify-between gap-4">
-                        <span className="text-muted-foreground">{t('Zoom (meer opties)', 'Zoom (more options)')}</span>
-                        <kbd className="bg-muted px-2 py-1 rounded text-[10px]">{t('Klik foto', 'Click photo')}</kbd>
-                      </div>
-                      <div className="flex justify-between gap-4">
-                        <span className="text-muted-foreground">{t('Sluiten', 'Close')}</span>
-                        <kbd className="bg-muted px-2 py-1 rounded text-[10px]">ESC</kbd>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <img 
+                <img
                   src={getLowResImageUrl(currentPhoto, 800) || currentPhoto}
                   alt={kunstwerk.name}
                   loading="lazy"
