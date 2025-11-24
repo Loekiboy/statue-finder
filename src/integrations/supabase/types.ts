@@ -125,6 +125,7 @@ export type Database = {
           last_known_longitude: number | null
           last_location_updated_at: string | null
           show_osm_statues: boolean
+          slideshow_enabled: boolean | null
           theme: string
           updated_at: string
           user_id: string
@@ -138,6 +139,7 @@ export type Database = {
           last_known_longitude?: number | null
           last_location_updated_at?: string | null
           show_osm_statues?: boolean
+          slideshow_enabled?: boolean | null
           theme?: string
           updated_at?: string
           user_id: string
@@ -151,6 +153,7 @@ export type Database = {
           last_known_longitude?: number | null
           last_location_updated_at?: string | null
           show_osm_statues?: boolean
+          slideshow_enabled?: boolean | null
           theme?: string
           updated_at?: string
           user_id?: string

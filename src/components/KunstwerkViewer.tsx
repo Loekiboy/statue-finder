@@ -1,5 +1,5 @@
 import { Button } from './ui/button';
-import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X, Share2, Check, Download, Play, Pause } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X, Share2, Check, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { downloadImage } from '@/lib/downloadUtils';
 import { getLowResImageUrl } from '@/lib/imageUtils';
@@ -15,6 +15,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import StandbeeldViewer from './StandbeeldViewer';
 import PhotoViewer from './PhotoViewer';
 import { ImageZoom } from './ImageZoom';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Model {
   id: string;
@@ -101,12 +102,38 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   const [swipeIndicator, setSwipeIndicator] = useState<'left' | 'right' | null>(null);
   const [isSlideshow, setIsSlideshow] = useState(false);
   const [slideshowInterval, setSlideshowInterval] = useState<NodeJS.Timeout | null>(null);
+  const [slideshowEnabled, setSlideshowEnabled] = useState(true);
+  const [fadeTransition, setFadeTransition] = useState(false);
+  
+  // Fetch slideshow setting from profile
+  useEffect(() => {
+    const fetchSlideshowSetting = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('slideshow_enabled')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (data) {
+          setSlideshowEnabled(data.slideshow_enabled ?? true);
+        }
+      }
+    };
+    
+    fetchSlideshowSetting();
+  }, []);
   
   // Slideshow functionality
   const startSlideshow = () => {
     setIsSlideshow(true);
     const interval = setInterval(() => {
-      nextPhoto();
+      setFadeTransition(true);
+      setTimeout(() => {
+        nextPhoto();
+        setFadeTransition(false);
+      }, 300); // Match fade duration
     }, 3000); // Change photo every 3 seconds
     setSlideshowInterval(interval);
   };
@@ -119,18 +146,10 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
     }
   };
   
-  const toggleSlideshow = () => {
-    if (isSlideshow) {
-      stopSlideshow();
-    } else {
-      startSlideshow();
-    }
-  };
-  
   // Auto-start slideshow on mount and handle zoom state
   useEffect(() => {
-    // Start slideshow if multiple photos and not zoomed
-    if (photos.length > 1 && !showImageZoom && !isSlideshow) {
+    // Start slideshow if multiple photos, not zoomed, and setting is enabled
+    if (photos.length > 1 && !showImageZoom && !isSlideshow && slideshowEnabled) {
       startSlideshow();
     }
     
@@ -145,7 +164,7 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
         clearInterval(slideshowInterval);
       }
     };
-  }, [showImageZoom, photos.length]);
+  }, [showImageZoom, photos.length, slideshowEnabled]);
   
   // Separate cleanup effect
   useEffect(() => {
@@ -324,7 +343,9 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                   src={currentPhoto}
                   alt={kunstwerk.name}
                   loading="eager"
-                  className="max-w-full max-h-[600px] object-contain cursor-zoom-in transition-opacity hover:opacity-90"
+                  className={`max-w-full max-h-[600px] object-contain cursor-zoom-in transition-opacity duration-300 hover:opacity-90 ${
+                    fadeTransition ? 'opacity-0' : 'opacity-100'
+                  }`}
                   onClick={() => {
                     setZoomedImageUrl(currentPhoto);
                     setShowImageZoom(true);
@@ -363,13 +384,6 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm z-10">
                       {currentPhotoIndex + 1} / {photos.length}
                     </div>
-                    <button
-                      onClick={toggleSlideshow}
-                      className="absolute bottom-2 right-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors z-10 flex items-center gap-2"
-                      title={isSlideshow ? "Stop slideshow" : "Start slideshow"}
-                    >
-                      {isSlideshow ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                    </button>
                   </>
                 )}
                 {/* Download button */}

@@ -29,6 +29,7 @@ interface Profile {
   theme: 'light' | 'dark';
   language: 'nl' | 'en';
   show_osm_statues: boolean;
+  slideshow_enabled: boolean;
   username?: string;
   created_at: string;
   updated_at: string;
@@ -246,6 +247,8 @@ const Profile = () => {
     username: 'Gebruikersnaam',
     usernameDesc: 'Deze naam wordt getoond in de leaderboards',
     usernamePlaceholder: 'Voer je gebruikersnaam in',
+    slideshowEnabled: 'Automatische slideshow',
+    slideshowEnabledDesc: 'Start automatisch een slideshow bij foto\'s van kunstwerken',
   } : {
     myProfile: 'My Profile',
     settings: 'Settings',
@@ -268,6 +271,8 @@ const Profile = () => {
     username: 'Username',
     usernameDesc: 'This name will be shown in the leaderboards',
     usernamePlaceholder: 'Enter your username',
+    slideshowEnabled: 'Automatic slideshow',
+    slideshowEnabledDesc: 'Automatically start a slideshow when viewing artwork photos',
   };
 
   return (
@@ -384,6 +389,26 @@ const Profile = () => {
                       id="show-osm"
                       checked={profile.show_osm_statues ?? true}
                       onCheckedChange={(checked) => updateProfile({ show_osm_statues: checked })}
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="slideshow" className="flex items-center gap-2">
+                        {t.slideshowEnabled}
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t.slideshowEnabledDesc}
+                      </p>
+                    </div>
+                    <Switch
+                      id="slideshow"
+                      checked={profile.slideshow_enabled ?? true}
+                      onCheckedChange={(checked) => updateProfile({ slideshow_enabled: checked })}
                     />
                   </div>
                 </div>
