@@ -1485,13 +1485,6 @@ const MapView = () => {
   };
 
   return <div className="relative h-screen w-full">
-      {/* Search Bar */}
-      {!selectedKunstwerk && !showViewer && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] w-full px-4">
-          <SearchBar models={models} onResultClick={handleSearchResultClick} />
-        </div>
-      )}
-
       {selectedKunstwerk && <KunstwerkViewer kunstwerk={selectedKunstwerk.kunstwerk} city={selectedKunstwerk.city} model={selectedKunstwerk.model} onClose={() => {
       setSelectedKunstwerk(null);
       hasLoadedFromUrl.current = false;
