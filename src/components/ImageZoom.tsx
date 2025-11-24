@@ -16,6 +16,8 @@ export const ImageZoom = ({ imageUrl, altText, onClose }: ImageZoomProps) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [lastTouchDistance, setLastTouchDistance] = useState<number | null>(null);
+  const [lastTapTime, setLastTapTime] = useState<number>(0);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -116,18 +118,52 @@ export const ImageZoom = ({ imageUrl, altText, onClose }: ImageZoomProps) => {
     }
   };
 
+  const getTouchDistance = (touches: React.TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (scale > 1 && e.touches.length === 1) {
-      setIsDragging(true);
-      setDragStart({
-        x: e.touches[0].clientX - position.x,
-        y: e.touches[0].clientY - position.y
-      });
+    // Double tap detection
+    if (e.touches.length === 1) {
+      const now = Date.now();
+      if (now - lastTapTime < 300) {
+        // Double tap detected
+        handleDoubleClick();
+        setLastTapTime(0);
+        return;
+      }
+      setLastTapTime(now);
+      
+      // Single touch drag
+      if (scale > 1) {
+        setIsDragging(true);
+        setDragStart({
+          x: e.touches[0].clientX - position.x,
+          y: e.touches[0].clientY - position.y
+        });
+      }
+    } else if (e.touches.length === 2) {
+      // Pinch zoom start
+      e.preventDefault();
+      const distance = getTouchDistance(e.touches);
+      setLastTouchDistance(distance);
+      setIsDragging(false);
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (isDragging && scale > 1 && e.touches.length === 1) {
+    if (e.touches.length === 2 && lastTouchDistance !== null) {
+      // Pinch zoom
+      e.preventDefault();
+      const distance = getTouchDistance(e.touches);
+      const scaleDelta = distance / lastTouchDistance;
+      const newScale = Math.min(Math.max(scale * scaleDelta, 0.5), 4);
+      setScale(newScale);
+      setLastTouchDistance(distance);
+    } else if (isDragging && scale > 1 && e.touches.length === 1) {
+      // Single touch drag
       setPosition({
         x: e.touches[0].clientX - dragStart.x,
         y: e.touches[0].clientY - dragStart.y
@@ -137,6 +173,7 @@ export const ImageZoom = ({ imageUrl, altText, onClose }: ImageZoomProps) => {
 
   const handleTouchEnd = () => {
     setIsDragging(false);
+    setLastTouchDistance(null);
   };
 
   return (
