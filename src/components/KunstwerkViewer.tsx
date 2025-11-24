@@ -94,6 +94,36 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
     setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
   };
   
+  // Touch/swipe handling for mobile
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  
+  const minSwipeDistance = 50;
+  
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+  
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+  
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (isLeftSwipe && photos.length > 1) {
+      nextPhoto();
+    }
+    if (isRightSwipe && photos.length > 1) {
+      prevPhoto();
+    }
+  };
+  
   // Keyboard shortcuts for photo navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -257,7 +287,7 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                   </div>
                 )}
 
-                <img
+                <img 
                   src={getLowResImageUrl(currentPhoto, 800) || currentPhoto}
                   alt={kunstwerk.name}
                   loading="lazy"
@@ -266,6 +296,9 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                     setZoomedImageUrl(currentPhoto);
                     setShowImageZoom(true);
                   }}
+                  onTouchStart={onTouchStart}
+                  onTouchMove={onTouchMove}
+                  onTouchEnd={onTouchEnd}
                   onLoad={(e) => {
                     // Load high-res version after low-res is displayed
                     const img = e.currentTarget;

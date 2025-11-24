@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Eye, Trash2, Lock, MapPin, Upload as UploadIcon, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { SearchBar } from '@/components/SearchBar';
 
 interface Model {
   id: string;
@@ -249,6 +250,29 @@ const Models = () => {
             <h1 className="text-4xl font-bold text-foreground mb-2">{t('3D Modellen Collectie', '3D Models Collection')}</h1>
             <p className="text-muted-foreground">{t('Bekijk alle geüploade 3D modellen', 'View all uploaded 3D models')}</p>
           </div>
+          
+          {/* Search Bar */}
+          {!selectedModel && (
+            <div className="mb-6">
+              <SearchBar 
+                models={models} 
+                onResultClick={(result) => {
+                  if (result.type === 'model') {
+                    const model = models.find(m => m.id === result.id);
+                    if (model) {
+                      setSelectedModel(model);
+                      if (model.photo_url && !model.file_path) {
+                        setShowPhotoViewer(true);
+                      }
+                    }
+                  } else {
+                    // Voor municipale kunstwerken, navigeer naar de kaart
+                    navigate(`/?kunstwerk=${result.type}-${result.id}`);
+                  }
+                }}
+              />
+            </div>
+          )}
 
           {selectedModel ? (
             <div className="space-y-4">
