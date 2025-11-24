@@ -13,9 +13,12 @@ interface QuickUploadDialogProps {
   longitude: number;
   isStreetArt?: boolean;
   hasPhotos?: boolean;
+  description?: string;
+  artist?: string;
+  isMunicipal?: boolean;
 }
 
-const QuickUploadDialog = ({ open, onOpenChange, statueName, latitude, longitude, isStreetArt = false, hasPhotos = false }: QuickUploadDialogProps) => {
+const QuickUploadDialog = ({ open, onOpenChange, statueName, latitude, longitude, isStreetArt = false, hasPhotos = false, description, artist, isMunicipal = false }: QuickUploadDialogProps) => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [isNavigating, setIsNavigating] = useState(false);
@@ -27,7 +30,11 @@ const QuickUploadDialog = ({ open, onOpenChange, statueName, latitude, longitude
     localStorage.setItem('uploadLocation', JSON.stringify({
       lat: latitude,
       lon: longitude,
-      name: statueName
+      name: statueName,
+      description: description || '',
+      artist: artist || '',
+      isMunicipal: isMunicipal,
+      locked: true // Lock location for municipal artworks
     }));
     
     // Store upload type preference
