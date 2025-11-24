@@ -239,10 +239,11 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
           <div className="max-w-4xl mx-auto p-4 space-y-6">
             {hasPhotos && currentPhoto && (
               <div className="relative w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center group" style={{ minHeight: '400px' }}>
-                <img
-                  src={getLowResImageUrl(currentPhoto, 800) || currentPhoto}
+                <img 
+                  key={`photo-${currentPhotoIndex}-${currentPhoto}`}
+                  src={currentPhoto}
                   alt={kunstwerk.name}
-                  loading="lazy"
+                  loading="eager"
                   className="max-w-full max-h-[600px] object-contain cursor-zoom-in transition-opacity hover:opacity-90"
                   onClick={() => {
                     setZoomedImageUrl(currentPhoto);
@@ -251,18 +252,6 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                   onTouchStart={onTouchStart}
                   onTouchMove={onTouchMove}
                   onTouchEnd={onTouchEnd}
-                  onLoad={(e) => {
-                    // Load high-res version after low-res is displayed
-                    const img = e.currentTarget;
-                    const lowResUrl = getLowResImageUrl(currentPhoto, 800);
-                    if (lowResUrl && img.src !== currentPhoto) {
-                      const highRes = new Image();
-                      highRes.src = currentPhoto;
-                      highRes.onload = () => {
-                        img.src = currentPhoto;
-                      };
-                    }
-                  }}
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                   }}
