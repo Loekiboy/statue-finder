@@ -690,8 +690,9 @@ const MapView = () => {
 
         // Calculate distance between user and model
         const modelLatLng = L.latLng(model.latitude, model.longitude);
-        const userLatLng = L.latLng(userLocation);
-        const distance = userLatLng.distanceTo(modelLatLng);
+        const distance = userLocation 
+          ? L.latLng(userLocation).distanceTo(modelLatLng)
+          : Infinity;
 
         // Check if model is already discovered in database
         const isAlreadyDiscovered = discoveredModels.includes(model.id);
