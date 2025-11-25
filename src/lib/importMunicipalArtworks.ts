@@ -3,6 +3,7 @@ import { nijmegenKunstwerken } from '@/data/nijmegenKunstwerken';
 import { utrechtKunstwerken } from '@/data/utrechtKunstwerken';
 import { alkmaartKunstwerken } from '@/data/alkmaartKunstwerken';
 import { denhaagKunstwerken } from '@/data/denhaagKunstwerken';
+import { liegeKunstwerken } from '@/data/liegeKunstwerken';
 
 export const importMunicipalArtworks = async () => {
   try {
@@ -99,6 +100,27 @@ export const importMunicipalArtworks = async () => {
           materials: artwork.materials.join(', ') || null,
           photo_url: artwork.photos[0] || null,
           source_city: 'denhaag',
+          source_id: artwork.id,
+          is_municipal: true,
+          file_path: '', // No 3D model yet
+          user_id: '00000000-0000-0000-0000-000000000000',
+        });
+      }
+    }
+
+    // Liège artworks
+    for (const artwork of liegeKunstwerken) {
+      const uniqueId = `liege-${artwork.id}`;
+      if (!existingIds.has(uniqueId)) {
+        artworksToImport.push({
+          name: artwork.name,
+          description: artwork.description || null,
+          artist: artwork.artist,
+          latitude: artwork.lat,
+          longitude: artwork.lon,
+          year: artwork.year || null,
+          website_url: artwork.websiteUrl || null,
+          source_city: 'liege',
           source_id: artwork.id,
           is_municipal: true,
           file_path: '', // No 3D model yet
