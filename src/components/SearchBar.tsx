@@ -9,6 +9,7 @@ import { alkmaartKunstwerken } from '@/data/alkmaartKunstwerken';
 import { denhaagKunstwerken } from '@/data/denhaagKunstwerken';
 import { delftKunstwerken } from '@/data/delftKunstwerken';
 import { dublinKunstwerken } from '@/data/dublinKunstwerken';
+import { antoingKunstwerken } from '@/data/antoingKunstwerken';
 
 interface SearchResult {
   id: string;
@@ -17,7 +18,7 @@ interface SearchResult {
   city: string;
   lat: number;
   lon: number;
-  type: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'delft' | 'dublin' | 'model';
+  type: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'delft' | 'dublin' | 'antoing' | 'model';
 }
 
 interface SearchBarProps {
@@ -151,6 +152,25 @@ export const SearchBar = ({ models, onResultClick }: SearchBarProps) => {
           lat: artwork.lat,
           lon: artwork.lon,
           type: 'dublin'
+        });
+      }
+    });
+
+    // Search Antoing
+    antoingKunstwerken.forEach(artwork => {
+      if (
+        artwork.name.toLowerCase().includes(query) ||
+        artwork.artist.toLowerCase().includes(query) ||
+        'antoing'.includes(query)
+      ) {
+        allResults.push({
+          id: artwork.id,
+          name: artwork.name,
+          artist: artwork.artist,
+          city: 'Antoing',
+          lat: artwork.lat,
+          lon: artwork.lon,
+          type: 'antoing'
         });
       }
     });
