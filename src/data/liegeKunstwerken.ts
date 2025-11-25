@@ -16,7 +16,9 @@ export interface LiegeKunstwerk {
 }
 
 function parseLiegeCSV(): LiegeKunstwerk[] {
-  const lines = liegeCSV.split('\n');
+  // Remove BOM if present
+  const cleanedCSV = liegeCSV.replace(/^\uFEFF/, '');
+  const lines = cleanedCSV.split('\n');
   const kunstwerken: LiegeKunstwerk[] = [];
   
   for (let i = 1; i < lines.length; i++) {
@@ -28,17 +30,19 @@ function parseLiegeCSV(): LiegeKunstwerk[] {
     
     if (fields.length < 11) continue;
     
-    const gid = fields[0];
-    const titre = fields[1] || 'Onbekend kunstwerk';
-    const artistes = fields[2] || 'Onbekende kunstenaar';
-    const nationalite = fields[3] || '';
-    const description = fields[4] || '';
-    const rue = fields[5] || 'Onbekende locatie';
-    const numero = fields[6] || '';
-    const codePostal = fields[7] || '';
-    const date = fields[8] || '';
-    const site = fields[9] || null;
-    const geoPoint = fields[10] || '';
+    const gid = fields[0]?.trim();
+    if (!gid) continue;
+    
+    const titre = fields[1]?.trim() || 'Onbekend kunstwerk';
+    const artistes = fields[2]?.trim() || 'Onbekende kunstenaar';
+    const nationalite = fields[3]?.trim() || '';
+    const description = fields[4]?.trim() || '';
+    const rue = fields[5]?.trim() || 'Onbekende locatie';
+    const numero = fields[6]?.trim() || '';
+    const codePostal = fields[7]?.trim() || '';
+    const date = fields[8]?.trim() || '';
+    const site = fields[9]?.trim() || null;
+    const geoPoint = fields[10]?.trim() || '';
     
     // Parse coordinates from "lat, lon" format
     const coords = geoPoint.split(',').map(c => parseFloat(c.trim()));
