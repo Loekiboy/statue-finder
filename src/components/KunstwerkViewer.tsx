@@ -9,6 +9,7 @@ import { AlkmaarKunstwerk } from '@/data/alkmaartKunstwerken';
 import { DenHaagKunstwerk } from '@/data/denhaagKunstwerken';
 import { DelftKunstwerk } from '@/data/delftKunstwerken';
 import { DublinKunstwerk } from '@/data/dublinKunstwerken';
+import { AntoingKunstwerk } from '@/data/antoingKunstwerken';
 import { useState, useEffect } from 'react';
 import QuickUploadDialog from './QuickUploadDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -37,8 +38,8 @@ interface Model {
 }
 
 interface KunstwerkViewerProps {
-  kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | DelftKunstwerk | DublinKunstwerk | any | null;
-  city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'delft' | 'dublin' | 'drenthe';
+  kunstwerk: NijmegenKunstwerk | UtrechtKunstwerk | AlkmaarKunstwerk | DenHaagKunstwerk | DelftKunstwerk | DublinKunstwerk | AntoingKunstwerk | any | null;
+  city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag' | 'delft' | 'dublin' | 'antoing' | 'drenthe';
   model?: Model;
   onClose: () => void;
 }
