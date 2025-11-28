@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { ArrowLeft, Upload as UploadIcon, MapPin, Image as ImageIcon, Link as LinkIcon, X } from 'lucide-react';
+import { ArrowLeft, Upload as UploadIcon, MapPin, Image as ImageIcon, Link as LinkIcon, X, Box, Lock } from 'lucide-react';
 import { z } from 'zod';
 import { ThumbnailGenerator } from '@/components/ThumbnailGenerator';
 import ExifReader from 'exifreader';
@@ -74,6 +74,11 @@ const Upload = () => {
   const [largeFileSize, setLargeFileSize] = useState<number>(0);
   const [mapReady, setMapReady] = useState(false);
   const [selectedKunstwerk, setSelectedKunstwerk] = useState<{id: string, city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag'} | null>(null);
+  const [existingModelData, setExistingModelData] = useState<{
+    photo_url: string | null;
+    file_path: string | null;
+    thumbnail_url: string | null;
+  } | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -138,6 +143,38 @@ const Upload = () => {
       localStorage.removeItem('uploadType');
     }
   }, []);
+
+  // Fetch existing model data when a kunstwerk is selected
+  useEffect(() => {
+    const fetchExistingModel = async () => {
+      if (selectedKunstwerk && latitude !== null && longitude !== null) {
+        try {
+          const { data: existingModels } = await supabase
+            .from('models')
+            .select('photo_url, file_path, thumbnail_url')
+            .eq('latitude', latitude)
+            .eq('longitude', longitude);
+          
+          if (existingModels && existingModels.length > 0) {
+            setExistingModelData({
+              photo_url: existingModels[0].photo_url,
+              file_path: existingModels[0].file_path,
+              thumbnail_url: existingModels[0].thumbnail_url
+            });
+          } else {
+            setExistingModelData(null);
+          }
+        } catch (error) {
+          console.error('Error fetching existing model:', error);
+          setExistingModelData(null);
+        }
+      } else {
+        setExistingModelData(null);
+      }
+    };
+    
+    fetchExistingModel();
+  }, [selectedKunstwerk, latitude, longitude]);
 
   // Place marker when location is set and map is ready
   useEffect(() => {
@@ -785,6 +822,7 @@ const Upload = () => {
                               setDescription('');
                               setLatitude(null);
                               setLongitude(null);
+                              setExistingModelData(null);
                             }}
                           >
                             <Check
@@ -908,6 +946,51 @@ const Upload = () => {
                   {t('Upload een foto of model voor een bestaand kunstwerk uit Nijmegen, Utrecht, Alkmaar of Den Haag', 'Upload a photo or model for an existing artwork from Nijmegen, Utrecht, Alkmaar or Den Haag')}
                 </p>
               </div>
+
+              {/* Show existing photos/model for selected kunstwerk */}
+              {existingModelData && (existingModelData.photo_url || existingModelData.file_path) && (
+                <div className="space-y-2 rounded-lg border border-border bg-muted/50 p-4">
+                  <Label className="flex items-center gap-2 text-muted-foreground">
+                    <Lock className="h-4 w-4" />
+                    {t('Bestaande bestanden (niet te verwijderen)', 'Existing files (cannot be deleted)')}
+                  </Label>
+                  <div className="flex flex-wrap gap-3">
+                    {existingModelData.photo_url && (
+                      <div className="relative">
+                        <img 
+                          src={existingModelData.photo_url} 
+                          alt={t('Bestaande foto', 'Existing photo')} 
+                          className="h-24 w-24 rounded-md object-cover border-2 border-primary/30"
+                        />
+                        <div className="absolute bottom-1 left-1 bg-primary/80 text-primary-foreground text-xs px-1.5 py-0.5 rounded flex items-center gap-1">
+                          <ImageIcon className="h-3 w-3" />
+                          {t('Foto', 'Photo')}
+                        </div>
+                      </div>
+                    )}
+                    {existingModelData.file_path && existingModelData.file_path.length > 0 && (
+                      <div className="relative h-24 w-24 rounded-md border-2 border-primary/30 bg-background flex items-center justify-center">
+                        {existingModelData.thumbnail_url ? (
+                          <img 
+                            src={existingModelData.thumbnail_url} 
+                            alt={t('3D Model thumbnail', '3D Model thumbnail')} 
+                            className="h-full w-full rounded-md object-cover"
+                          />
+                        ) : (
+                          <Box className="h-8 w-8 text-muted-foreground" />
+                        )}
+                        <div className="absolute bottom-1 left-1 bg-primary/80 text-primary-foreground text-xs px-1.5 py-0.5 rounded flex items-center gap-1">
+                          <Box className="h-3 w-3" />
+                          {t('3D Model', '3D Model')}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {t('Dit kunstwerk heeft al uploads. Nieuwe foto\'s/modellen worden toegevoegd.', 'This artwork already has uploads. New photos/models will be added.')}
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="name">
@@ -1138,6 +1221,10 @@ const Upload = () => {
                     setName('');
                     setDescription('');
                     setInfoLink('');
+                    setSelectedKunstwerk(null);
+                    setExistingModelData(null);
+                    setLatitude(null);
+                    setLongitude(null);
                   }}
                   className="w-1/3"
                 >
