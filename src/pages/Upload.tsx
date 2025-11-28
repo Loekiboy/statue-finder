@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { ArrowLeft, Upload as UploadIcon, MapPin, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Upload as UploadIcon, MapPin, Image as ImageIcon, Link as LinkIcon, X } from 'lucide-react';
 import { z } from 'zod';
 import { ThumbnailGenerator } from '@/components/ThumbnailGenerator';
 import ExifReader from 'exifreader';
@@ -38,18 +38,28 @@ const loadLeaflet = async () => {
 const modelSchema = z.object({
   name: z.string().trim().min(1, 'Naam is verplicht').max(100, 'Naam mag maximaal 100 tekens zijn'),
   description: z.string().trim().max(1000, 'Beschrijving mag maximaal 1000 tekens zijn').optional(),
+  infoLink: z.string().url('Voer een geldige URL in').optional().or(z.literal('')),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
 });
+
+// Required field label component
+const RequiredLabel = ({ children, required = true }: { children: React.ReactNode; required?: boolean }) => (
+  <span className="flex items-center gap-1">
+    {children}
+    {required && <span className="text-destructive">*</span>}
+  </span>
+);
 
 const Upload = () => {
   const { t } = useLanguage();
   const [uploadType, setUploadType] = useState<'photo' | 'model' | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [infoLink, setInfoLink] = useState('');
   const [file, setFile] = useState<File | null>(null);
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [manualLocation, setManualLocation] = useState(false);
@@ -59,7 +69,7 @@ const Upload = () => {
   const [generateThumbnail, setGenerateThumbnail] = useState(false);
   const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null);
   const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
-  const [uploadedPhotoPath, setUploadedPhotoPath] = useState<string | null>(null);
+  const [uploadedPhotoPaths, setUploadedPhotoPaths] = useState<string[]>([]);
   const [showSizeWarning, setShowSizeWarning] = useState(false);
   const [largeFileSize, setLargeFileSize] = useState<number>(0);
   const [mapReady, setMapReady] = useState(false);
@@ -172,11 +182,21 @@ const Upload = () => {
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
+    if (e.target.files && e.target.files.length > 0) {
+      const selectedFiles = Array.from(e.target.files);
       
-      // Check if it's an image
-      if (!selectedFile.type.startsWith('image/')) {
+      // Filter only images
+      const imageFiles = selectedFiles.filter(file => file.type.startsWith('image/'));
+      
+      if (imageFiles.length !== selectedFiles.length) {
+        toast({
+          title: t('Sommige bestanden overgeslagen', 'Some files skipped'),
+          description: t('Alleen afbeeldingen worden geaccepteerd', 'Only images are accepted'),
+          variant: 'default',
+        });
+      }
+
+      if (imageFiles.length === 0) {
         toast({
           title: t('Ongeldig bestand', 'Invalid file'),
           description: t('Upload alleen afbeeldingen', 'Upload only images'),
@@ -186,9 +206,10 @@ const Upload = () => {
       }
 
       try {
-        // Try to extract EXIF data (wrapped in try-catch for mobile compatibility)
+        // Try to extract EXIF data from the first image (wrapped in try-catch for mobile compatibility)
+        const firstFile = imageFiles[0];
         try {
-          const arrayBuffer = await selectedFile.arrayBuffer();
+          const arrayBuffer = await firstFile.arrayBuffer();
           const tags = ExifReader.load(arrayBuffer);
           
           // Check for GPS data
@@ -203,7 +224,7 @@ const Upload = () => {
               
               toast({ 
                 title: t('Locatie gevonden!', 'Location found!'),
-                description: t('Locatie is automatisch ingesteld uit de foto', 'Location was automatically set from the photo')
+                description: t('Locatie is automatisch ingesteld uit de eerste foto', 'Location was automatically set from the first photo')
               });
             } else {
               setManualLocation(true);
@@ -213,63 +234,59 @@ const Upload = () => {
           }
         } catch (exifError) {
           console.log('No EXIF data found or error reading EXIF:', exifError);
-          // Continue without EXIF data - not a critical error
+          setManualLocation(true);
         }
 
-        // Compress image if needed
-        const maxSize = 3 * 1024 * 1024; // 3MB
-        let processedFile = selectedFile;
+        // Process all images
+        const processedFiles: File[] = [];
+        const previews: string[] = [];
         
-        if (selectedFile.size > maxSize) {
-          toast({
-            title: t('Comprimeren...', 'Compressing...'),
-            description: t('Foto wordt verkleind', 'Photo is being compressed')
-          });
+        for (const file of imageFiles) {
+          // Compress image if needed
+          const maxSize = 3 * 1024 * 1024; // 3MB
+          let processedFile = file;
           
-          const options = {
-            maxSizeMB: 3,
-            maxWidthOrHeight: 1920,
-            useWebWorker: true,
-            fileType: selectedFile.type,
-          };
-          
-          try {
-            processedFile = await imageCompression(selectedFile, options);
+          if (file.size > maxSize) {
+            const options = {
+              maxSizeMB: 3,
+              maxWidthOrHeight: 1920,
+              useWebWorker: true,
+              fileType: file.type,
+            };
             
-            toast({
-              title: t('Foto gecomprimeerd!', 'Photo compressed!'),
-              description: t(`Van ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB naar ${(processedFile.size / 1024 / 1024).toFixed(2)}MB`, 
-                            `From ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB to ${(processedFile.size / 1024 / 1024).toFixed(2)}MB`)
-            });
-          } catch (compressionError) {
-            console.error('Compression error:', compressionError);
-            toast({
-              title: t('Compressie mislukt', 'Compression failed'),
-              description: t('Foto wordt gebruikt zonder compressie', 'Photo will be used without compression')
-            });
-            // Use original file if compression fails
+            try {
+              processedFile = await imageCompression(file, options);
+            } catch (compressionError) {
+              console.error('Compression error:', compressionError);
+            }
           }
+          
+          processedFiles.push(processedFile);
+          
+          // Create preview
+          const preview = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(processedFile);
+          });
+          previews.push(preview);
         }
         
-        setPhoto(processedFile);
+        setPhotos(prev => [...prev, ...processedFiles]);
+        setPhotoPreviews(prev => [...prev, ...previews]);
         
-        // Create preview
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setPhotoPreview(reader.result as string);
-        };
-        reader.onerror = () => {
+        if (processedFiles.length > 1) {
           toast({
-            title: t('Fout bij laden preview', 'Error loading preview'),
-            variant: 'destructive',
+            title: t('Foto\'s toegevoegd!', 'Photos added!'),
+            description: t(`${processedFiles.length} foto's geselecteerd`, `${processedFiles.length} photos selected`)
           });
-        };
-        reader.readAsDataURL(processedFile);
+        }
         
       } catch (error) {
-        console.error('Error processing photo:', error);
+        console.error('Error processing photos:', error);
         toast({
-          title: t('Fout bij verwerken foto', 'Error processing photo'),
+          title: t('Fout bij verwerken foto\'s', 'Error processing photos'),
           description: String(error),
           variant: 'destructive',
         });
@@ -277,12 +294,16 @@ const Upload = () => {
     }
   };
 
+  const removePhoto = (index: number) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
 
   useEffect(() => {
-    // Only initialize if uploadType requires a map AND we don't have a map yet
+    // Only initialize if uploadType is set AND we don't have a map yet
     if (!mapContainer.current || map.current) return;
     if (!uploadType) return;
-    if (uploadType === 'photo' && !manualLocation) return;
 
     // Load Leaflet lazily and initialize map
     const initMap = async () => {
@@ -343,8 +364,8 @@ const Upload = () => {
     e.preventDefault();
     
     // Photo is required for photo-only uploads, but optional for 3D model uploads
-    if (uploadType === 'photo' && !photo) {
-      toast({ title: t('Selecteer een foto', 'Select a photo'), variant: 'destructive' });
+    if (uploadType === 'photo' && photos.length === 0) {
+      toast({ title: t('Selecteer minstens één foto', 'Select at least one photo'), variant: 'destructive' });
       return;
     }
     
@@ -366,6 +387,7 @@ const Upload = () => {
     const validationResult = modelSchema.safeParse({
       name,
       description: description || undefined,
+      infoLink: infoLink || undefined,
       latitude,
       longitude,
     });
@@ -386,18 +408,20 @@ const Upload = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error(t('Niet ingelogd', 'Not logged in'));
 
-      let photoFileName: string | null = null;
+      const photoFileNames: string[] = [];
 
-      // Upload photo if provided
-      if (photo) {
+      // Upload all photos
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i];
         const photoExt = photo.name.split('.').pop();
-        photoFileName = `${user.id}/${Date.now()}_photo.${photoExt}`;
+        const photoFileName = `${user.id}/${Date.now()}_photo_${i}.${photoExt}`;
         
         const { error: photoUploadError } = await supabase.storage
           .from('model-thumbnails')
           .upload(photoFileName, photo);
 
         if (photoUploadError) throw photoUploadError;
+        photoFileNames.push(photoFileName);
       }
 
       if (uploadType === 'model') {
@@ -411,9 +435,6 @@ const Upload = () => {
             .eq('longitude', validationResult.data.longitude);
           
           if (existingModels && existingModels.length > 0) {
-            // Update existing model instead of creating new one
-            const existingModel = existingModels[0];
-            
             // Upload 3D model file
             const fileExt = file!.name.split('.').pop();
             const fileName = `${user.id}/${Date.now()}.${fileExt}`;
@@ -425,9 +446,8 @@ const Upload = () => {
             if (uploadError) throw uploadError;
 
             // Set the uploaded file paths and trigger thumbnail generation
-            // We'll update instead of insert
             setUploadedFilePath(fileName);
-            setUploadedPhotoPath(photoFileName);
+            setUploadedPhotoPaths(photoFileNames);
             setGenerateThumbnail(true);
             return; // handleThumbnailGenerated will handle the update
           }
@@ -444,13 +464,14 @@ const Upload = () => {
         if (uploadError) throw uploadError;
 
         setUploadedFilePath(fileName);
-        setUploadedPhotoPath(photoFileName);
+        setUploadedPhotoPaths(photoFileNames);
         setGenerateThumbnail(true);
       } else {
-        // Photo only upload
+        // Photo only upload - use first photo as main
+        const mainPhotoFileName = photoFileNames[0];
         const { data: { publicUrl: photoUrl } } = supabase.storage
           .from('model-thumbnails')
-          .getPublicUrl(photoFileName!);
+          .getPublicUrl(mainPhotoFileName);
 
         // Check if we're updating an existing kunstwerk
         if (selectedKunstwerk) {
@@ -539,12 +560,12 @@ const Upload = () => {
         .from('model-thumbnails')
         .getPublicUrl(thumbnailFileName);
       
-      // Get photo URL if photo was uploaded
+      // Get photo URL if photos were uploaded (use first photo as main)
       let photoUrl: string | null = null;
-      if (uploadedPhotoPath) {
+      if (uploadedPhotoPaths.length > 0) {
         const { data: { publicUrl } } = supabase.storage
           .from('model-thumbnails')
-          .getPublicUrl(uploadedPhotoPath);
+          .getPublicUrl(uploadedPhotoPaths[0]);
         photoUrl = publicUrl;
       }
 
@@ -552,6 +573,7 @@ const Upload = () => {
       const validationResult = modelSchema.safeParse({
         name,
         description: description || undefined,
+        infoLink: infoLink || undefined,
         latitude,
         longitude,
       });
@@ -888,7 +910,9 @@ const Upload = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="name">{t('Naam', 'Name')}</Label>
+                <Label htmlFor="name">
+                  <RequiredLabel>{t('Naam', 'Name')}</RequiredLabel>
+                </Label>
                 <Input
                   id="name"
                   value={name}
@@ -906,7 +930,9 @@ const Upload = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">{t('Beschrijving', 'Description')}</Label>
+                <Label htmlFor="description">
+                  <RequiredLabel required={false}>{t('Beschrijving', 'Description')}</RequiredLabel>
+                </Label>
                 <Textarea
                   id="description"
                   value={description}
@@ -924,31 +950,61 @@ const Upload = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="infoLink" className="flex items-center gap-2">
+                  <LinkIcon className="h-4 w-4" />
+                  <RequiredLabel required={false}>{t('Link naar meer informatie', 'Link to more information')}</RequiredLabel>
+                </Label>
+                <Input
+                  id="infoLink"
+                  type="url"
+                  value={infoLink}
+                  onChange={(e) => setInfoLink(e.target.value)}
+                  placeholder="https://..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('Optioneel: voeg een link toe naar een website met meer informatie over dit kunstwerk', 'Optional: add a link to a website with more information about this artwork')}
+                </p>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="photo" className="flex items-center gap-2">
                   <ImageIcon className="h-4 w-4" />
-                  {uploadType === 'photo' 
-                    ? t('Foto van het standbeeld', 'Photo of the statue') + ' *'
-                    : t('Foto van het standbeeld (optioneel)', 'Photo of the statue (optional)')
-                  }
+                  <RequiredLabel required={uploadType === 'photo'}>
+                    {uploadType === 'photo' 
+                      ? t('Foto\'s van het standbeeld', 'Photos of the statue')
+                      : t('Foto\'s van het standbeeld', 'Photos of the statue')
+                    }
+                  </RequiredLabel>
                 </Label>
                 <Input
                   id="photo"
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handlePhotoChange}
-                  required={uploadType === 'photo'}
                 />
-                {photoPreview && (
-                  <div className="mt-2">
-                    <img 
-                      src={photoPreview} 
-                      alt="Preview" 
-                      className="max-h-48 rounded-md object-cover"
-                    />
+                {photoPreviews.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {photoPreviews.map((preview, index) => (
+                      <div key={index} className="relative group">
+                        <img 
+                          src={preview} 
+                          alt={`Preview ${index + 1}`} 
+                          className="h-24 w-24 rounded-md object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePhoto(index)}
+                          className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  {t('Als je foto locatiegegevens bevat, wordt de locatie automatisch ingevuld', 'If your photo contains location data, the location will be filled automatically')}
+                  {t('Je kunt meerdere foto\'s selecteren. Als je foto locatiegegevens bevat, wordt de locatie automatisch ingevuld', 'You can select multiple photos. If your photo contains location data, the location will be filled automatically')}
                 </p>
               </div>
 
@@ -974,7 +1030,7 @@ const Upload = () => {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
-                    {t('Locatie (klik op de kaart of upload foto met GPS-data)', 'Location (click on the map or upload photo with GPS data)')}
+                    <RequiredLabel>{t('Locatie (klik op de kaart of upload foto met GPS-data)', 'Location (click on the map or upload photo with GPS data)')}</RequiredLabel>
                   </Label>
                   <div 
                     ref={mapContainer} 
@@ -1019,63 +1075,53 @@ const Upload = () => {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
-                    {t('Locatie', 'Location')}
+                    <RequiredLabel>{t('Locatie', 'Location')}</RequiredLabel>
                   </Label>
-                  {manualLocation ? (
-                    <>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {t('Klik op de kaart om een locatie te selecteren', 'Click on the map to select a location')}
+                  {!manualLocation && latitude && longitude && (
+                    <div className="p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg mb-2">
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        ✓ {t('Locatie automatisch gevonden uit foto', 'Location automatically found from photo')}
                       </p>
-                      <div 
-                        ref={mapContainer} 
-                        className={cn(
-                          "h-64 w-full rounded-md border relative",
-                          (selectedKunstwerk || locationLocked) && "opacity-80"
-                        )}
-                      >
-                        {!mapReady && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-muted animate-pulse">
-                            <p className="text-sm text-muted-foreground">{t('Kaart laden...', 'Loading map...')}</p>
-                          </div>
-                        )}
-                        {(selectedKunstwerk || locationLocked) && (
-                          <div className="absolute inset-0 bg-muted/30 pointer-events-none z-[1000] flex items-center justify-center">
-                            <div className="bg-background/90 px-4 py-2 rounded-md shadow-lg">
-                              <p className="text-sm font-medium">📍 {t('Locatie vastgezet', 'Location locked')}</p>
-                            </div>
-                          </div>
-                        )}
+                    </div>
+                  )}
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {t('Klik op de kaart om een locatie te selecteren', 'Click on the map to select a location')}
+                  </p>
+                  <div 
+                    ref={mapContainer} 
+                    className={cn(
+                      "h-64 w-full rounded-md border relative",
+                      (selectedKunstwerk || locationLocked) && "opacity-80"
+                    )}
+                  >
+                    {!mapReady && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-muted animate-pulse">
+                        <p className="text-sm text-muted-foreground">{t('Kaart laden...', 'Loading map...')}</p>
                       </div>
-                      {latitude !== null && longitude !== null && (
-                        <p className="text-sm text-muted-foreground">
-                          {t('Geselecteerd:', 'Selected:')} {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
-                        </p>
-                      )}
-                      {selectedKunstwerk && (
-                        <p className="text-xs text-muted-foreground">
-                          {t('Locatie is vastgezet voor dit kunstwerk', 'Location is locked for this artwork')}
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    latitude && longitude && (
-                      <div className="p-4 bg-muted rounded-lg">
-                        <p className="text-sm">
-                          📍 {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
-                        </p>
-                        {!selectedKunstwerk && (
-                          <Button 
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="mt-2"
-                            onClick={() => setManualLocation(true)}
-                          >
-                            {t('Locatie handmatig kiezen', 'Choose location manually')}
-                          </Button>
-                        )}
+                    )}
+                    {(selectedKunstwerk || locationLocked) && (
+                      <div className="absolute inset-0 bg-muted/30 pointer-events-none z-[1000] flex items-center justify-center">
+                        <div className="bg-background/90 px-4 py-2 rounded-md shadow-lg">
+                          <p className="text-sm font-medium">📍 {t('Locatie vastgezet', 'Location locked')}</p>
+                        </div>
                       </div>
-                    )
+                    )}
+                  </div>
+                  {latitude !== null && longitude !== null && (
+                    <a
+                      href={`https://www.google.com/maps?q=${latitude},${longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
+                    >
+                      {t('Geselecteerd:', 'Selected:')} {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
+                      <MapPin className="h-3 w-3" />
+                    </a>
+                  )}
+                  {selectedKunstwerk && (
+                    <p className="text-xs text-muted-foreground">
+                      {t('Locatie is vastgezet voor dit kunstwerk', 'Location is locked for this artwork')}
+                    </p>
                   )}
                 </div>
               )}
@@ -1087,10 +1133,11 @@ const Upload = () => {
                   onClick={() => {
                     setUploadType(null);
                     setFile(null);
-                    setPhoto(null);
-                    setPhotoPreview(null);
+                    setPhotos([]);
+                    setPhotoPreviews([]);
                     setName('');
                     setDescription('');
+                    setInfoLink('');
                   }}
                   className="w-1/3"
                 >
