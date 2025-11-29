@@ -42,7 +42,23 @@ const Profile = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showInstallInstructions, setShowInstallInstructions] = useState(false);
+  const [isSafari, setIsSafari] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
   const navigate = useNavigate();
+
+  // Detect Safari and standalone mode
+  useEffect(() => {
+    const ua = navigator.userAgent;
+    // Safari detection: has Safari but not Chrome/Firefox/etc
+    const isSafariBrowser = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS/.test(ua);
+    setIsSafari(isSafariBrowser);
+    
+    // Check if running as standalone PWA (added to home screen)
+    const isInStandaloneMode = 
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true;
+    setIsStandalone(isInStandaloneMode);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -441,109 +457,110 @@ const Profile = () => {
                     />
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          )}
 
-                <Separator />
-
-                {/* iOS Install Instructions */}
-                <div className="space-y-3">
-                  <button
-                    onClick={() => setShowInstallInstructions(!showInstallInstructions)}
-                    className="w-full flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/15 hover:to-primary/10 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-full bg-primary/20">
-                        <Smartphone className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="text-left">
-                        <p className="font-medium text-foreground">{t.installApp}</p>
-                        <p className="text-sm text-muted-foreground">{t.installAppDesc}</p>
-                      </div>
-                    </div>
-                    {showInstallInstructions ? (
-                      <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                    )}
-                  </button>
-
-                  {showInstallInstructions && (
-                    <div className="space-y-4 p-4 rounded-lg bg-muted/50 border border-border">
-                      <h4 className="font-semibold text-foreground flex items-center gap-2">
-                        <span className="text-lg">📱</span> {t.installInstructions} (iOS)
-                      </h4>
-                      
-                      <div className="space-y-4">
-                        {/* Step 1 */}
-                        <div className="flex gap-4">
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-                            1
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground">{t.step1Title}</p>
-                            <p className="text-sm text-muted-foreground">{t.step1Desc}</p>
-                          </div>
-                        </div>
-
-                        {/* Step 2 */}
-                        <div className="flex gap-4">
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-                            2
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground flex items-center gap-2">
-                              {t.step2Title}
-                              <Share className="h-4 w-4 text-primary" />
-                            </p>
-                            <p className="text-sm text-muted-foreground">{t.step2Desc}</p>
-                          </div>
-                        </div>
-
-                        {/* Step 3 */}
-                        <div className="flex gap-4">
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-                            3
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground">{t.step3Title}</p>
-                            <p className="text-sm text-muted-foreground">{t.step3Desc}</p>
-                          </div>
-                        </div>
-
-                        {/* Step 4 */}
-                        <div className="flex gap-4">
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-                            4
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground flex items-center gap-2">
-                              {t.step4Title}
-                              <Plus className="h-4 w-4 text-primary" />
-                            </p>
-                            <p className="text-sm text-muted-foreground">{t.step4Desc}</p>
-                          </div>
-                        </div>
-
-                        {/* Step 5 */}
-                        <div className="flex gap-4">
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-                            5
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground">{t.step5Title}</p>
-                            <p className="text-sm text-muted-foreground">{t.step5Desc}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Success message */}
-                      <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                        <p className="text-sm text-green-700 dark:text-green-400 flex items-center gap-2">
-                          <span className="text-lg">✅</span> {t.done}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+          {/* iOS Install Instructions - Only show for Safari users who haven't installed yet */}
+          {isSafari && !isStandalone && (
+            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-primary/20">
+                    <Smartphone className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">{t.installApp}</CardTitle>
+                    <CardDescription>{t.installAppDesc}</CardDescription>
+                  </div>
                 </div>
+              </CardHeader>
+              <CardContent>
+                <button
+                  onClick={() => setShowInstallInstructions(!showInstallInstructions)}
+                  className="w-full flex items-center justify-between p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors border border-border"
+                >
+                  <span className="font-medium text-foreground">{t.installInstructions}</span>
+                  {showInstallInstructions ? (
+                    <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </button>
+
+                {showInstallInstructions && (
+                  <div className="space-y-4 mt-4 p-4 rounded-lg bg-background border border-border">
+                    <div className="space-y-4">
+                      {/* Step 1 */}
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                          1
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{t.step1Title}</p>
+                          <p className="text-sm text-muted-foreground">{t.step1Desc}</p>
+                        </div>
+                      </div>
+
+                      {/* Step 2 */}
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                          2
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground flex items-center gap-2">
+                            {t.step2Title}
+                            <Share className="h-4 w-4 text-primary" />
+                          </p>
+                          <p className="text-sm text-muted-foreground">{t.step2Desc}</p>
+                        </div>
+                      </div>
+
+                      {/* Step 3 */}
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                          3
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{t.step3Title}</p>
+                          <p className="text-sm text-muted-foreground">{t.step3Desc}</p>
+                        </div>
+                      </div>
+
+                      {/* Step 4 */}
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                          4
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground flex items-center gap-2">
+                            {t.step4Title}
+                            <Plus className="h-4 w-4 text-primary" />
+                          </p>
+                          <p className="text-sm text-muted-foreground">{t.step4Desc}</p>
+                        </div>
+                      </div>
+
+                      {/* Step 5 */}
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                          5
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{t.step5Title}</p>
+                          <p className="text-sm text-muted-foreground">{t.step5Desc}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Success message */}
+                    <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                      <p className="text-sm text-green-700 dark:text-green-400 flex items-center gap-2">
+                        <span className="text-lg">✅</span> {t.done}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
