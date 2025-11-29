@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Eye, Trash2, LogOut, Settings, Moon, Sun, MapPin, User as UserIcon } from 'lucide-react';
+import { Eye, Trash2, LogOut, Settings, Moon, Sun, MapPin, User as UserIcon, Smartphone, Share, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -41,6 +41,7 @@ const Profile = () => {
   const [selectedModel, setSelectedModel] = useState<Model | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showInstallInstructions, setShowInstallInstructions] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -249,6 +250,20 @@ const Profile = () => {
     usernamePlaceholder: 'Voer je gebruikersnaam in',
     slideshowEnabled: 'Automatische slideshow',
     slideshowEnabledDesc: 'Start automatisch een slideshow bij foto\'s van kunstwerken',
+    installApp: 'Installeer als App',
+    installAppDesc: 'Voeg Statue Finder toe aan je startscherm voor de beste ervaring',
+    installInstructions: 'Installatie instructies',
+    step1Title: 'Open in Safari',
+    step1Desc: 'Zorg dat je deze website opent in Safari (niet Chrome of een andere browser)',
+    step2Title: 'Tik op het Deel-icoon',
+    step2Desc: 'Tik onderaan het scherm op het vierkant met de pijl omhoog',
+    step3Title: 'Scroll naar beneden',
+    step3Desc: 'Scroll in het menu naar beneden tot je "Zet op beginscherm" ziet',
+    step4Title: 'Tik op "Zet op beginscherm"',
+    step4Desc: 'Tik op de optie met het plus-icoon',
+    step5Title: 'Bevestig',
+    step5Desc: 'Tik rechtsboven op "Voeg toe" om de app te installeren',
+    done: 'Klaar! De app staat nu op je startscherm en werkt als een echte app.',
   } : {
     myProfile: 'My Profile',
     settings: 'Settings',
@@ -273,6 +288,20 @@ const Profile = () => {
     usernamePlaceholder: 'Enter your username',
     slideshowEnabled: 'Automatic slideshow',
     slideshowEnabledDesc: 'Automatically start a slideshow when viewing artwork photos',
+    installApp: 'Install as App',
+    installAppDesc: 'Add Statue Finder to your home screen for the best experience',
+    installInstructions: 'Installation instructions',
+    step1Title: 'Open in Safari',
+    step1Desc: 'Make sure you open this website in Safari (not Chrome or another browser)',
+    step2Title: 'Tap the Share icon',
+    step2Desc: 'Tap the square with the arrow pointing up at the bottom of the screen',
+    step3Title: 'Scroll down',
+    step3Desc: 'Scroll down in the menu until you see "Add to Home Screen"',
+    step4Title: 'Tap "Add to Home Screen"',
+    step4Desc: 'Tap the option with the plus icon',
+    step5Title: 'Confirm',
+    step5Desc: 'Tap "Add" in the top right corner to install the app',
+    done: 'Done! The app is now on your home screen and works like a real app.',
   };
 
   return (
@@ -411,6 +440,109 @@ const Profile = () => {
                       onCheckedChange={(checked) => updateProfile({ slideshow_enabled: checked })}
                     />
                   </div>
+                </div>
+
+                <Separator />
+
+                {/* iOS Install Instructions */}
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setShowInstallInstructions(!showInstallInstructions)}
+                    className="w-full flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/15 hover:to-primary/10 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-full bg-primary/20">
+                        <Smartphone className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium text-foreground">{t.installApp}</p>
+                        <p className="text-sm text-muted-foreground">{t.installAppDesc}</p>
+                      </div>
+                    </div>
+                    {showInstallInstructions ? (
+                      <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </button>
+
+                  {showInstallInstructions && (
+                    <div className="space-y-4 p-4 rounded-lg bg-muted/50 border border-border">
+                      <h4 className="font-semibold text-foreground flex items-center gap-2">
+                        <span className="text-lg">📱</span> {t.installInstructions} (iOS)
+                      </h4>
+                      
+                      <div className="space-y-4">
+                        {/* Step 1 */}
+                        <div className="flex gap-4">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                            1
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">{t.step1Title}</p>
+                            <p className="text-sm text-muted-foreground">{t.step1Desc}</p>
+                          </div>
+                        </div>
+
+                        {/* Step 2 */}
+                        <div className="flex gap-4">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                            2
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground flex items-center gap-2">
+                              {t.step2Title}
+                              <Share className="h-4 w-4 text-primary" />
+                            </p>
+                            <p className="text-sm text-muted-foreground">{t.step2Desc}</p>
+                          </div>
+                        </div>
+
+                        {/* Step 3 */}
+                        <div className="flex gap-4">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                            3
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">{t.step3Title}</p>
+                            <p className="text-sm text-muted-foreground">{t.step3Desc}</p>
+                          </div>
+                        </div>
+
+                        {/* Step 4 */}
+                        <div className="flex gap-4">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                            4
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground flex items-center gap-2">
+                              {t.step4Title}
+                              <Plus className="h-4 w-4 text-primary" />
+                            </p>
+                            <p className="text-sm text-muted-foreground">{t.step4Desc}</p>
+                          </div>
+                        </div>
+
+                        {/* Step 5 */}
+                        <div className="flex gap-4">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                            5
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">{t.step5Title}</p>
+                            <p className="text-sm text-muted-foreground">{t.step5Desc}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Success message */}
+                      <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                        <p className="text-sm text-green-700 dark:text-green-400 flex items-center gap-2">
+                          <span className="text-lg">✅</span> {t.done}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
