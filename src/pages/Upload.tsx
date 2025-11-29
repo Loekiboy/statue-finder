@@ -144,10 +144,11 @@ const Upload = () => {
     }
   }, []);
 
-  // Fetch existing model data when a kunstwerk is selected
+  // Fetch existing model data when a kunstwerk is selected or when it's a municipal artwork
   useEffect(() => {
     const fetchExistingModel = async () => {
-      if (selectedKunstwerk && latitude !== null && longitude !== null) {
+      // Fetch when selectedKunstwerk is set OR when it's a municipal artwork with valid coordinates
+      if ((selectedKunstwerk || isMunicipalArtwork) && latitude !== null && longitude !== null) {
         try {
           const { data: existingModels } = await supabase
             .from('models')
@@ -174,7 +175,7 @@ const Upload = () => {
     };
     
     fetchExistingModel();
-  }, [selectedKunstwerk, latitude, longitude]);
+  }, [selectedKunstwerk, isMunicipalArtwork, latitude, longitude]);
 
   // Place marker when location is set and map is ready
   useEffect(() => {
