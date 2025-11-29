@@ -74,6 +74,7 @@ const Upload = () => {
   const [largeFileSize, setLargeFileSize] = useState<number>(0);
   const [mapReady, setMapReady] = useState(false);
   const [selectedKunstwerk, setSelectedKunstwerk] = useState<{id: string, city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag'} | null>(null);
+  const [kunstwerkSourcePhotos, setKunstwerkSourcePhotos] = useState<string[]>([]);
   const [existingModelData, setExistingModelData] = useState<{
     photo_url: string | null;
     file_path: string | null;
@@ -107,24 +108,28 @@ const Upload = () => {
         
         if (foundNijmegenKunstwerk) {
           setSelectedKunstwerk({ id: foundNijmegenKunstwerk.id, city: 'nijmegen' });
+          setKunstwerkSourcePhotos(foundNijmegenKunstwerk.photoId ? [`https://opendata.nijmegen.nl/dataset/kunstwerken/foto/${foundNijmegenKunstwerk.photoId}`] : []);
         } else {
           const foundUtrechtKunstwerk = utrechtKunstwerken.find(k => 
             Math.abs(k.lat - lat) < threshold && Math.abs(k.lon - lon) < threshold
           );
           if (foundUtrechtKunstwerk) {
             setSelectedKunstwerk({ id: foundUtrechtKunstwerk.id, city: 'utrecht' });
+            setKunstwerkSourcePhotos(foundUtrechtKunstwerk.photos || []);
           } else {
             const foundAlkmaarKunstwerk = alkmaartKunstwerken.find(k => 
               Math.abs(k.lat - lat) < threshold && Math.abs(k.lon - lon) < threshold
             );
             if (foundAlkmaarKunstwerk) {
               setSelectedKunstwerk({ id: foundAlkmaarKunstwerk.id, city: 'alkmaar' });
+              setKunstwerkSourcePhotos(foundAlkmaarKunstwerk.photos || []);
             } else {
               const foundDenHaagKunstwerk = denhaagKunstwerken.find(k => 
                 Math.abs(k.lat - lat) < threshold && Math.abs(k.lon - lon) < threshold
               );
               if (foundDenHaagKunstwerk) {
                 setSelectedKunstwerk({ id: foundDenHaagKunstwerk.id, city: 'denhaag' });
+                setKunstwerkSourcePhotos(foundDenHaagKunstwerk.photos || []);
               }
             }
           }
@@ -150,11 +155,16 @@ const Upload = () => {
       // Fetch when selectedKunstwerk is set OR when it's a municipal artwork with valid coordinates
       if ((selectedKunstwerk || isMunicipalArtwork) && latitude !== null && longitude !== null) {
         try {
+          // Use proximity search (within ~50 meters) instead of exact match
+          // to account for floating point precision differences
+          const threshold = 0.0005;
           const { data: existingModels } = await supabase
             .from('models')
             .select('photo_url, file_path, thumbnail_url')
-            .eq('latitude', latitude)
-            .eq('longitude', longitude);
+            .gte('latitude', latitude - threshold)
+            .lte('latitude', latitude + threshold)
+            .gte('longitude', longitude - threshold)
+            .lte('longitude', longitude + threshold);
           
           if (existingModels && existingModels.length > 0) {
             setExistingModelData({
@@ -824,6 +834,7 @@ const Upload = () => {
                               setLatitude(null);
                               setLongitude(null);
                               setExistingModelData(null);
+                              setKunstwerkSourcePhotos([]);
                             }}
                           >
                             <Check
@@ -847,6 +858,8 @@ const Upload = () => {
                                 setLatitude(kunstwerk.lat);
                                 setLongitude(kunstwerk.lon);
                                 setManualLocation(true);
+                                // Nijmegen has photoId, construct URL if exists
+                                setKunstwerkSourcePhotos(kunstwerk.photoId ? [`https://opendata.nijmegen.nl/dataset/kunstwerken/foto/${kunstwerk.photoId}`] : []);
                               }}
                             >
                               <Check
@@ -873,6 +886,7 @@ const Upload = () => {
                                 setLatitude(kunstwerk.lat);
                                 setLongitude(kunstwerk.lon);
                                 setManualLocation(true);
+                                setKunstwerkSourcePhotos(kunstwerk.photos || []);
                               }}
                             >
                               <Check
@@ -899,6 +913,7 @@ const Upload = () => {
                                 setLatitude(kunstwerk.lat);
                                 setLongitude(kunstwerk.lon);
                                 setManualLocation(true);
+                                setKunstwerkSourcePhotos(kunstwerk.photos || []);
                               }}
                             >
                               <Check
@@ -925,6 +940,7 @@ const Upload = () => {
                                 setLatitude(kunstwerk.lat);
                                 setLongitude(kunstwerk.lon);
                                 setManualLocation(true);
+                                setKunstwerkSourcePhotos(kunstwerk.photos || []);
                               }}
                             >
                               <Check
@@ -949,14 +965,33 @@ const Upload = () => {
               </div>
 
               {/* Show existing photos/model for selected kunstwerk */}
-              {existingModelData && (existingModelData.photo_url || existingModelData.file_path) && (
+              {(kunstwerkSourcePhotos.length > 0 || (existingModelData && (existingModelData.photo_url || existingModelData.file_path))) && (
                 <div className="space-y-2 rounded-lg border border-border bg-muted/50 p-4">
                   <Label className="flex items-center gap-2 text-muted-foreground">
                     <Lock className="h-4 w-4" />
                     {t('Bestaande bestanden (niet te verwijderen)', 'Existing files (cannot be deleted)')}
                   </Label>
                   <div className="flex flex-wrap gap-3">
-                    {existingModelData.photo_url && (
+                    {/* Source photos from municipal data */}
+                    {kunstwerkSourcePhotos.map((photoUrl, index) => (
+                      <div key={`source-${index}`} className="relative">
+                        <img 
+                          src={photoUrl} 
+                          alt={t('Bron foto', 'Source photo')} 
+                          className="h-24 w-24 rounded-md object-cover border-2 border-primary/30"
+                          onError={(e) => {
+                            // Hide broken images
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                        <div className="absolute bottom-1 left-1 bg-primary/80 text-primary-foreground text-xs px-1.5 py-0.5 rounded flex items-center gap-1">
+                          <ImageIcon className="h-3 w-3" />
+                          {t('Bron', 'Source')}
+                        </div>
+                      </div>
+                    ))}
+                    {/* Uploaded photos from database */}
+                    {existingModelData?.photo_url && (
                       <div className="relative">
                         <img 
                           src={existingModelData.photo_url} 
@@ -965,11 +1000,11 @@ const Upload = () => {
                         />
                         <div className="absolute bottom-1 left-1 bg-primary/80 text-primary-foreground text-xs px-1.5 py-0.5 rounded flex items-center gap-1">
                           <ImageIcon className="h-3 w-3" />
-                          {t('Foto', 'Photo')}
+                          {t('Upload', 'Upload')}
                         </div>
                       </div>
                     )}
-                    {existingModelData.file_path && existingModelData.file_path.length > 0 && (
+                    {existingModelData?.file_path && existingModelData.file_path.length > 0 && (
                       <div className="relative h-24 w-24 rounded-md border-2 border-primary/30 bg-background flex items-center justify-center">
                         {existingModelData.thumbnail_url ? (
                           <img 
@@ -988,7 +1023,10 @@ const Upload = () => {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {t('Dit kunstwerk heeft al uploads. Nieuwe foto\'s/modellen worden toegevoegd.', 'This artwork already has uploads. New photos/models will be added.')}
+                    {kunstwerkSourcePhotos.length > 0 
+                      ? t('Dit zijn de officiële foto\'s van dit kunstwerk. Nieuwe foto\'s/modellen worden toegevoegd.', 'These are the official photos of this artwork. New photos/models will be added.')
+                      : t('Dit kunstwerk heeft al uploads. Nieuwe foto\'s/modellen worden toegevoegd.', 'This artwork already has uploads. New photos/models will be added.')
+                    }
                   </p>
                 </div>
               )}
@@ -1224,6 +1262,7 @@ const Upload = () => {
                     setInfoLink('');
                     setSelectedKunstwerk(null);
                     setExistingModelData(null);
+                    setKunstwerkSourcePhotos([]);
                     setLatitude(null);
                     setLongitude(null);
                   }}
