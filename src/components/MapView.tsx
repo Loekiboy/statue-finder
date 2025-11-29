@@ -434,25 +434,14 @@ const MapView = () => {
       setInitialLocation(fallback);
       return;
     }
+    
     let hasShownSuccess = false;
     let watchId: number | null = null;
+    let retryCount = 0;
+    const maxRetries = 3;
 
-    // First try to get current position (works better in Safari)
-    navigator.geolocation.getCurrentPosition(async position => {
-      const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
-      setUserLocation(coords);
-      if (!initialLocation) {
-        setInitialLocation(coords);
-      }
-      toast.success(t('Locatie gevonden!', 'Location found!'));
-      hasShownSuccess = true;
-
-      // Save location to user profile
-      const {
-        data: {
-          user
-        }
-      } = await supabase.auth.getUser();
+    const saveLocationToProfile = async (coords: [number, number]) => {
+      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('profiles').update({
           last_known_latitude: coords[0],
@@ -460,46 +449,90 @@ const MapView = () => {
           last_location_updated_at: new Date().toISOString()
         }).eq('user_id', user.id);
       }
+    };
 
-      // After successful initial position, start watching for updates
-      watchId = navigator.geolocation.watchPosition(async position => {
-        const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
-        setUserLocation(coords);
-
-        // Update location in profile
-        const {
-          data: {
-            user
-          }
-        } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.from('profiles').update({
-            last_known_latitude: coords[0],
-            last_known_longitude: coords[1],
-            last_location_updated_at: new Date().toISOString()
-          }).eq('user_id', user.id);
+    const startWatching = () => {
+      watchId = navigator.geolocation.watchPosition(
+        async position => {
+          const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
+          setUserLocation(coords);
+          saveLocationToProfile(coords);
+        },
+        error => {
+          console.error('Watch position error:', error.code, error.message);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 30000,
+          maximumAge: 10000
         }
-      }, error => {
-        console.error('Watch position error:', error.code, error.message);
-      }, {
-        enableHighAccuracy: true,
-        timeout: 27000,
-        // Longer timeout for Safari
-        maximumAge: 5000 // Allow cached position up to 5s old
-      });
-    }, error => {
-      console.error('Geolocation error:', error.code, error.message);
+      );
+    };
+
+    const handleLocationSuccess = async (position: GeolocationPosition) => {
+      const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
+      console.log('Location found:', coords, 'Accuracy:', position.coords.accuracy);
+      setUserLocation(coords);
+      if (!initialLocation) {
+        setInitialLocation(coords);
+      }
+      if (!hasShownSuccess) {
+        toast.success(t('Locatie gevonden!', 'Location found!'));
+        hasShownSuccess = true;
+      }
+      saveLocationToProfile(coords);
+      startWatching();
+    };
+
+    const handleLocationError = (error: GeolocationPositionError, highAccuracy: boolean) => {
+      console.error('Geolocation error:', error.code, error.message, 'highAccuracy:', highAccuracy);
+      
+      // If high accuracy failed, try with low accuracy (Safari sometimes prefers this)
+      if (highAccuracy && retryCount < maxRetries) {
+        retryCount++;
+        console.log(`Retrying with low accuracy (attempt ${retryCount}/${maxRetries})...`);
+        
+        navigator.geolocation.getCurrentPosition(
+          handleLocationSuccess,
+          (err) => {
+            // If low accuracy also fails, retry high accuracy after delay
+            if (retryCount < maxRetries) {
+              retryCount++;
+              console.log(`Retrying with high accuracy after delay (attempt ${retryCount}/${maxRetries})...`);
+              setTimeout(() => {
+                navigator.geolocation.getCurrentPosition(
+                  handleLocationSuccess,
+                  (finalErr) => showFinalError(finalErr),
+                  { enableHighAccuracy: true, timeout: 60000, maximumAge: 30000 }
+                );
+              }, 1000);
+            } else {
+              showFinalError(err);
+            }
+          },
+          { enableHighAccuracy: false, timeout: 30000, maximumAge: 60000 }
+        );
+        return;
+      }
+      
+      showFinalError(error);
+    };
+
+    const showFinalError = (error: GeolocationPositionError) => {
       let errorMessage = t('Kon locatie niet vinden.', 'Could not find location.');
       if (error.code === 1) {
-        errorMessage = t('Locatie toegang geweigerd. Gebruik laatste bekende locatie.', 'Location access denied. Using last known location.');
+        errorMessage = t(
+          'Locatie toegang geweigerd. Ga naar Instellingen > Safari > Locatie en sta toegang toe.',
+          'Location access denied. Go to Settings > Safari > Location and allow access.'
+        );
       } else if (error.code === 2) {
-        errorMessage = t('Locatie niet beschikbaar.', 'Location unavailable.');
+        errorMessage = t('Locatie niet beschikbaar. Controleer of GPS aan staat.', 'Location unavailable. Check if GPS is enabled.');
       } else if (error.code === 3) {
-        errorMessage = t('Locatie timeout. Probeer opnieuw.', 'Location timeout. Try again.');
+        errorMessage = t('Locatie timeout. Probeer de pagina te vernieuwen.', 'Location timeout. Try refreshing the page.');
       }
       toast.error(errorMessage);
 
-      // Don't set fallback if we already have last known location from profile
+      // Use last known location or fallback
       if (!userLocation) {
         const fallback: [number, number] = [52.3676, 4.9041];
         setUserLocation(fallback);
@@ -507,15 +540,60 @@ const MapView = () => {
           setInitialLocation(fallback);
         }
       }
-    }, {
-      enableHighAccuracy: true,
-      timeout: 27000,
-      // Longer timeout for Safari
-      maximumAge: 5000
-    });
+    };
+
+    // Check permission status first (where supported)
+    const checkPermissionAndGetLocation = async () => {
+      // Try to check permission status (not all browsers support this)
+      if ('permissions' in navigator) {
+        try {
+          const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
+          console.log('Geolocation permission status:', permissionStatus.state);
+          
+          if (permissionStatus.state === 'denied') {
+            toast.error(t(
+              'Locatie toegang is geblokkeerd. Ga naar je browserinstellingen om dit aan te passen.',
+              'Location access is blocked. Go to your browser settings to change this.'
+            ));
+            // Still try to request - it might prompt for permission on some browsers
+          }
+          
+          // Listen for permission changes
+          permissionStatus.onchange = () => {
+            console.log('Geolocation permission changed to:', permissionStatus.state);
+            if (permissionStatus.state === 'granted' && !userLocation) {
+              navigator.geolocation.getCurrentPosition(
+                handleLocationSuccess,
+                (err) => handleLocationError(err, true),
+                { enableHighAccuracy: true, timeout: 30000, maximumAge: 10000 }
+              );
+            }
+          };
+        } catch (e) {
+          // Permissions API not fully supported (Safari), continue anyway
+          console.log('Permissions API not supported, continuing with geolocation request');
+        }
+      }
+
+      // Request location - Safari often needs this to trigger the permission prompt
+      console.log('Requesting geolocation...');
+      navigator.geolocation.getCurrentPosition(
+        handleLocationSuccess,
+        (err) => handleLocationError(err, true),
+        { 
+          enableHighAccuracy: true, 
+          timeout: 30000,
+          maximumAge: 10000
+        }
+      );
+    };
+
+    // Small delay to ensure page is fully loaded (helps Safari)
+    const initTimer = setTimeout(checkPermissionAndGetLocation, 100);
 
     // Cleanup function to stop watching when component unmounts
     return () => {
+      clearTimeout(initTimer);
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
       }
