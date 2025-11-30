@@ -45,6 +45,22 @@ interface KunstwerkViewerProps {
   onClose: () => void;
 }
 
+// Discovery range in meters
+const DISCOVERY_RANGE_METERS = 100;
+
+// Calculate distance between two coordinates in meters (Haversine formula)
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerProps) => {
   const { t } = useLanguage();
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
@@ -58,6 +74,115 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   const [isDiscovered, setIsDiscovered] = useState(false);
   const [isCollecting, setIsCollecting] = useState(false);
   const [showDiscoveryDialog, setShowDiscoveryDialog] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [distanceToKunstwerk, setDistanceToKunstwerk] = useState<number | null>(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+  
+  // Get user's current location
+  useEffect(() => {
+    setIsLoadingLocation(true);
+    
+    if (!navigator.geolocation) {
+      setIsLoadingLocation(false);
+      return;
+    }
+    
+    // Get current position
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLoc = {
+          lat: position.coords.latitude,
+          lon: position.coords.longitude
+        };
+        setUserLocation(userLoc);
+        setIsLoadingLocation(false);
+        
+        // Calculate distance if kunstwerk has coordinates
+        const kunstwerkLat = kunstwerk?.lat || kunstwerk?.latitude || model?.latitude;
+        const kunstwerkLon = kunstwerk?.lon || kunstwerk?.longitude || model?.longitude;
+        
+        if (kunstwerkLat && kunstwerkLon) {
+          const distance = calculateDistance(
+            userLoc.lat, userLoc.lon,
+            kunstwerkLat, kunstwerkLon
+          );
+          setDistanceToKunstwerk(distance);
+        }
+      },
+      (error) => {
+        console.error('Location error:', error);
+        setIsLoadingLocation(false);
+        
+        // Try to get last known location from profile
+        supabase.auth.getUser().then(async ({ data: { user } }) => {
+          if (user) {
+            const { data } = await supabase
+              .from('profiles')
+              .select('last_known_latitude, last_known_longitude')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            
+            if (data?.last_known_latitude && data?.last_known_longitude) {
+              const userLoc = {
+                lat: data.last_known_latitude,
+                lon: data.last_known_longitude
+              };
+              setUserLocation(userLoc);
+              
+              const kunstwerkLat = kunstwerk?.lat || kunstwerk?.latitude || model?.latitude;
+              const kunstwerkLon = kunstwerk?.lon || kunstwerk?.longitude || model?.longitude;
+              
+              if (kunstwerkLat && kunstwerkLon) {
+                const distance = calculateDistance(
+                  userLoc.lat, userLoc.lon,
+                  kunstwerkLat, kunstwerkLon
+                );
+                setDistanceToKunstwerk(distance);
+              }
+            }
+          }
+        });
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+    );
+    
+    // Watch position for updates
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const userLoc = {
+          lat: position.coords.latitude,
+          lon: position.coords.longitude
+        };
+        setUserLocation(userLoc);
+        
+        const kunstwerkLat = kunstwerk?.lat || kunstwerk?.latitude || model?.latitude;
+        const kunstwerkLon = kunstwerk?.lon || kunstwerk?.longitude || model?.longitude;
+        
+        if (kunstwerkLat && kunstwerkLon) {
+          const distance = calculateDistance(
+            userLoc.lat, userLoc.lon,
+            kunstwerkLat, kunstwerkLon
+          );
+          setDistanceToKunstwerk(distance);
+        }
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 30000, maximumAge: 10000 }
+    );
+    
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [kunstwerk, model]);
+  
+  // Check if user is within discovery range
+  const isWithinRange = distanceToKunstwerk !== null && distanceToKunstwerk <= DISCOVERY_RANGE_METERS;
+  
+  // Format distance for display
+  const formatDistance = (meters: number): string => {
+    if (meters < 1000) {
+      return `${Math.round(meters)}m`;
+    }
+    return `${(meters / 1000).toFixed(1)}km`;
+  };
   
   // Get current user and check discovery status
   useEffect(() => {
@@ -67,13 +192,13 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
       
       if (user && kunstwerk) {
         const kunstwerkId = kunstwerk.id?.toString() || kunstwerk.source_id || `${city}-${kunstwerk.name}`;
-        const { data } = await supabase
+        const { data } = await (supabase as any)
           .from('discovered_kunstwerken')
           .select('id')
           .eq('user_id', user.id)
           .eq('kunstwerk_id', kunstwerkId)
           .eq('city', city)
-          .single();
+          .maybeSingle();
         
         setIsDiscovered(!!data);
       }
@@ -93,12 +218,20 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
       return;
     }
     
+    if (!isWithinRange) {
+      toast.error(t(
+        `Je bent te ver weg! Kom binnen ${DISCOVERY_RANGE_METERS}m van het kunstwerk.`,
+        `You're too far away! Get within ${DISCOVERY_RANGE_METERS}m of the artwork.`
+      ));
+      return;
+    }
+    
     setIsCollecting(true);
     
     try {
       const kunstwerkId = kunstwerk.id?.toString() || kunstwerk.source_id || `${city}-${kunstwerk.name}`;
       
-      const { error } = await supabase.from('discovered_kunstwerken').insert({
+      const { error } = await (supabase as any).from('discovered_kunstwerken').insert({
         user_id: user.id,
         kunstwerk_id: kunstwerkId,
         city: city
@@ -533,35 +666,78 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                 </div>
               )}
               
+              {/* Distance indicator */}
+              {user && !isDiscovered && distanceToKunstwerk !== null && (
+                <div className={`rounded-lg p-3 ${isWithinRange 
+                  ? 'bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800' 
+                  : 'bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800'
+                }`}>
+                  <div className={`flex items-center gap-2 font-medium ${isWithinRange
+                    ? 'text-green-700 dark:text-green-300'
+                    : 'text-orange-700 dark:text-orange-300'
+                  }`}>
+                    <MapPin className="w-5 h-5" />
+                    <span>
+                      {isWithinRange 
+                        ? t(`Je bent dichtbij! (${formatDistance(distanceToKunstwerk)})`, `You're nearby! (${formatDistance(distanceToKunstwerk)})`)
+                        : t(`Nog ${formatDistance(distanceToKunstwerk)} verwijderd`, `${formatDistance(distanceToKunstwerk)} away`)
+                      }
+                    </span>
+                  </div>
+                  {!isWithinRange && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {t(`Kom binnen ${DISCOVERY_RANGE_METERS}m om te verzamelen`, `Get within ${DISCOVERY_RANGE_METERS}m to collect`)}
+                    </p>
+                  )}
+                </div>
+              )}
+              
+              {/* Loading location indicator */}
+              {user && !isDiscovered && isLoadingLocation && (
+                <div className="bg-muted rounded-lg p-3 flex items-center gap-2 text-muted-foreground">
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm">{t('Locatie bepalen...', 'Getting location...')}</span>
+                </div>
+              )}
+              
               {/* Collect Button - Prominent placement */}
               {user && (
-                <Button
-                  variant={isDiscovered ? "outline" : "default"}
-                  size="lg"
-                  onClick={handleCollect}
-                  disabled={isCollecting || isDiscovered}
-                  className={`w-full gap-2 ${isDiscovered 
-                    ? 'bg-green-100 dark:bg-green-900 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300' 
-                    : 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white shadow-lg'
-                  }`}
-                >
-                  {isDiscovered ? (
-                    <>
-                      <Check className="w-5 h-5" />
-                      {t('Verzameld!', 'Collected!')}
-                    </>
-                  ) : isCollecting ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      {t('Verzamelen...', 'Collecting...')}
-                    </>
-                  ) : (
-                    <>
-                      <Trophy className="w-5 h-5" />
-                      {t('Verzamelen', 'Collect')}
-                    </>
-                  )}
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    variant={isDiscovered ? "outline" : "default"}
+                    size="lg"
+                    onClick={handleCollect}
+                    disabled={isCollecting || isDiscovered || (!isWithinRange && !isDiscovered)}
+                    className={`w-full gap-2 ${isDiscovered 
+                      ? 'bg-green-100 dark:bg-green-900 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300' 
+                      : isWithinRange
+                        ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white shadow-lg'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {isDiscovered ? (
+                      <>
+                        <Check className="w-5 h-5" />
+                        {t('Verzameld!', 'Collected!')}
+                      </>
+                    ) : isCollecting ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        {t('Verzamelen...', 'Collecting...')}
+                      </>
+                    ) : isWithinRange ? (
+                      <>
+                        <Trophy className="w-5 h-5" />
+                        {t('Verzamelen', 'Collect')}
+                      </>
+                    ) : (
+                      <>
+                        <MapPin className="w-5 h-5" />
+                        {t('Ga naar het kunstwerk', 'Go to the artwork')}
+                      </>
+                    )}
+                  </Button>
+                </div>
               )}
               
               <div className="flex gap-2 flex-wrap">
