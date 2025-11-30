@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet.markercluster';
 import { toast } from 'sonner';
@@ -9,7 +9,7 @@ import QuickUploadDialog from './QuickUploadDialog';
 import KunstwerkViewer from './KunstwerkViewer';
 import { SearchBar } from './SearchBar';
 import { Button } from './ui/button';
-import { MapPin } from 'lucide-react';
+import { MapPin, RefreshCw, Loader2, Navigation } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { isOnWiFi, cacheMapTiles, cacheNearbyModels, clearOldCaches, cacheOSMStatues, getCachedOSMStatues, OSMStatue as CachedOSMStatue } from '@/lib/cacheManager';
@@ -425,20 +425,30 @@ const MapView = () => {
     };
     loadUploadedModels();
   }, []);
-  useEffect(() => {
-    // Watch user's location continuously
+  // Detect iOS Safari
+  const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+    ('standalone' in window.navigator && (window.navigator as any).standalone);
+
+  // State for manual location refresh
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  // Function to request location that can be called manually
+  const requestLocation = useCallback(async (showToast = true) => {
     if (!navigator.geolocation) {
-      toast.error(t('Geolocatie wordt niet ondersteund door je browser.', 'Geolocation is not supported by your browser.'));
+      const msg = t('Geolocatie wordt niet ondersteund door je browser.', 'Geolocation is not supported by your browser.');
+      setLocationError(msg);
+      if (showToast) toast.error(msg);
       const fallback: [number, number] = [52.3676, 4.9041];
       setUserLocation(fallback);
       setInitialLocation(fallback);
       return;
     }
-    
-    let hasShownSuccess = false;
-    let watchId: number | null = null;
-    let retryCount = 0;
-    const maxRetries = 3;
+
+    setIsRequestingLocation(true);
+    setLocationError(null);
+    console.log('Requesting geolocation... (iOS Safari:', isIOSSafari, 'Standalone:', isStandalone, ')');
 
     const saveLocationToProfile = async (coords: [number, number]) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -451,153 +461,140 @@ const MapView = () => {
       }
     };
 
-    const startWatching = () => {
-      watchId = navigator.geolocation.watchPosition(
-        async position => {
-          const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
-          setUserLocation(coords);
-          saveLocationToProfile(coords);
-        },
-        error => {
-          console.error('Watch position error:', error.code, error.message);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 30000,
-          maximumAge: 10000
-        }
-      );
-    };
-
-    const handleLocationSuccess = async (position: GeolocationPosition) => {
-      const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
-      console.log('Location found:', coords, 'Accuracy:', position.coords.accuracy);
-      setUserLocation(coords);
-      if (!initialLocation) {
-        setInitialLocation(coords);
-      }
-      if (!hasShownSuccess) {
-        toast.success(t('Locatie gevonden!', 'Location found!'));
-        hasShownSuccess = true;
-      }
-      saveLocationToProfile(coords);
-      startWatching();
-    };
-
-    const handleLocationError = (error: GeolocationPositionError, highAccuracy: boolean) => {
-      console.error('Geolocation error:', error.code, error.message, 'highAccuracy:', highAccuracy);
-      
-      // If high accuracy failed, try with low accuracy (Safari sometimes prefers this)
-      if (highAccuracy && retryCount < maxRetries) {
-        retryCount++;
-        console.log(`Retrying with low accuracy (attempt ${retryCount}/${maxRetries})...`);
+    // Try multiple strategies for iOS Safari
+    const tryGetLocation = (attempt: number, useHighAccuracy: boolean): Promise<GeolocationPosition> => {
+      return new Promise((resolve, reject) => {
+        // iOS Safari needs longer timeouts and sometimes prefers low accuracy first
+        const timeout = isIOSSafari ? 60000 : 30000;
+        const maxAge = attempt === 1 ? 0 : (isIOSSafari ? 60000 : 30000); // Fresh on first try
+        
+        console.log(`Location attempt ${attempt}: highAccuracy=${useHighAccuracy}, timeout=${timeout}, maxAge=${maxAge}`);
         
         navigator.geolocation.getCurrentPosition(
-          handleLocationSuccess,
-          (err) => {
-            // If low accuracy also fails, retry high accuracy after delay
-            if (retryCount < maxRetries) {
-              retryCount++;
-              console.log(`Retrying with high accuracy after delay (attempt ${retryCount}/${maxRetries})...`);
-              setTimeout(() => {
-                navigator.geolocation.getCurrentPosition(
-                  handleLocationSuccess,
-                  (finalErr) => showFinalError(finalErr),
-                  { enableHighAccuracy: true, timeout: 60000, maximumAge: 30000 }
-                );
-              }, 1000);
-            } else {
-              showFinalError(err);
-            }
-          },
-          { enableHighAccuracy: false, timeout: 30000, maximumAge: 60000 }
+          resolve,
+          reject,
+          { 
+            enableHighAccuracy: useHighAccuracy, 
+            timeout: timeout,
+            maximumAge: maxAge
+          }
         );
-        return;
+      });
+    };
+
+    // Sequential attempts with different settings
+    const attempts = isIOSSafari 
+      ? [
+          { highAccuracy: false, delay: 0 },      // iOS often works better with low accuracy first
+          { highAccuracy: true, delay: 500 },     // Then try high accuracy
+          { highAccuracy: false, delay: 1000 },   // Retry low accuracy
+          { highAccuracy: true, delay: 2000 },    // Final high accuracy attempt
+        ]
+      : [
+          { highAccuracy: true, delay: 0 },
+          { highAccuracy: false, delay: 500 },
+          { highAccuracy: true, delay: 1000 },
+        ];
+
+    for (let i = 0; i < attempts.length; i++) {
+      const { highAccuracy, delay } = attempts[i];
+      
+      if (delay > 0) {
+        await new Promise(r => setTimeout(r, delay));
       }
       
-      showFinalError(error);
-    };
+      try {
+        const position = await tryGetLocation(i + 1, highAccuracy);
+        const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
+        console.log('Location found:', coords, 'Accuracy:', position.coords.accuracy, 'meters');
+        
+        setUserLocation(coords);
+        setInitialLocation(prev => prev || coords);
+        setIsRequestingLocation(false);
+        setLocationError(null);
+        
+        if (showToast) {
+          toast.success(t('Locatie gevonden!', 'Location found!'));
+        }
+        
+        saveLocationToProfile(coords);
+        return;
+      } catch (error: any) {
+        console.log(`Attempt ${i + 1} failed:`, error.code, error.message);
+        // Continue to next attempt
+      }
+    }
 
-    const showFinalError = (error: GeolocationPositionError) => {
-      let errorMessage = t('Kon locatie niet vinden.', 'Could not find location.');
-      if (error.code === 1) {
+    // All attempts failed
+    setIsRequestingLocation(false);
+    
+    let errorMessage = t('Kon locatie niet vinden.', 'Could not find location.');
+    
+    if (isIOSSafari) {
+      if (isStandalone) {
         errorMessage = t(
-          'Locatie toegang geweigerd. Ga naar Instellingen > Safari > Locatie en sta toegang toe.',
-          'Location access denied. Go to Settings > Safari > Location and allow access.'
+          'Locatie niet gevonden. Ga naar Instellingen > Privacy en beveiliging > Locatievoorzieningen en schakel deze in voor deze app.',
+          'Location not found. Go to Settings > Privacy & Security > Location Services and enable it for this app.'
         );
-      } else if (error.code === 2) {
-        errorMessage = t('Locatie niet beschikbaar. Controleer of GPS aan staat.', 'Location unavailable. Check if GPS is enabled.');
-      } else if (error.code === 3) {
-        errorMessage = t('Locatie timeout. Probeer de pagina te vernieuwen.', 'Location timeout. Try refreshing the page.');
+      } else {
+        errorMessage = t(
+          'Locatie niet gevonden. Ga naar Instellingen > Safari > Locatie en sta "Vraag" of "Sta toe" in. Ververs daarna de pagina.',
+          'Location not found. Go to Settings > Safari > Location and set to "Ask" or "Allow". Then refresh the page.'
+        );
       }
-      toast.error(errorMessage);
+    }
+    
+    setLocationError(errorMessage);
+    if (showToast) toast.error(errorMessage);
 
-      // Use last known location or fallback
-      if (!userLocation) {
-        const fallback: [number, number] = [52.3676, 4.9041];
-        setUserLocation(fallback);
-        if (!initialLocation) {
-          setInitialLocation(fallback);
+    // Use fallback location
+    if (!userLocation) {
+      const fallback: [number, number] = [52.3676, 4.9041];
+      setUserLocation(fallback);
+      setInitialLocation(prev => prev || fallback);
+    }
+  }, [isIOSSafari, isStandalone, t, userLocation]);
+
+  // Watch position for continuous updates (only after initial location is found)
+  useEffect(() => {
+    if (!userLocation || !navigator.geolocation) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      async position => {
+        const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
+        setUserLocation(coords);
+        
+        // Save to profile
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('profiles').update({
+            last_known_latitude: coords[0],
+            last_known_longitude: coords[1],
+            last_location_updated_at: new Date().toISOString()
+          }).eq('user_id', user.id);
         }
+      },
+      error => {
+        console.error('Watch position error:', error.code, error.message);
+      },
+      {
+        enableHighAccuracy: !isIOSSafari, // Low accuracy more reliable on iOS
+        timeout: isIOSSafari ? 60000 : 30000,
+        maximumAge: 10000
       }
-    };
+    );
 
-    // Check permission status first (where supported)
-    const checkPermissionAndGetLocation = async () => {
-      // Try to check permission status (not all browsers support this)
-      if ('permissions' in navigator) {
-        try {
-          const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
-          console.log('Geolocation permission status:', permissionStatus.state);
-          
-          if (permissionStatus.state === 'denied') {
-            toast.error(t(
-              'Locatie toegang is geblokkeerd. Ga naar je browserinstellingen om dit aan te passen.',
-              'Location access is blocked. Go to your browser settings to change this.'
-            ));
-            // Still try to request - it might prompt for permission on some browsers
-          }
-          
-          // Listen for permission changes
-          permissionStatus.onchange = () => {
-            console.log('Geolocation permission changed to:', permissionStatus.state);
-            if (permissionStatus.state === 'granted' && !userLocation) {
-              navigator.geolocation.getCurrentPosition(
-                handleLocationSuccess,
-                (err) => handleLocationError(err, true),
-                { enableHighAccuracy: true, timeout: 30000, maximumAge: 10000 }
-              );
-            }
-          };
-        } catch (e) {
-          // Permissions API not fully supported (Safari), continue anyway
-          console.log('Permissions API not supported, continuing with geolocation request');
-        }
-      }
-
-      // Request location - Safari often needs this to trigger the permission prompt
-      console.log('Requesting geolocation...');
-      navigator.geolocation.getCurrentPosition(
-        handleLocationSuccess,
-        (err) => handleLocationError(err, true),
-        { 
-          enableHighAccuracy: true, 
-          timeout: 30000,
-          maximumAge: 10000
-        }
-      );
-    };
-
-    // Small delay to ensure page is fully loaded (helps Safari)
-    const initTimer = setTimeout(checkPermissionAndGetLocation, 100);
-
-    // Cleanup function to stop watching when component unmounts
     return () => {
-      clearTimeout(initTimer);
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-      }
+      navigator.geolocation.clearWatch(watchId);
     };
+  }, [userLocation, isIOSSafari]);
+
+  // Initial location request on mount
+  useEffect(() => {
+    // Longer delay for iOS Safari to ensure everything is initialized
+    const delay = isIOSSafari ? 500 : 100;
+    const timer = setTimeout(() => requestLocation(true), delay);
+    return () => clearTimeout(timer);
   }, []);
   const markModelAsDiscovered = async (modelId: string) => {
     if (!user) return;
@@ -1699,6 +1696,31 @@ const MapView = () => {
 
       {/* Map - always rendered */}
       <div ref={mapContainer} className="absolute inset-0 pb-16 md:pb-0 z-0" />
+      
+      {/* Location refresh button - shows when there's an error or for manual refresh */}
+      {!showViewer && !selectedKunstwerk && (
+        <div className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-20 flex flex-col gap-2">
+          {locationError && (
+            <div className="bg-destructive/90 text-destructive-foreground text-xs px-3 py-2 rounded-lg max-w-[250px] shadow-lg">
+              {locationError}
+            </div>
+          )}
+          <Button
+            onClick={() => requestLocation(true)}
+            disabled={isRequestingLocation}
+            variant="secondary"
+            size="icon"
+            className="w-12 h-12 rounded-full shadow-lg"
+            title={t('Locatie vernieuwen', 'Refresh location')}
+          >
+            {isRequestingLocation ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Navigation className="w-5 h-5" />
+            )}
+          </Button>
+        </div>
+      )}
       
       {/* Mobile-optimized info card - only show when no kunstwerk is selected */}
       {!selectedKunstwerk}
