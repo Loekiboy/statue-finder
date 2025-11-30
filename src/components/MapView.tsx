@@ -434,7 +434,31 @@ const MapView = () => {
   // State for manual location refresh
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [showLocationButton, setShowLocationButton] = useState(() => {
+    return localStorage.getItem('showLocationButton') !== 'false';
+  });
   const locationFoundRef = useRef(false);
+
+  // Listen for localStorage changes (from settings page)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setShowLocationButton(localStorage.getItem('showLocationButton') !== 'false');
+    };
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check on visibility change (when returning from settings)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setShowLocationButton(localStorage.getItem('showLocationButton') !== 'false');
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // Save location to profile helper
   const saveLocationToProfile = useCallback(async (coords: [number, number]) => {
@@ -1738,8 +1762,8 @@ const MapView = () => {
       {/* Map - always rendered */}
       <div ref={mapContainer} className="absolute inset-0 pb-16 md:pb-0 z-0" />
       
-      {/* Location refresh button - shows when there's an error or for manual refresh */}
-      {!showViewer && !selectedKunstwerk && (
+      {/* Location refresh button - shows when enabled in settings */}
+      {!showViewer && !selectedKunstwerk && showLocationButton && (
         <div className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-20 flex flex-col gap-2">
           {locationError && (
             <div className="bg-destructive/90 text-destructive-foreground text-xs px-3 py-2 rounded-lg max-w-[250px] shadow-lg">

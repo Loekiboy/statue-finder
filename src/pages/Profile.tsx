@@ -44,6 +44,9 @@ const Profile = () => {
   const [showInstallInstructions, setShowInstallInstructions] = useState(false);
   const [isSafari, setIsSafari] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [showLocationButton, setShowLocationButton] = useState(() => {
+    return localStorage.getItem('showLocationButton') !== 'false';
+  });
   const navigate = useNavigate();
 
   // Detect Safari and standalone mode
@@ -266,6 +269,8 @@ const Profile = () => {
     usernamePlaceholder: 'Voer je gebruikersnaam in',
     slideshowEnabled: 'Automatische slideshow',
     slideshowEnabledDesc: 'Start automatisch een slideshow bij foto\'s van kunstwerken',
+    showLocationButton: 'Locatie-knop tonen',
+    showLocationButtonDesc: 'Toon een knop op de kaart om je locatie handmatig te vernieuwen',
     installApp: 'Installeer als App',
     installAppDesc: 'Voeg Statue Finder toe aan je startscherm voor de beste ervaring',
     installInstructions: 'Installatie instructies',
@@ -304,6 +309,8 @@ const Profile = () => {
     usernamePlaceholder: 'Enter your username',
     slideshowEnabled: 'Automatic slideshow',
     slideshowEnabledDesc: 'Automatically start a slideshow when viewing artwork photos',
+    showLocationButton: 'Show location button',
+    showLocationButtonDesc: 'Show a button on the map to manually refresh your location',
     installApp: 'Install as App',
     installAppDesc: 'Add Statue Finder to your home screen for the best experience',
     installInstructions: 'Installation instructions',
@@ -454,6 +461,34 @@ const Profile = () => {
                       id="slideshow"
                       checked={profile.slideshow_enabled ?? true}
                       onCheckedChange={(checked) => updateProfile({ slideshow_enabled: checked })}
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="location-button" className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        {t.showLocationButton}
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t.showLocationButtonDesc}
+                      </p>
+                    </div>
+                    <Switch
+                      id="location-button"
+                      checked={showLocationButton}
+                      onCheckedChange={(checked) => {
+                        setShowLocationButton(checked);
+                        localStorage.setItem('showLocationButton', checked.toString());
+                        toast.success(checked 
+                          ? (profile.language === 'nl' ? 'Locatie-knop ingeschakeld' : 'Location button enabled')
+                          : (profile.language === 'nl' ? 'Locatie-knop uitgeschakeld' : 'Location button disabled')
+                        );
+                      }}
                     />
                   </div>
                 </div>
