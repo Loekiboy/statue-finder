@@ -1,3 +1,36 @@
+import imageCompression from 'browser-image-compression';
+
+interface CompressOptions {
+  maxWidth?: number;
+  maxHeight?: number;
+  quality?: number;
+}
+
+/**
+ * Compresses an image file for upload
+ */
+export async function compressImage(
+  file: File,
+  options: CompressOptions = {}
+): Promise<File> {
+  const { maxWidth = 1920, maxHeight = 1920, quality = 0.8 } = options;
+  
+  const compressionOptions = {
+    maxSizeMB: 1,
+    maxWidthOrHeight: Math.max(maxWidth, maxHeight),
+    useWebWorker: true,
+    initialQuality: quality,
+  };
+  
+  try {
+    const compressedFile = await imageCompression(file, compressionOptions);
+    return compressedFile;
+  } catch (error) {
+    console.error('Image compression failed:', error);
+    return file; // Return original if compression fails
+  }
+}
+
 /**
  * Converts an image URL to a low-resolution thumbnail version for faster loading
  * Supports various image hosting services and CDNs
