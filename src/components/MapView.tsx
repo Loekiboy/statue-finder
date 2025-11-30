@@ -434,12 +434,12 @@ const MapView = () => {
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [showLocationButton, setShowLocationButton] = useState(() => {
-    return localStorage.getItem('showLocationButton') === 'true';
+    return localStorage.getItem('showLocationButton') === 'true'; // Default OFF
   });
   const [showLocationSuggestion, setShowLocationSuggestion] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const locationFoundRef = useRef(false);
-  const watchIdRef = useRef<number | null>(null);
+  const locationRequestedRef = useRef(false);
 
   // Listen for localStorage changes and screen resize
   useEffect(() => {
@@ -500,10 +500,40 @@ const MapView = () => {
     }
   }, []);
 
-  // Simple, robust geolocation request - works on iOS Safari
-  const requestLocation = useCallback((showToast = true) => {
+  // IP-based location fallback (works when GPS fails)
+  const getIPLocation = useCallback(async (): Promise<[number, number] | null> => {
+    try {
+      console.log('Trying IP-based location...');
+      const response = await fetch('https://ipapi.co/json/');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.latitude && data.longitude) {
+          console.log('IP location found:', data.latitude, data.longitude);
+          return [data.latitude, data.longitude];
+        }
+      }
+    } catch (e) {
+      console.log('IP location failed:', e);
+    }
+    return null;
+  }, []);
+
+  // Main location request function
+  const requestLocation = useCallback(async (showToast = true) => {
+    console.log('=== requestLocation called ===');
+    console.log('iOS Safari:', isIOSSafari, 'Standalone:', isStandalone);
+    
     if (!navigator.geolocation) {
-      const msg = t('Geolocatie wordt niet ondersteund.', 'Geolocation not supported.');
+      console.log('Geolocation not supported, trying IP fallback...');
+      const ipCoords = await getIPLocation();
+      if (ipCoords) {
+        setUserLocation(ipCoords);
+        setInitialLocation(prev => prev || ipCoords);
+        locationFoundRef.current = true;
+        if (showToast) toast.success(t('Locatie gevonden (via IP)', 'Location found (via IP)'));
+        return;
+      }
+      const msg = t('Geolocatie niet beschikbaar.', 'Geolocation not available.');
       setLocationError(msg);
       if (showToast) toast.error(msg);
       setUserLocation([52.3676, 4.9041]);
@@ -513,139 +543,108 @@ const MapView = () => {
 
     setIsRequestingLocation(true);
     setLocationError(null);
-    console.log('Requesting location... (iOS:', isIOSSafari, ')');
 
-    // iOS Safari works best with these settings:
-    // - enableHighAccuracy: false (more reliable)
-    // - maximumAge: very high (use cached if available)
-    // - timeout: reasonable (not too short)
-    const options: PositionOptions = {
-      enableHighAccuracy: false,  // FALSE works better on iOS!
-      timeout: 10000,             // 10 seconds
-      maximumAge: 86400000        // Accept 24-hour old cached position
+    // Simple promise wrapper for getCurrentPosition
+    const getPosition = (options: PositionOptions): Promise<GeolocationPosition> => {
+      return new Promise((resolve, reject) => {
+        console.log('getCurrentPosition with options:', JSON.stringify(options));
+        navigator.geolocation.getCurrentPosition(resolve, reject, options);
+      });
     };
 
-    const onSuccess = (position: GeolocationPosition) => {
-      const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
-      console.log('Location SUCCESS:', coords, 'Accuracy:', position.coords.accuracy);
-      
-      setUserLocation(coords);
-      setInitialLocation(prev => prev || coords);
-      setIsRequestingLocation(false);
-      setLocationError(null);
-      locationFoundRef.current = true;
-      
-      if (showToast) {
-        toast.success(t('Locatie gevonden!', 'Location found!'));
-      }
-      saveLocationToProfile(coords);
-    };
+    // Try different strategies
+    const strategies: PositionOptions[] = isIOSSafari
+      ? [
+          // iOS: Start with most permissive, no high accuracy
+          { enableHighAccuracy: false, timeout: 5000, maximumAge: Infinity },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+        ]
+      : [
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
+        ];
 
-    const onError = (error: GeolocationPositionError) => {
-      console.log('Location error:', error.code, error.message);
-      
-      // If first attempt fails, try with high accuracy as fallback
-      if (!locationFoundRef.current) {
-        console.log('Trying high accuracy fallback...');
-        navigator.geolocation.getCurrentPosition(
-          onSuccess,
-          (fallbackError) => {
-            console.log('High accuracy also failed:', fallbackError.code, fallbackError.message);
-            handleFinalError(fallbackError);
-          },
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-        );
-      } else {
-        handleFinalError(error);
+    for (let i = 0; i < strategies.length; i++) {
+      console.log(`Strategy ${i + 1}/${strategies.length}:`, strategies[i]);
+      try {
+        const position = await getPosition(strategies[i]);
+        const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
+        console.log('GPS SUCCESS:', coords, 'accuracy:', position.coords.accuracy);
+        
+        setUserLocation(coords);
+        setInitialLocation(prev => prev || coords);
+        setIsRequestingLocation(false);
+        setLocationError(null);
+        locationFoundRef.current = true;
+        
+        if (showToast) toast.success(t('Locatie gevonden!', 'Location found!'));
+        saveLocationToProfile(coords);
+        return;
+      } catch (error: any) {
+        console.log(`Strategy ${i + 1} failed:`, error.code, error.message);
       }
-    };
-
-    const handleFinalError = (error: GeolocationPositionError) => {
-      setIsRequestingLocation(false);
-      
-      let msg: string;
-      if (error.code === 1) {
-        // Permission denied
-        msg = isIOSSafari
-          ? t('Locatie geweigerd. Open Instellingen > Privacy > Locatievoorzieningen en schakel Safari in.', 
-              'Location denied. Open Settings > Privacy > Location Services and enable Safari.')
-          : t('Locatie geweigerd. Sta locatietoegang toe in je browser.', 
-              'Location denied. Allow location access in your browser.');
-      } else if (error.code === 2) {
-        // Position unavailable
-        msg = t('Locatie niet beschikbaar. Zorg dat GPS/locatie aan staat op je apparaat.', 
-                'Location unavailable. Make sure GPS/location is enabled on your device.');
-      } else {
-        // Timeout
-        msg = isIOSSafari
-          ? t('Locatie timeout. Tip: Voeg deze site toe aan je beginscherm voor betere locatie.', 
-              'Location timeout. Tip: Add this site to home screen for better location.')
-          : t('Locatie timeout. Probeer opnieuw.', 'Location timeout. Try again.');
-      }
-      
-      setLocationError(msg);
-      if (showToast) toast.error(msg);
-      showLocationButtonSuggestion();
-      
-      // Set fallback location
-      if (!userLocation) {
-        setUserLocation([52.3676, 4.9041]);
-        setInitialLocation(prev => prev || [52.3676, 4.9041]);
-      }
-    };
-
-    // Make the request
-    navigator.geolocation.getCurrentPosition(onSuccess, onError, options);
-  }, [isIOSSafari, t, saveLocationToProfile, showLocationButtonSuggestion, userLocation]);
-
-  // Start watching location after initial success
-  useEffect(() => {
-    if (!locationFoundRef.current || !navigator.geolocation) return;
-    
-    // Don't use watchPosition on iOS - it's buggy
-    if (isIOSSafari) {
-      // Poll every 60 seconds instead
-      const intervalId = setInterval(() => {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
-            setUserLocation(coords);
-            saveLocationToProfile(coords);
-          },
-          () => {}, // Silently ignore errors
-          { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
-        );
-      }, 60000);
-      
-      return () => clearInterval(intervalId);
     }
+
+    // All GPS strategies failed - try IP fallback
+    console.log('All GPS strategies failed, trying IP fallback...');
+    const ipCoords = await getIPLocation();
+    if (ipCoords) {
+      setUserLocation(ipCoords);
+      setInitialLocation(prev => prev || ipCoords);
+      setIsRequestingLocation(false);
+      locationFoundRef.current = true;
+      if (showToast) toast.success(t('Locatie gevonden (via IP)', 'Location found (via IP)'));
+      saveLocationToProfile(ipCoords);
+      return;
+    }
+
+    // Everything failed
+    setIsRequestingLocation(false);
+    const errorMsg = isIOSSafari
+      ? t('Locatie niet gevonden. Controleer Instellingen > Privacy > Locatievoorzieningen.', 
+          'Location not found. Check Settings > Privacy > Location Services.')
+      : t('Locatie niet gevonden.', 'Location not found.');
     
-    // Standard watchPosition for other browsers
-    watchIdRef.current = navigator.geolocation.watchPosition(
+    setLocationError(errorMsg);
+    if (showToast) toast.error(errorMsg);
+    showLocationButtonSuggestion();
+    
+    // Use fallback
+    const fallback: [number, number] = [52.3676, 4.9041];
+    setUserLocation(fallback);
+    setInitialLocation(prev => prev || fallback);
+  }, [isIOSSafari, isStandalone, t, saveLocationToProfile, getIPLocation, showLocationButtonSuggestion]);
+
+  // Initial location request on mount
+  useEffect(() => {
+    if (locationRequestedRef.current) return;
+    locationRequestedRef.current = true;
+    
+    console.log('Initial location request starting...');
+    const timer = setTimeout(() => {
+      requestLocation(true);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [requestLocation]);
+
+  // Watch position for continuous updates (not on iOS)
+  useEffect(() => {
+    if (!locationFoundRef.current || !navigator.geolocation || isIOSSafari) return;
+    
+    const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
         setUserLocation(coords);
         saveLocationToProfile(coords);
       },
-      (error) => console.log('Watch error:', error.code),
+      () => {},
       { enableHighAccuracy: true, timeout: 30000, maximumAge: 10000 }
     );
 
-    return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
-    };
+    return () => navigator.geolocation.clearWatch(watchId);
   }, [isIOSSafari, saveLocationToProfile]);
-
-  // Initial location request
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      requestLocation(true);
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, []);
 
   const markModelAsDiscovered = async (modelId: string) => {
     if (!user) return;
