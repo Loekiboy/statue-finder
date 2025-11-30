@@ -500,6 +500,29 @@ const MapView = () => {
     }
   }, []);
 
+  // Get last known location from profile
+  const getLastKnownLocation = useCallback(async (): Promise<[number, number] | null> => {
+    try {
+      console.log('Trying last known location from profile...');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('last_known_latitude, last_known_longitude')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (data?.last_known_latitude && data?.last_known_longitude) {
+          console.log('Last known location found:', data.last_known_latitude, data.last_known_longitude);
+          return [data.last_known_latitude, data.last_known_longitude];
+        }
+      }
+    } catch (e) {
+      console.log('Last known location failed:', e);
+    }
+    return null;
+  }, []);
+
   // IP-based location fallback (works when GPS fails)
   const getIPLocation = useCallback(async (): Promise<[number, number] | null> => {
     try {
@@ -586,8 +609,20 @@ const MapView = () => {
       }
     }
 
-    // All GPS strategies failed - try IP fallback
-    console.log('All GPS strategies failed, trying IP fallback...');
+    // All GPS strategies failed - try last known location first
+    console.log('All GPS strategies failed, trying last known location...');
+    const lastKnownCoords = await getLastKnownLocation();
+    if (lastKnownCoords) {
+      setUserLocation(lastKnownCoords);
+      setInitialLocation(prev => prev || lastKnownCoords);
+      setIsRequestingLocation(false);
+      locationFoundRef.current = true;
+      if (showToast) toast.success(t('Laatste bekende locatie gebruikt', 'Using last known location'));
+      return;
+    }
+
+    // Then try IP fallback
+    console.log('Last known location failed, trying IP fallback...');
     const ipCoords = await getIPLocation();
     if (ipCoords) {
       setUserLocation(ipCoords);
@@ -614,7 +649,7 @@ const MapView = () => {
     const fallback: [number, number] = [52.3676, 4.9041];
     setUserLocation(fallback);
     setInitialLocation(prev => prev || fallback);
-  }, [isIOSSafari, isStandalone, t, saveLocationToProfile, getIPLocation, showLocationButtonSuggestion]);
+  }, [isIOSSafari, isStandalone, t, saveLocationToProfile, getIPLocation, getLastKnownLocation, showLocationButtonSuggestion]);
 
   // Initial location request on mount
   useEffect(() => {
