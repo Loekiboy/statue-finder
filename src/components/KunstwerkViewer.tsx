@@ -1,5 +1,5 @@
 import { Button } from './ui/button';
-import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X, Share2, Check, Download } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Upload, Box, MapPin, X, Share2, Check, Download, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { downloadImage } from '@/lib/downloadUtils';
 import { getLowResImageUrl } from '@/lib/imageUtils';
@@ -17,6 +17,7 @@ import StandbeeldViewer from './StandbeeldViewer';
 import PhotoViewer from './PhotoViewer';
 import { ImageZoom } from './ImageZoom';
 import { supabase } from '@/integrations/supabase/client';
+import DiscoveryDialog from './DiscoveryDialog';
 
 interface Model {
   id: string;
@@ -53,6 +54,75 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
   const [isSharing, setIsSharing] = useState(false);
   const [showImageZoom, setShowImageZoom] = useState(false);
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
+  const [user, setUser] = useState<{ id: string } | null>(null);
+  const [isDiscovered, setIsDiscovered] = useState(false);
+  const [isCollecting, setIsCollecting] = useState(false);
+  const [showDiscoveryDialog, setShowDiscoveryDialog] = useState(false);
+  
+  // Get current user and check discovery status
+  useEffect(() => {
+    const checkUserAndDiscovery = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      
+      if (user && kunstwerk) {
+        const kunstwerkId = kunstwerk.id?.toString() || kunstwerk.source_id || `${city}-${kunstwerk.name}`;
+        const { data } = await supabase
+          .from('discovered_kunstwerken')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('kunstwerk_id', kunstwerkId)
+          .eq('city', city)
+          .single();
+        
+        setIsDiscovered(!!data);
+      }
+    };
+    
+    checkUserAndDiscovery();
+  }, [kunstwerk, city]);
+  
+  const handleCollect = async () => {
+    if (!user) {
+      toast.error(t('Je moet ingelogd zijn om te verzamelen', 'You must be logged in to collect'));
+      return;
+    }
+    
+    if (isDiscovered) {
+      toast.info(t('Je hebt deze al verzameld!', 'You already collected this!'));
+      return;
+    }
+    
+    setIsCollecting(true);
+    
+    try {
+      const kunstwerkId = kunstwerk.id?.toString() || kunstwerk.source_id || `${city}-${kunstwerk.name}`;
+      
+      const { error } = await supabase.from('discovered_kunstwerken').insert({
+        user_id: user.id,
+        kunstwerk_id: kunstwerkId,
+        city: city
+      });
+      
+      if (error) {
+        if (error.code === '23505') {
+          // Already discovered
+          setIsDiscovered(true);
+          toast.info(t('Je hebt deze al verzameld!', 'You already collected this!'));
+        } else {
+          throw error;
+        }
+      } else {
+        setIsDiscovered(true);
+        setShowDiscoveryDialog(true);
+      }
+    } catch (error) {
+      console.error('Error collecting:', error);
+      toast.error(t('Er ging iets mis', 'Something went wrong'));
+    } finally {
+      setIsCollecting(false);
+    }
+  };
   
   if (!kunstwerk) return null;
 
@@ -463,6 +533,37 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
                 </div>
               )}
               
+              {/* Collect Button - Prominent placement */}
+              {user && (
+                <Button
+                  variant={isDiscovered ? "outline" : "default"}
+                  size="lg"
+                  onClick={handleCollect}
+                  disabled={isCollecting || isDiscovered}
+                  className={`w-full gap-2 ${isDiscovered 
+                    ? 'bg-green-100 dark:bg-green-900 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300' 
+                    : 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white shadow-lg'
+                  }`}
+                >
+                  {isDiscovered ? (
+                    <>
+                      <Check className="w-5 h-5" />
+                      {t('Verzameld!', 'Collected!')}
+                    </>
+                  ) : isCollecting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      {t('Verzamelen...', 'Collecting...')}
+                    </>
+                  ) : (
+                    <>
+                      <Trophy className="w-5 h-5" />
+                      {t('Verzamelen', 'Collect')}
+                    </>
+                  )}
+                </Button>
+              )}
+              
               <div className="flex gap-2 flex-wrap">
                 {has3DModel && (
                   <Button
@@ -622,6 +723,19 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
           }}
         />
       )}
+      
+      <DiscoveryDialog
+        open={showDiscoveryDialog}
+        onOpenChange={setShowDiscoveryDialog}
+        kunstwerkName={kunstwerk.name}
+        kunstwerkId={kunstwerk.id?.toString() || kunstwerk.source_id || `${city}-${kunstwerk.name}`}
+        city={city}
+        hasExistingPhoto={hasPhotos}
+        onPhotoUploaded={(photoUrl) => {
+          // Optionally refresh the view or update state
+          console.log('Photo uploaded:', photoUrl);
+        }}
+      />
     </>
   );
 };

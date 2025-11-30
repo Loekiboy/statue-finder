@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      discovered_kunstwerken: {
+        Row: {
+          city: string
+          discovered_at: string
+          id: string
+          kunstwerk_id: string
+          photo_url: string | null
+          user_id: string
+        }
+        Insert: {
+          city: string
+          discovered_at?: string
+          id?: string
+          kunstwerk_id: string
+          photo_url?: string | null
+          user_id: string
+        }
+        Update: {
+          city?: string
+          discovered_at?: string
+          id?: string
+          kunstwerk_id?: string
+          photo_url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       discovered_models: {
         Row: {
           discovered_at: string
