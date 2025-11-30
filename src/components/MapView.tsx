@@ -435,29 +435,58 @@ const MapView = () => {
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [showLocationButton, setShowLocationButton] = useState(() => {
-    return localStorage.getItem('showLocationButton') !== 'false';
+    return localStorage.getItem('showLocationButton') === 'true'; // Default OFF
   });
+  const [showLocationSuggestion, setShowLocationSuggestion] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const locationFoundRef = useRef(false);
 
-  // Listen for localStorage changes (from settings page)
+  // Listen for localStorage changes and screen resize
   useEffect(() => {
     const handleStorageChange = () => {
-      setShowLocationButton(localStorage.getItem('showLocationButton') !== 'false');
+      setShowLocationButton(localStorage.getItem('showLocationButton') === 'true');
     };
     window.addEventListener('storage', handleStorageChange);
     
     // Also check on visibility change (when returning from settings)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        setShowLocationButton(localStorage.getItem('showLocationButton') !== 'false');
+        setShowLocationButton(localStorage.getItem('showLocationButton') === 'true');
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
+    // Track screen size for mobile detection
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('resize', handleResize);
     };
+  }, []);
+
+  // Show suggestion popup when location error occurs on mobile
+  const showLocationButtonSuggestion = useCallback(() => {
+    // Only show if on mobile, button is not enabled, and not already dismissed
+    if (isMobile && !showLocationButton && localStorage.getItem('locationSuggestionDismissed') !== 'true') {
+      setShowLocationSuggestion(true);
+    }
+  }, [isMobile, showLocationButton]);
+
+  const enableLocationButton = useCallback(() => {
+    localStorage.setItem('showLocationButton', 'true');
+    setShowLocationButton(true);
+    setShowLocationSuggestion(false);
+    toast.success(t('Locatie-knop ingeschakeld!', 'Location button enabled!'));
+  }, [t]);
+
+  const dismissLocationSuggestion = useCallback(() => {
+    localStorage.setItem('locationSuggestionDismissed', 'true');
+    setShowLocationSuggestion(false);
   }, []);
 
   // Save location to profile helper
@@ -593,6 +622,9 @@ const MapView = () => {
     
     setLocationError(errorMessage);
     if (showToast) toast.error(errorMessage);
+    
+    // Show suggestion to enable location button on mobile
+    showLocationButtonSuggestion();
 
     // Use fallback location
     const fallback: [number, number] = [52.3676, 4.9041];
@@ -1762,9 +1794,46 @@ const MapView = () => {
       {/* Map - always rendered */}
       <div ref={mapContainer} className="absolute inset-0 pb-16 md:pb-0 z-0" />
       
-      {/* Location refresh button - shows when enabled in settings */}
-      {!showViewer && !selectedKunstwerk && showLocationButton && (
-        <div className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-20 flex flex-col gap-2">
+      {/* Location suggestion popup - shows when location fails on mobile */}
+      {showLocationSuggestion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-card border border-border rounded-xl p-6 max-w-sm w-full shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-full bg-primary/20">
+                <Navigation className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="font-semibold text-foreground">
+                {t('Locatieproblemen?', 'Location issues?')}
+              </h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              {t(
+                'Schakel de locatie-knop in om handmatig je locatie te vernieuwen wanneer automatische detectie niet werkt.',
+                'Enable the location button to manually refresh your location when automatic detection fails.'
+              )}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                onClick={enableLocationButton}
+                className="flex-1"
+              >
+                {t('Inschakelen', 'Enable')}
+              </Button>
+              <Button
+                onClick={dismissLocationSuggestion}
+                variant="outline"
+                className="flex-1"
+              >
+                {t('Niet nu', 'Not now')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Location refresh button - only on mobile when enabled in settings */}
+      {!showViewer && !selectedKunstwerk && showLocationButton && isMobile && (
+        <div className="fixed bottom-20 right-4 z-20 flex flex-col gap-2">
           {locationError && (
             <div className="bg-destructive/90 text-destructive-foreground text-xs px-3 py-2 rounded-lg max-w-[250px] shadow-lg">
               {locationError}

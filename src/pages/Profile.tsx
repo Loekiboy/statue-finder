@@ -45,7 +45,7 @@ const Profile = () => {
   const [isSafari, setIsSafari] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [showLocationButton, setShowLocationButton] = useState(() => {
-    return localStorage.getItem('showLocationButton') !== 'false';
+    return localStorage.getItem('showLocationButton') === 'true'; // Default OFF
   });
   const navigate = useNavigate();
 
