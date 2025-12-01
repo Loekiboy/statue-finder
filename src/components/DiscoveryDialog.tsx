@@ -39,6 +39,15 @@ const DiscoveryDialog = ({
       setShowConfetti(true);
       setAnimationPhase('sparkle');
       
+      // Check achievements
+      const checkAchievements = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await checkAndUnlockAchievements(user.id);
+        }
+      };
+      checkAchievements();
+      
       // Animation sequence
       const timer1 = setTimeout(() => setAnimationPhase('trophy'), 500);
       const timer2 = setTimeout(() => setAnimationPhase('message'), 1200);
