@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import Confetti from 'react-confetti';
 import { compressImage } from '@/lib/imageUtils';
+import { checkAndUnlockAchievements } from '@/lib/achievementTracker';
 
 interface DiscoveryDialogProps {
   open: boolean;

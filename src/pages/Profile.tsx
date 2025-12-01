@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Eye, Trash2, LogOut, Settings, Moon, Sun, MapPin, User as UserIcon, Smartphone, Share, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Eye, Trash2, LogOut, Settings, Moon, Sun, MapPin, User as UserIcon, Smartphone, Share, Plus, ChevronDown, ChevronUp, Heart, BarChart, Route, Star } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -359,6 +359,65 @@ const Profile = () => {
                 {t.logout}
               </Button>
             </div>
+          </div>
+
+          {/* Quick Navigation */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/favorites')}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Heart className="h-4 w-4 text-red-500" />
+                  {profile?.language === 'nl' ? 'Favorieten' : 'Favorites'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">
+                  {profile?.language === 'nl' ? 'Opgeslagen kunstwerken' : 'Saved artworks'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/stats')}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <BarChart className="h-4 w-4 text-blue-500" />
+                  {profile?.language === 'nl' ? 'Statistieken' : 'Statistics'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">
+                  {profile?.language === 'nl' ? 'Jouw activiteit' : 'Your activity'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/routes')}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Route className="h-4 w-4 text-green-500" />
+                  {profile?.language === 'nl' ? 'Routes' : 'Routes'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">
+                  {profile?.language === 'nl' ? 'Plan je wandelingen' : 'Plan your walks'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/discoveries')}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Star className="h-4 w-4 text-amber-500" />
+                  {profile?.language === 'nl' ? 'Verzameling' : 'Collection'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">
+                  {profile?.language === 'nl' ? 'Je ontdekkingen' : 'Your discoveries'}
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           {showSettings && profile && (
