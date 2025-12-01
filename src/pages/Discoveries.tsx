@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Sidebar from '@/components/Sidebar';
+import AuthRequired from '@/components/AuthRequired';
 import StandbeeldViewer from '@/components/StandbeeldViewer';
 import PhotoViewer from '@/components/PhotoViewer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,16 +55,19 @@ const Discoveries = () => {
   const [selectedModel, setSelectedModel] = useState<any | null>(null);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      setAuthChecked(true);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setAuthChecked(true);
     });
 
     return () => subscription.unsubscribe();
@@ -130,6 +134,15 @@ const Discoveries = () => {
   };
 
   const totalDiscoveries = discoveries.length + kunstwerkDiscoveries.length;
+
+  if (authChecked && !user) {
+    return (
+      <AuthRequired 
+        title={t('Aanmelden vereist', 'Sign in required')}
+        description={t('Log in om je verzamelde kunstwerken te bekijken en nieuwe te ontdekken.', 'Sign in to view your collected artworks and discover new ones.')}
+      />
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-background">
