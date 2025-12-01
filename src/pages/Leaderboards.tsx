@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useLanguage } from '@/contexts/LanguageContext';
 import Sidebar from '@/components/Sidebar';
+import AuthRequired from '@/components/AuthRequired';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,7 +20,9 @@ interface LeaderboardEntry {
 type TimeFilter = 'day' | 'week' | 'month' | 'year' | 'all';
 
 const Leaderboards = () => {
+  const { t } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [discoveriesLeaderboard, setDiscoveriesLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [uploadsLeaderboard, setUploadsLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
@@ -26,23 +30,17 @@ const Leaderboards = () => {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate('/auth');
-      } else {
-        setUser(session.user);
-      }
+      setUser(session?.user ?? null);
+      setAuthChecked(true);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        navigate('/auth');
-      } else {
-        setUser(session.user);
-      }
+      setUser(session?.user ?? null);
+      setAuthChecked(true);
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, []);
 
   const getTimeFilterDate = (filter: TimeFilter): string | null => {
     if (filter === 'all') return null;
@@ -225,6 +223,15 @@ const Leaderboards = () => {
       </div>
     );
   };
+
+  if (authChecked && !user) {
+    return (
+      <AuthRequired 
+        title={t('Aanmelden vereist', 'Sign in required')}
+        description={t('Log in om de leaderboards te bekijken en te zien wie de meeste kunstwerken heeft ontdekt.', 'Sign in to view the leaderboards and see who discovered the most artworks.')}
+      />
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-background">

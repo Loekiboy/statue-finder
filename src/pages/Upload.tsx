@@ -10,6 +10,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescript
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ArrowLeft, Upload as UploadIcon, MapPin, Image as ImageIcon, Link as LinkIcon, X, Box, Lock } from 'lucide-react';
+import AuthRequired from '@/components/AuthRequired';
+import { User } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { ThumbnailGenerator } from '@/components/ThumbnailGenerator';
 import ExifReader from 'exifreader';
@@ -53,6 +55,8 @@ const RequiredLabel = ({ children, required = true }: { children: React.ReactNod
 
 const Upload = () => {
   const { t } = useLanguage();
+  const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [uploadType, setUploadType] = useState<'photo' | 'model' | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -85,6 +89,21 @@ const Upload = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const marker = useRef<L.Marker | null>(null);
+
+  // Auth check
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthChecked(true);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setAuthChecked(true);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Check for pre-filled location from OSM statue
   useEffect(() => {
@@ -691,6 +710,15 @@ const Upload = () => {
       setLoading(false);
     }
   };
+
+  if (authChecked && !user) {
+    return (
+      <AuthRequired 
+        title={t('Aanmelden vereist', 'Sign in required')}
+        description={t('Log in om foto\'s en 3D modellen te uploaden en bij te dragen aan de collectie.', 'Sign in to upload photos and 3D models and contribute to the collection.')}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted p-4">
