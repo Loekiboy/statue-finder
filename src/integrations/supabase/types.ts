@@ -341,36 +341,6 @@ export type Database = {
         }
         Relationships: []
       }
-      routes: {
-        Row: {
-          artwork_ids: Json
-          created_at: string
-          description: string | null
-          id: string
-          name: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          artwork_ids?: Json
-          created_at?: string
-          description?: string | null
-          id?: string
-          name: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          artwork_ids?: Json
-          created_at?: string
-          description?: string | null
-          id?: string
-          name?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       user_achievements: {
         Row: {
           achievement_id: string

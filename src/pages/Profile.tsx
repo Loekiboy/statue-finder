@@ -8,11 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Eye, Trash2, LogOut, Settings, Moon, Sun, MapPin, User as UserIcon, Smartphone, Share, Plus, ChevronDown, ChevronUp, Heart, BarChart, Route, Star } from 'lucide-react';
+import { Eye, Trash2, LogOut, Settings, Moon, Sun, MapPin, User as UserIcon, Smartphone, Share, Plus, ChevronDown, ChevronUp, Heart, BarChart, Star, Award } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { User } from '@supabase/supabase-js';
+import AchievementsDisplay from '@/components/AchievementsDisplay';
 
 interface Model {
   id: string;
@@ -362,8 +363,8 @@ const Profile = () => {
           </div>
 
           {/* Quick Navigation */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/favorites')}>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+            <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 hover-scale" onClick={() => navigate('/favorites')}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Heart className="h-4 w-4 text-red-500" />
@@ -377,7 +378,7 @@ const Profile = () => {
               </CardContent>
             </Card>
 
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/stats')}>
+            <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 hover-scale" onClick={() => navigate('/stats')}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <BarChart className="h-4 w-4 text-blue-500" />
@@ -391,21 +392,7 @@ const Profile = () => {
               </CardContent>
             </Card>
 
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/routes')}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Route className="h-4 w-4 text-green-500" />
-                  {profile?.language === 'nl' ? 'Routes' : 'Routes'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">
-                  {profile?.language === 'nl' ? 'Plan je wandelingen' : 'Plan your walks'}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/discoveries')}>
+            <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 hover-scale" onClick={() => navigate('/discoveries')}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Star className="h-4 w-4 text-amber-500" />
@@ -419,6 +406,18 @@ const Profile = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Achievements Section */}
+          {user && (
+            <div className="mb-8">
+              <div 
+                className="cursor-pointer transition-all duration-300 hover-scale"
+                onClick={() => navigate('/achievements')}
+              >
+                <AchievementsDisplay userId={user.id} compact={true} />
+              </div>
+            </div>
+          )}
 
           {showSettings && profile && (
             <Card className="mb-8">

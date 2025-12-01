@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import MapView from '@/components/MapView';
 import Sidebar from '@/components/Sidebar';
 import UsernameSetupDialog from '@/components/UsernameSetupDialog';
+import OnlineStatus from '@/components/OnlineStatus';
 import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
@@ -31,6 +32,7 @@ const Index = () => {
   return (
     <div className="relative min-h-screen bg-background">
       <Sidebar />
+      <OnlineStatus />
       
       <main className="h-screen md:pl-16">
         <MapView />

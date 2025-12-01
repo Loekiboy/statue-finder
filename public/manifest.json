@@ -1,0 +1,42 @@
+{
+  "name": "Statue Finder",
+  "short_name": "Statue Finder",
+  "description": "Ontdek en verzamel kunstwerken in Nederland en België",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "lifestyle", "travel"],
+  "shortcuts": [
+    {
+      "name": "Kaart",
+      "short_name": "Kaart",
+      "description": "Bekijk de kaart met kunstwerken",
+      "url": "/",
+      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Mijn Verzameling",
+      "short_name": "Verzameling",
+      "description": "Bekijk je verzamelde kunstwerken",
+      "url": "/discoveries",
+      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Statistieken",
+      "short_name": "Stats",
+      "description": "Bekijk je statistieken",
+      "url": "/stats",
+      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+    }
+  ]
+}
