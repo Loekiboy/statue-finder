@@ -6,10 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { ArrowLeft, Upload as UploadIcon, MapPin, Image as ImageIcon, Link as LinkIcon, X, Box, Lock } from 'lucide-react';
+import { ArrowLeft, Upload as UploadIcon, MapPin, Image as ImageIcon, Link as LinkIcon, X, Box, Lock, Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { simplifySTL, needsSimplification } from '@/lib/stlSimplifier';
 import AuthRequired from '@/components/AuthRequired';
 import { User } from '@supabase/supabase-js';
 import { z } from 'zod';
@@ -76,6 +78,10 @@ const Upload = () => {
   const [uploadedPhotoPaths, setUploadedPhotoPaths] = useState<string[]>([]);
   const [showSizeWarning, setShowSizeWarning] = useState(false);
   const [largeFileSize, setLargeFileSize] = useState<number>(0);
+  const [isSimplifying, setIsSimplifying] = useState(false);
+  const [simplifyProgress, setSimplifyProgress] = useState(0);
+  const [simplifyMessage, setSimplifyMessage] = useState('');
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [selectedKunstwerk, setSelectedKunstwerk] = useState<{id: string, city: 'nijmegen' | 'utrecht' | 'alkmaar' | 'denhaag'} | null>(null);
   const [kunstwerkSourcePhotos, setKunstwerkSourcePhotos] = useState<string[]>([]);
@@ -223,7 +229,7 @@ const Upload = () => {
     }
   }, [mapReady, latitude, longitude]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       if (!selectedFile.name.endsWith('.stl')) {
@@ -235,10 +241,12 @@ const Upload = () => {
         return;
       }
       
-      // Check file size - show warning for files > 20MB
-      const warningSize = 20 * 1024 * 1024; // 20MB
+      // Check if file needs simplification (>5MB)
+      const simplifyThreshold = 5; // MB
       
-      if (selectedFile.size > warningSize) {
+      if (needsSimplification(selectedFile, simplifyThreshold)) {
+        // Show dialog asking if user wants to auto-simplify
+        setPendingFile(selectedFile);
         setLargeFileSize(selectedFile.size);
         setShowSizeWarning(true);
         return;
@@ -246,6 +254,60 @@ const Upload = () => {
       
       setFile(selectedFile);
     }
+  };
+
+  const handleSimplifyFile = async () => {
+    if (!pendingFile) return;
+    
+    setShowSizeWarning(false);
+    setIsSimplifying(true);
+    setSimplifyProgress(0);
+    setSimplifyMessage(t('Bezig met voorbereiden...', 'Preparing...'));
+    
+    try {
+      const simplifiedFile = await simplifySTL(
+        pendingFile, 
+        4.5, // Target size in MB
+        (progress, message) => {
+          setSimplifyProgress(progress);
+          setSimplifyMessage(message);
+        }
+      );
+      
+      const originalSize = pendingFile.size / 1024 / 1024;
+      const newSize = simplifiedFile.size / 1024 / 1024;
+      
+      toast({
+        title: t('Model verkleind!', 'Model simplified!'),
+        description: t(
+          `Van ${originalSize.toFixed(1)} MB naar ${newSize.toFixed(1)} MB (${((1 - newSize/originalSize) * 100).toFixed(0)}% kleiner)`,
+          `From ${originalSize.toFixed(1)} MB to ${newSize.toFixed(1)} MB (${((1 - newSize/originalSize) * 100).toFixed(0)}% smaller)`
+        ),
+      });
+      
+      setFile(simplifiedFile);
+    } catch (error) {
+      console.error('Simplification error:', error);
+      toast({
+        title: t('Fout bij verkleinen', 'Simplification error'),
+        description: t('Het model kon niet automatisch worden verkleind. Probeer een kleinere bestand te uploaden.', 
+                      'The model could not be automatically simplified. Try uploading a smaller file.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSimplifying(false);
+      setPendingFile(null);
+      setLargeFileSize(0);
+    }
+  };
+
+  const handleSkipSimplify = () => {
+    if (pendingFile) {
+      setFile(pendingFile);
+    }
+    setShowSizeWarning(false);
+    setPendingFile(null);
+    setLargeFileSize(0);
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -722,33 +784,65 @@ const Upload = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted p-4">
-      <AlertDialog open={showSizeWarning} onOpenChange={setShowSizeWarning}>
+      {/* Simplification Dialog */}
+      <AlertDialog open={showSizeWarning} onOpenChange={(open) => {
+        if (!open) {
+          setShowSizeWarning(false);
+          setPendingFile(null);
+          setLargeFileSize(0);
+        }
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('Model is groter dan 20 MB', 'Model is larger than 20 MB')}</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
+            <AlertDialogTitle>
+              {t('Groot model gedetecteerd', 'Large model detected')}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
               <p>
-                {t(`Het geselecteerde bestand is ${(largeFileSize / 1024 / 1024).toFixed(2)} MB. Voor betere prestaties raden we aan om het model eerst te verkleinen.`, 
-                   `The selected file is ${(largeFileSize / 1024 / 1024).toFixed(2)} MB. For better performance, we recommend reducing the model first.`)}
+                {t(
+                  `Het geselecteerde bestand is ${(largeFileSize / 1024 / 1024).toFixed(1)} MB. We kunnen dit automatisch verkleinen met het Fast Quadric Mesh Simplification algoritme.`,
+                  `The selected file is ${(largeFileSize / 1024 / 1024).toFixed(1)} MB. We can automatically simplify it using the Fast Quadric Mesh Simplification algorithm.`
+                )}
               </p>
-              <div>
-                <p className="font-semibold mb-2">{t('Handige tools om je model te verkleinen:', 'Useful tools to reduce your model:')}</p>
-                <ul className="list-disc list-inside space-y-1 text-sm">
-                  <li><strong>Blender</strong> - {t('Gratis 3D software met decimatie modifier', 'Free 3D software with decimation modifier')}</li>
-                  <li><strong>MeshLab</strong> - {t('Gratis tool specifiek voor mesh simplificatie', 'Free tool specifically for mesh simplification')}</li>
-                  <li><strong>Online STL reducers</strong> - {t('Zoals convertio.co of meshconvert.com', 'Such as convertio.co or meshconvert.com')}</li>
+              <div className="bg-muted/50 p-3 rounded-lg">
+                <p className="text-sm font-medium mb-2">
+                  {t('Wat doet dit?', 'What does this do?')}
+                </p>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• {t('Vermindert het aantal driehoeken intelligent', 'Intelligently reduces the number of triangles')}</li>
+                  <li>• {t('Behoudt de vorm en details zo goed mogelijk', 'Preserves shape and details as much as possible')}</li>
+                  <li>• {t('Maakt het bestand kleiner voor snellere uploads', 'Makes the file smaller for faster uploads')}</li>
                 </ul>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => {
-              setLargeFileSize(0);
-              setShowSizeWarning(false);
-            }}>
-              {t('Oké, begrepen', 'OK, understood')}
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel onClick={handleSkipSimplify}>
+              {t('Overslaan (origineel gebruiken)', 'Skip (use original)')}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleSimplifyFile}>
+              {t('Automatisch verkleinen', 'Automatically simplify')}
             </AlertDialogAction>
           </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Simplification Progress Dialog */}
+      <AlertDialog open={isSimplifying}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              {t('Model wordt verkleind...', 'Simplifying model...')}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p className="text-sm">{simplifyMessage}</p>
+              <Progress value={simplifyProgress} className="h-2" />
+              <p className="text-xs text-muted-foreground text-center">
+                {simplifyProgress.toFixed(0)}%
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
         </AlertDialogContent>
       </AlertDialog>
 
