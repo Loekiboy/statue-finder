@@ -289,12 +289,16 @@ class MeshSimplifier {
   }
 
   // Check if edge can be flipped without causing topology issues
+  // More conservative checks to prevent holes
   flipped(p: Vec3, i0: number, i1: number, v0: Vertex, deleted: boolean[]): boolean {
     for (let k = 0; k < v0.tcount; k++) {
-      const t = this.triangles[this.refs[v0.tstart + k].tid];
+      const ref = this.refs[v0.tstart + k];
+      if (!ref) continue;
+      
+      const t = this.triangles[ref.tid];
       if (t.deleted) continue;
       
-      const s = this.refs[v0.tstart + k].tvertex;
+      const s = ref.tvertex;
       const id1 = t.v[(s + 1) % 3];
       const id2 = t.v[(s + 2) % 3];
       
@@ -306,12 +310,19 @@ class MeshSimplifier {
       const d1 = this.vertices[id1].p.sub(p).normalize();
       const d2 = this.vertices[id2].p.sub(p).normalize();
       
-      if (Math.abs(d1.dot(d2)) > 0.999) return true;
+      // More conservative: reject if edges become too parallel (prevents holes)
+      if (Math.abs(d1.dot(d2)) > 0.95) return true;
       
       const n = d1.cross(d2).normalize();
       deleted[k] = false;
       
-      if (n.dot(t.n) < 0.2) return true;
+      // More conservative: require better normal alignment (prevents flipping)
+      if (n.dot(t.n) < 0.5) return true;
+      
+      // Additional check: prevent very thin triangles
+      const cross = d1.cross(d2);
+      const area = cross.length();
+      if (area < 0.001) return true;
     }
     return false;
   }
@@ -393,8 +404,8 @@ class MeshSimplifier {
     }
   }
 
-  // Main simplification loop
-  simplify(targetCount: number, aggressiveness = 7): void {
+  // Main simplification loop - more conservative to prevent holes
+  simplify(targetCount: number, aggressiveness = 5): void {
     console.log(`Starting simplification: target ${targetCount} triangles`);
     
     // Initialize
@@ -418,18 +429,33 @@ class MeshSimplifier {
     const deleted1: boolean[] = [];
     
     const triangleCount = this.triangles.length;
+    let stuckIterations = 0;
+    let lastDeletedCount = 0;
     
-    for (let iteration = 0; iteration < 100; iteration++) {
+    // More iterations but more conservative per iteration
+    for (let iteration = 0; iteration < 200; iteration++) {
       const currentCount = triangleCount - deletedTriangles;
       if (currentCount <= targetCount) break;
       
-      // Update refs periodically
-      if (iteration % 5 === 0) {
+      // Track if we're making progress
+      if (deletedTriangles === lastDeletedCount) {
+        stuckIterations++;
+        if (stuckIterations > 20) {
+          console.log(`Stopping early: no progress after ${stuckIterations} iterations`);
+          break;
+        }
+      } else {
+        stuckIterations = 0;
+        lastDeletedCount = deletedTriangles;
+      }
+      
+      // Update refs more frequently for better topology awareness
+      if (iteration % 3 === 0) {
         this.updateRefs();
       }
       
-      // Calculate threshold
-      const threshold = 0.000000001 * Math.pow(iteration + 3, aggressiveness);
+      // More gradual threshold increase (less aggressive)
+      const threshold = 0.0000000001 * Math.pow(iteration + 3, aggressiveness);
       
       // Process all triangles
       for (let i = 0; i < this.triangles.length; i++) {
@@ -558,16 +584,18 @@ class MeshSimplifier {
 
 /**
  * Simplify an STL file using the Fast Quadric Mesh Simplification algorithm
+ * More conservative settings to prevent holes while still achieving size reduction
+ * 
  * @param file - The STL file to simplify
- * @param targetSizeMB - Target file size in MB (default: 4.5 to stay under 5MB)
+ * @param targetSizeMB - Target file size in MB (default: 10 for better quality)
  * @param progressCallback - Optional callback for progress updates
  */
 export const simplifySTL = async (
   file: File, 
-  targetSizeMB: number = 4.5,
+  targetSizeMB: number = 10,
   progressCallback?: (progress: number, message: string) => void
 ): Promise<File> => {
-  console.log('Starting Fast Quadric Mesh Simplification...');
+  console.log('Starting Fast Quadric Mesh Simplification (conservative mode)...');
   progressCallback?.(0, 'Bestand lezen...');
   
   return new Promise((resolve, reject) => {
@@ -587,11 +615,15 @@ export const simplifySTL = async (
         
         const originalTriangles = simplifier.triangles.length;
         
-        // Calculate target triangle count based on size reduction needed
-        const reductionRatio = targetSizeMB / originalSizeMB;
+        // More conservative reduction - aim for max 50% reduction to prevent holes
+        // Calculate based on file size but cap the reduction
+        const rawReductionRatio = targetSizeMB / originalSizeMB;
+        // Never reduce below 50% of original triangles to maintain quality
+        const reductionRatio = Math.max(rawReductionRatio, 0.5);
+        
         const targetTriangles = Math.max(
           Math.floor(originalTriangles * reductionRatio),
-          1000 // Minimum triangles
+          50000 // Higher minimum triangles for better quality
         );
         
         console.log(`Original triangles: ${originalTriangles}`);
@@ -600,8 +632,8 @@ export const simplifySTL = async (
         
         progressCallback?.(20, `Vereenvoudigen van ${originalTriangles.toLocaleString()} naar ~${targetTriangles.toLocaleString()} driehoeken...`);
         
-        // Run simplification
-        simplifier.simplify(targetTriangles, 7);
+        // Run simplification with lower aggressiveness (5 instead of 7)
+        simplifier.simplify(targetTriangles, 5);
         
         progressCallback?.(80, 'Nieuw bestand genereren...');
         
