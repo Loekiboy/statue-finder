@@ -117,7 +117,7 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
         supabase.auth.getUser().then(async ({ data: { user } }) => {
           if (user) {
             const { data } = await supabase
-              .from('profiles')
+              .from('profiles_private')
               .select('last_known_latitude, last_known_longitude')
               .eq('user_id', user.id)
               .maybeSingle();
