@@ -643,10 +643,9 @@ const KunstwerkViewer = ({ kunstwerk, city, model, onClose }: KunstwerkViewerPro
               {description && (
                 <div>
                   <h3 className="font-semibold text-sm text-muted-foreground">Beschrijving</h3>
-                  <div 
-                    className="text-sm leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: description }}
-                  />
+                  <p className="text-sm leading-relaxed whitespace-pre-line">
+                    {description.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()}
+                  </p>
                 </div>
               )}
               
