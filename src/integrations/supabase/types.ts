@@ -296,12 +296,8 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
-          email: string | null
           id: string
           language: string
-          last_known_latitude: number | null
-          last_known_longitude: number | null
-          last_location_updated_at: string | null
           show_osm_statues: boolean
           slideshow_enabled: boolean | null
           theme: string
@@ -311,12 +307,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          email?: string | null
           id?: string
           language?: string
-          last_known_latitude?: number | null
-          last_known_longitude?: number | null
-          last_location_updated_at?: string | null
           show_osm_statues?: boolean
           slideshow_enabled?: boolean | null
           theme?: string
@@ -326,18 +318,41 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          email?: string | null
           id?: string
           language?: string
-          last_known_latitude?: number | null
-          last_known_longitude?: number | null
-          last_location_updated_at?: string | null
           show_osm_statues?: boolean
           slideshow_enabled?: boolean | null
           theme?: string
           updated_at?: string
           user_id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      profiles_private: {
+        Row: {
+          email: string | null
+          last_known_latitude: number | null
+          last_known_longitude: number | null
+          last_location_updated_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          email?: string | null
+          last_known_latitude?: number | null
+          last_known_longitude?: number | null
+          last_location_updated_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          email?: string | null
+          last_known_latitude?: number | null
+          last_known_longitude?: number | null
+          last_location_updated_at?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
