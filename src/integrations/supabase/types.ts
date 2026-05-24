@@ -405,9 +405,24 @@ export type Database = {
         }
         Relationships: []
       }
+      public_profiles: {
+        Row: {
+          user_id: string | null
+          username: string | null
+        }
+        Insert: {
+          user_id?: string | null
+          username?: string | null
+        }
+        Update: {
+          user_id?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      get_username: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
