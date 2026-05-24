@@ -12,3 +12,6 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://statue-finder.lovable.app/sitemap.xml
+
