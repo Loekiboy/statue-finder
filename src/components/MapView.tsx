@@ -400,7 +400,7 @@ const MapView = () => {
       if (user) {
         const {
           data
-        } = await supabase.from('profiles').select('last_known_latitude, last_known_longitude').eq('user_id', user.id).single();
+        } = await supabase.from('profiles_private').select('last_known_latitude, last_known_longitude').eq('user_id', user.id).single();
         if (data && data.last_known_latitude && data.last_known_longitude) {
           const lastKnownLocation: [number, number] = [data.last_known_latitude, data.last_known_longitude];
           setInitialLocation(lastKnownLocation);
@@ -489,7 +489,7 @@ const MapView = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from('profiles').update({
+        await supabase.from('profiles_private').update({
           last_known_latitude: coords[0],
           last_known_longitude: coords[1],
           last_location_updated_at: new Date().toISOString()
