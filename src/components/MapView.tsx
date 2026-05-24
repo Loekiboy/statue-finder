@@ -489,16 +489,18 @@ const MapView = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from('profiles_private').update({
+        await supabase.from('profiles_private').upsert({
+          user_id: user.id,
           last_known_latitude: coords[0],
           last_known_longitude: coords[1],
           last_location_updated_at: new Date().toISOString()
-        }).eq('user_id', user.id);
+        }, { onConflict: 'user_id' });
       }
     } catch (e) {
       // Silently fail
     }
   }, []);
+
 
   // Get last known location from profile
   const getLastKnownLocation = useCallback(async (): Promise<[number, number] | null> => {
