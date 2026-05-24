@@ -422,7 +422,7 @@ export type Database = {
       }
     }
     Functions: {
-      get_username: { Args: { _user_id: string }; Returns: string }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
