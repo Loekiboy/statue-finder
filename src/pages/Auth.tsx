@@ -45,31 +45,12 @@ const Auth = () => {
     return emailSchema.safeParse(input).success;
   };
 
-  // Look up email by username from profiles table
-  const lookupEmailByUsername = async (username: string): Promise<string | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('email')
-        .ilike('username', username.trim())
-        .single();
-
-      if (error || !data || !data.email) {
-        return null;
-      }
-
-      return data.email;
-    } catch {
-      return null;
-    }
-  };
-
   const handleSendMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!identifier.trim()) {
       toast({
-        title: t('Vul je e-mail of username in', 'Enter your email or username'),
+        title: t('Vul je e-mail in', 'Enter your email'),
         description: t('Dit veld is verplicht', 'This field is required'),
         variant: 'destructive',
       });
@@ -79,27 +60,21 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      let emailToUse: string;
-
-      if (isEmail(identifier)) {
-        emailToUse = identifier.trim().toLowerCase();
-      } else {
-        // Try to find email by username
-        const foundEmail = await lookupEmailByUsername(identifier);
-        if (!foundEmail) {
-          toast({
-            title: t('Gebruiker niet gevonden', 'User not found'),
-            description: t(
-              'Geen account gevonden met deze username. Gebruik je e-mailadres om in te loggen.',
-              'No account found with this username. Use your email address to log in.'
-            ),
-            variant: 'destructive',
-          });
-          setLoading(false);
-          return;
-        }
-        emailToUse = foundEmail;
+      if (!isEmail(identifier)) {
+        toast({
+          title: t('Ongeldig e-mailadres', 'Invalid email'),
+          description: t(
+            'Voer een geldig e-mailadres in om in te loggen.',
+            'Enter a valid email address to log in.'
+          ),
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
       }
+
+      const emailToUse: string = identifier.trim().toLowerCase();
+
 
       // Send magic link (user clicks link in email, no code needed)
       const { error } = await supabase.auth.signInWithOtp({
